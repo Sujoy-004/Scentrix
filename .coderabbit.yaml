@@ -1,0 +1,31 @@
+# .coderabbit.yaml — ScentScape CodeRabbit Configuration
+version: "2"
+language: "en"
+reviews:
+  profile: "assertive"           # thorough reviews, flags all issues
+  request_changes_workflow: true # blocks merge on critical issues
+  high_level_summary: true
+  poem: false                    # no poems, this is production
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false                # only review ready PRs
+    base_branches:
+      - "main"
+      - "develop"
+chat:
+  auto_reply: true
+code_generation:
+  docstrings:
+    language: "en"
+tone_instructions: >
+  Be direct and precise. Flag security issues, missing input validation,
+  missing tests, and type errors as blocking. Flag style issues as
+  informational. Never approve a PR that touches the ML pipeline without
+  confirmed test coverage.
+path_filters:
+  - "!**/*.lock"
+  - "!**/node_modules/**"
+  - "!**/__pycache__/**"
+  - "!**/migrations/**"       # auto-generated, skip
