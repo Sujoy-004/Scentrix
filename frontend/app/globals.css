@@ -1,8 +1,52 @@
 @import "tailwindcss";
+@import "../src/styles/hero.css";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Botanical Wellness Palette */
+  --background: #F9F6F1;
+  --foreground: #3E3531;
+  --color-primary: #2D5A3D; /* Forest Green */
+  --color-primary-hover: #1F3D2A;
+  --color-primary-active: #0F1F15;
+  --color-secondary: #C99A6E; /* Terracotta */
+  --color-secondary-hover: #B8895D;
+  --color-accent: #F5DEB3; /* Wheat */
+  --color-background: #F9F6F1; /* Light beige */
+  --color-text-dark: #3E3531; /* Dark brown */
+  --color-text-muted: #B8A48F; /* Muted tan */
+  --color-surface: rgba(45, 90, 61, 0.05); /* Light green tint */
+  --color-border: rgba(45, 90, 61, 0.1); /* Green-tinted borders */
+  --color-text-secondary: #B8A48F;
+  
+  /* Typography */
+  --font-family-display: 'Segoe UI', Trebuchet MS, sans-serif;
+  --font-family-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-weight-bold: 700;
+  --font-weight-semibold: 600;
+  --font-weight-medium: 500;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-sm: 0.875rem;
+  --line-height-tight: 1.1;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+  --letter-spacing-tight: -0.02em;
+  
+  /* Spacing */
+  --spacing-2: 0.5rem;
+  --spacing-4: 1rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-12: 3rem;
+  --spacing-16: 4rem;
+  
+  /* Radius & Effects */
+  --radius-lg: 0.75rem;
+  --radius-full: 9999px;
+  --transition-base: all 0.3s ease;
+  --shadow-elevation-1: 0 4px 12px rgba(45, 90, 61, 0.1);
+  --shadow-elevation-2: 0 8px 16px rgba(45, 90, 61, 0.15);
 }
 
 @theme inline {
@@ -12,15 +56,22 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: var(--color-background);
+  color: var(--color-text-dark);
+  font-family: var(--font-family-body);
+  line-height: var(--line-height-normal);
+  transition: background-color 0.3s ease;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Spray particle styling for ClickSprayEffect */
+.spray-particle {
+  position: fixed;
+  width: 8px;
+  height: 8px;
+  background: linear-gradient(135deg, #C99A6E 0%, #2D5A3D 100%);
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 0 8px rgba(201, 154, 110, 0.5);
+  z-index: 9999;
 }
