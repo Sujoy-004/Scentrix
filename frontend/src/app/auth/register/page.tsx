@@ -2,87 +2,73 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useRegister } from '@/lib/hooks';
 import { useAppStore } from '@/stores/app-store';
-import './auth.css';
+import '../auth.css';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    fullName: '',
-  });
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const registerMutation = useRegister();
   const { setAuthToken, setUserId } = useAppStore();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const validateForm = () => {
-    if (!formData.email || !formData.password || !formData.confirmPassword || !formData.fullName) {
-      setError('Please fill in all fields');
-      return false;
-    }
-
-    if (!formData.email.includes('@')) {
-      setError('Please enter a valid email address');
-      return false;
-    }
-
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters long');
-      return false;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return false;
-    }
-
-    if (formData.fullName.length < 2) {
-      setError('Please enter your full name');
-      return false;
-    }
-
-    return true;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true);
 
-    if (!validateForm()) {
-      setIsLoading(false);
+    // Validation
+    if (!name || !email || !password || !confirmPassword) {
+      setError('Please fill in all fields');
       return;
     }
 
+    if (name.length < 2) {
+      setError('Name must be at least 2 characters');
+      return;
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (!agreeToTerms) {
+      setError('You must agree to the Terms of Service and Privacy Policy');
+      return;
+    }
+
+    setIsLoading(true);
+
     registerMutation.mutate(
+      { email, password, full_name: name },
       {
-        email: formData.email,
-        password: formData.password,
-        full_name: formData.fullName,
-      },
-      {
-        onSuccess: (data) => {
+        onSuccess: (data: any) => {
           setAuthToken(data.access_token);
-          setUserId(data.user_id);
+          if (data.user_id) setUserId(data.user_id);
           router.push('/onboarding/quiz');
         },
         onError: (err: any) => {
-          setError(
-            err.response?.data?.detail ||
-              'Registration failed. Please try again.'
-          );
+          setError(err.response?.data?.detail || 'Registration failed. Please try again.');
           setIsLoading(false);
         },
       }
@@ -102,14 +88,13 @@ export default function RegisterPage() {
             {error && <div className="error-message">{error}</div>}
 
             <div className="form-group">
-              <label htmlFor="fullName">Full Name</label>
+              <label htmlFor="name">Full Name</label>
               <input
-                id="fullName"
-                name="fullName"
+                id="name"
                 type="text"
-                placeholder="John Doe"
-                value={formData.fullName}
-                onChange={handleChange}
+                placeholder="Your full name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 className="form-input"
                 disabled={isLoading}
               />
@@ -119,11 +104,10 @@ export default function RegisterPage() {
               <label htmlFor="email">Email Address</label>
               <input
                 id="email"
-                name="email"
                 type="email"
                 placeholder="you@example.com"
-                value={formData.email}
-                onChange={handleChange}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="form-input"
                 disabled={isLoading}
               />
@@ -131,31 +115,73 @@ export default function RegisterPage() {
 
             <div className="form-group">
               <label htmlFor="password">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={handleChange}
-                className="form-input"
-                disabled={isLoading}
-              />
-              <p className="password-hint">Min. 8 characters</p>
+              <div className="password-wrapper">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="At least 6 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="form-input"
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="password-toggle"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  disabled={isLoading}
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
             </div>
 
             <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm Password</label>
+              <label htmlFor="confirm-password">Confirm Password</label>
+              <div className="password-wrapper">
+                <input
+                  id="confirm-password"
+                  type={showConfirm ? 'text' : 'password'}
+                  placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="form-input"
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  className="password-toggle"
+                  aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                  disabled={isLoading}
+                  title={showConfirm ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirm ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group checkbox-group">
               <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                placeholder="••••••••"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className="form-input"
+                id="terms"
+                type="checkbox"
+                checked={agreeToTerms}
+                onChange={(e) => setAgreeToTerms(e.target.checked)}
+                className="form-checkbox"
                 disabled={isLoading}
               />
+              <label htmlFor="terms" className="checkbox-label">
+                I agree to the{' '}
+                <Link href="/terms" className="auth-link">
+                  Terms of Service
+                </Link>
+                {' '}and{' '}
+                <Link href="/privacy" className="auth-link">
+                  Privacy Policy
+                </Link>
+              </label>
             </div>
 
             <button
@@ -170,13 +196,9 @@ export default function RegisterPage() {
           <div className="auth-footer">
             <p>
               Already have an account?{' '}
-              <button
-                type="button"
-                onClick={() => router.push('/auth/login')}
-                className="auth-link"
-              >
-                Sign in here
-              </button>
+              <Link href="/auth/login" className="auth-link">
+                Sign in instead
+              </Link>
             </p>
           </div>
 

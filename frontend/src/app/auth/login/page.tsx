@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useLogin } from '@/lib/hooks';
 import { useAppStore } from '@/stores/app-store';
-import './auth.css';
+import '../auth.css';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const loginMutation = useLogin();
   const { setAuthToken, setUserId } = useAppStore();
@@ -19,27 +21,32 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true);
 
+    // Validation
     if (!email || !password) {
       setError('Please fill in all fields');
-      setIsLoading(false);
       return;
     }
 
-    if (!email.includes('@')) {
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
       setError('Please enter a valid email address');
-      setIsLoading(false);
       return;
     }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    setIsLoading(true);
 
     loginMutation.mutate(
       { email, password },
       {
-        onSuccess: (data) => {
+        onSuccess: (data: any) => {
           setAuthToken(data.access_token);
-          setUserId(data.user_id);
-          router.push('/onboarding/quiz');
+          if (data.user_id) setUserId(data.user_id);
+          router.push('/recommendations');
         },
         onError: (err: any) => {
           setError(err.response?.data?.detail || 'Login failed. Please try again.');
@@ -76,16 +83,32 @@ export default function LoginPage() {
 
             <div className="form-group">
               <label htmlFor="password">Password</label>
-              <input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="form-input"
-                disabled={isLoading}
-              />
+              <div className="password-wrapper">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="form-input"
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="password-toggle"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  disabled={isLoading}
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
             </div>
+
+            <Link href="/auth/forgot-password" className="forgot-link">
+              Forgot password?
+            </Link>
 
             <button
               type="submit"
@@ -99,13 +122,9 @@ export default function LoginPage() {
           <div className="auth-footer">
             <p>
               Don't have an account?{' '}
-              <button
-                type="button"
-                onClick={() => router.push('/auth/register')}
-                className="auth-link"
-              >
+              <Link href="/auth/register" className="auth-link">
                 Sign up here
-              </button>
+              </Link>
             </p>
           </div>
 
