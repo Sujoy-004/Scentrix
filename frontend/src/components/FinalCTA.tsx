@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 
 export function FinalCTA() {
+  const router = useRouter();
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,7 +29,12 @@ export function FinalCTA() {
         <h2 className="cta-title">Ready to Find Your Perfect Scent?</h2>
         <p className="cta-subtitle">Join thousands discovering fragrances they love</p>
 
-        <button className="cta-button">Start the Quiz Now</button>
+        <button 
+          className="cta-button"
+          onClick={() => router.push('/onboarding/quiz')}
+        >
+          Start the Quiz Now
+        </button>
 
         <div className="trust-badges">
           <div className="trust-badge">

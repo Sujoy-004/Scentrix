@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 
 export function ProductGrid() {
+  const router = useRouter();
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,6 +27,7 @@ export function ProductGrid() {
 
   const fragrances = [
     {
+      id: '1',
       brand: 'Gucci',
       name: 'Bloom',
       notes: ['Tuberose', 'Freesia', 'Amber'],
@@ -33,6 +36,7 @@ export function ProductGrid() {
       match: '89%',
     },
     {
+      id: '2',
       brand: 'Chanel',
       name: 'No. 5',
       notes: ['Ylang-ylang', 'Rose', 'Sandalwood'],
@@ -41,6 +45,7 @@ export function ProductGrid() {
       match: '92%',
     },
     {
+      id: '3',
       brand: 'Dior',
       name: 'J\'adore',
       notes: ['Jasmine', 'Rose', 'Violet'],
@@ -49,6 +54,7 @@ export function ProductGrid() {
       match: '85%',
     },
     {
+      id: '4',
       brand: 'Tom Ford',
       name: 'Black Orchid',
       notes: ['Orchid', 'Spicy Notes', 'Musk'],
@@ -57,6 +63,7 @@ export function ProductGrid() {
       match: '91%',
     },
     {
+      id: '5',
       brand: 'Yves Saint Laurent',
       name: 'Mon Paris',
       notes: ['Strawberry', 'Raspberry', 'Tuberose'],
@@ -65,6 +72,7 @@ export function ProductGrid() {
       match: '87%',
     },
     {
+      id: '6',
       brand: 'Prada',
       name: 'L\'Homme',
       notes: ['Iris', 'Cardamom', 'Amber'],
@@ -107,7 +115,12 @@ export function ProductGrid() {
                   <span className="match-score">{fragrance.match}</span>
                 </div>
 
-                <button className="fragrance-btn">View Details</button>
+                <button 
+                  className="fragrance-btn"
+                  onClick={() => router.push(`/fragrances/${fragrance.id}`)}
+                >
+                  View Details
+                </button>
               </div>
             </div>
           ))}

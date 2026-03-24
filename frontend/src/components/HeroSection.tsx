@@ -2,9 +2,11 @@
 
 import React from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { BackgroundAnimation } from './BackgroundAnimation';
 
 export function HeroSection() {
+  const router = useRouter();
   return (
     <section className="hero-section">
       {/* Animated Background Canvas */}
@@ -24,10 +26,16 @@ export function HeroSection() {
           </p>
 
           <div className="hero-buttons">
-            <button className="btn btn-primary">
+            <button 
+              className="btn btn-primary"
+              onClick={() => router.push('/onboarding/quiz')}
+            >
               Start Discovery
             </button>
-            <button className="btn btn-outline">
+            <button 
+              className="btn btn-outline"
+              onClick={() => router.push('/fragrances')}
+            >
               Learn More
             </button>
           </div>
