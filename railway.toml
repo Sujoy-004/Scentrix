@@ -1,2 +1,10 @@
+[build]
+builder = "dockerfile"
+dockerfile = "Dockerfile"
+buildContext = "./backend"
+
 [deploy]
 restartPolicyMaxRetries = 5
+healthcheckUrl = "/health"
+healthcheckInterval = 10
+healthcheckTimeout = 5
