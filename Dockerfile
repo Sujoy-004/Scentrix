@@ -13,7 +13,7 @@ RUN useradd -m -u 1000 appuser
 # Copy and install Python dependencies from backend
 COPY backend/pyproject.toml .
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir .
 
 # Copy application code from backend
 COPY backend/app app
