@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "../src/styles/hero.css";
+@import "../styles/hero.css";
 
 :root {
   /* Botanical Wellness Palette */
