@@ -10,12 +10,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create non-root user
 RUN useradd -m -u 1000 appuser
 
-# Copy and install Python dependencies from backend
+# Copy pyproject for dependency installation
 COPY backend/pyproject.toml .
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
-RUN pip install --no-cache-dir .
 
-# Copy application code from backend
+# Upgrade pip and install build tools
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Install project dependencies with verbose output to catch errors
+RUN pip install --no-cache-dir --verbose .
+
+# Copy application code
 COPY backend/app app
 
 # Change ownership
