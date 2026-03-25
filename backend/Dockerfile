@@ -11,8 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN useradd -m -u 1000 appuser
 
 # Copy and install Python dependencies
-COPY pyproject.toml pyproject.toml
-RUN pip install --no-cache-dir -e ".[dev]"
+COPY pyproject.toml .
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir ".[dev]"
 
 # Copy application code
 COPY app app
