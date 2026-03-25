@@ -307,7 +307,7 @@ test.describe('Error Handling', () => {
 
 
 test.describe('Navigation Flow', () => {
-  test('should navigate through main pages without login', async ({
+  test('should navigate through multiple pages with pagination', async ({
     page,
   }) => {
     // Start at home

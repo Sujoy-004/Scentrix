@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text
-from sqlalchemy.orm import declarative_base, mapped_column
+from sqlalchemy.orm import declarative_base, mapped_column, Mapped
 
 Base = declarative_base()
 
@@ -19,6 +19,7 @@ class User(Base):
     """
 
     __tablename__ = "users"
+    __allow_unmapped__ = True
 
     id: int = mapped_column(Integer, primary_key=True, index=True)
     email: str = mapped_column(String(255), unique=True, index=True, nullable=False)
@@ -56,6 +57,7 @@ class FragranceRating(Base):
     """
 
     __tablename__ = "fragrance_ratings"
+    __allow_unmapped__ = True
 
     id: int = mapped_column(Integer, primary_key=True, index=True)
     user_id: int = mapped_column(Integer, nullable=False, index=True)
@@ -95,6 +97,7 @@ class SavedFragrance(Base):
     """
 
     __tablename__ = "saved_fragrances"
+    __allow_unmapped__ = True
 
     id: int = mapped_column(Integer, primary_key=True, index=True)
     user_id: int = mapped_column(Integer, nullable=False, index=True)
@@ -113,6 +116,7 @@ class RefreshToken(Base):
     """
 
     __tablename__ = "refresh_tokens"
+    __allow_unmapped__ = True
 
     id: int = mapped_column(Integer, primary_key=True, index=True)
     user_id: int = mapped_column(Integer, nullable=False, index=True)

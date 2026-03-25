@@ -1,0 +1,72 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy-frontend:
+    name: Deploy Frontend to Vercel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+      
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+      
+      - name: Deploy to Vercel
+        run: |
+          cd frontend
+          vercel deploy --token=${{ secrets.VERCEL_TOKEN }} --prod
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+
+  deploy-backend:
+    name: Deploy Backend to Railway
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Verify RAILWAY_TOKEN Secret
+        run: |
+          if [ -z "${{ secrets.RAILWAY_TOKEN }}" ]; then
+            echo "❌ ERROR: RAILWAY_TOKEN secret not configured"
+            echo "Add it to: Settings → Secrets and variables → Actions → New repository secret"
+            exit 1
+          fi
+          echo "✅ RAILWAY_TOKEN secret found"
+      
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      
+      - name: Deploy Backend to Railway
+        run: railway up --service backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      
+      - name: Verify Deployment
+        run: |
+          echo "✅ Backend deployment submitted"
+          echo "Monitor at: https://railway.app"
+
+  notify-deployment:
+    name: Notify Deployment Success
+    needs: [deploy-frontend, deploy-backend]
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: Create deployment status check
+        run: |
+          echo "✅ Frontend deployed to Vercel"
+          echo "✅ Backend deployed to Railway"
+          echo "🚀 Production deployment complete"

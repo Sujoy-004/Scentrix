@@ -1,0 +1,173 @@
+/* ========== FAMILIES PAGE ========== */
+
+.families-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #F9F6F1 0%, #E8F0EB 100%);
+  padding: 60px 20px;
+}
+
+.families-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.families-header {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.families-header h1 {
+  font-size: clamp(2rem, 8vw, 3.5rem);
+  color: #2D5A3D;
+  font-weight: 700;
+  margin: 0 0 20px 0;
+  letter-spacing: -0.02em;
+}
+
+.families-header p {
+  font-size: 1.1rem;
+  color: #5E5E5E;
+  max-width: 500px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* ========== FAMILIES GRID ========== */
+
+.families-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 30px;
+  animation: fade-in 0.6s ease-out;
+}
+
+.family-card {
+  background: white;
+  border-radius: 16px;
+  padding: 40px 24px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.family-card:hover {
+  transform: translateY(-8px);
+  border-color: #2D5A3D;
+  box-shadow: 0 12px 32px rgba(45, 90, 61, 0.15);
+}
+
+.family-emoji {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  display: block;
+}
+
+.family-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.family-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2D5A3D;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.01em;
+}
+
+.family-description {
+  font-size: 0.95rem;
+  color: #666;
+  line-height: 1.5;
+  margin: 0 0 20px 0;
+  flex: 1;
+}
+
+.family-explore-btn {
+  background: linear-gradient(135deg, #2D5A3D 0%, #3a7a4d 100%);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  align-self: center;
+}
+
+.family-explore-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(45, 90, 61, 0.3);
+}
+
+.family-explore-btn:active {
+  transform: scale(0.98);
+}
+
+/* ========== ANIMATIONS ========== */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========== RESPONSIVE ========== */
+
+@media (max-width: 768px) {
+  .families-page {
+    padding: 40px 16px;
+  }
+
+  .families-grid {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+  }
+
+  .family-card {
+    padding: 30px 18px;
+  }
+
+  .family-emoji {
+    font-size: 3rem;
+  }
+
+  .family-name {
+    font-size: 1.25rem;
+  }
+
+  .family-description {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .families-page {
+    padding: 30px 12px;
+  }
+
+  .families-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .families-header h1 {
+    font-size: 1.8rem;
+  }
+
+  .families-header p {
+    font-size: 0.95rem;
+  }
+}

@@ -3,13 +3,14 @@
 Provides dependency injections for user authentication and authorization.
 """
 
+from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.auth.auth import get_user_id_from_token, verify_token
 
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user_id(
@@ -50,8 +51,8 @@ async def get_current_user_id(
 
 
 async def get_optional_user_id(
-    credentials: HTTPAuthorizationCredentials = Depends(security) | None,
-) -> int | None:
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> Optional[int]:
     """Dependency: Optionally extract user ID from Bearer token.
     
     Returns None if no token provided. Raises 401 if token invalid.

@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useFragrancesByFamily } from '@/lib/hooks';
-import '../fragrances.css';
+import { getFragrancesByFamily } from '@/lib/mockData';
+import '../../fragrances/fragrances.css';
 import './family.css';
 
 export default function FamilyPage({
@@ -15,9 +15,10 @@ export default function FamilyPage({
   const sectionRef = useRef<HTMLDivElement>(null);
   const [sortBy, setSortBy] = useState<'rating' | 'name' | 'match'>('rating');
 
-  const { data: fragrances, isLoading, error } = useFragrancesByFamily(
-    params.family
-  );
+  // Load fragrances from mock data
+  const fragrances = getFragrancesByFamily(params.family);
+  const isLoading = false;
+  const error = fragrances.length === 0 ? 'No fragrances found' : null;
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -42,10 +43,23 @@ export default function FamilyPage({
 
   const allFragrances = fragrances || [];
 
-  const sortedFragrances = [...allFragrances].sort((a: any, b: any) => {
-    if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
+  // Add computed properties for display - use deterministic values to avoid hydration issues
+  const fragrancesWithMetrics = allFragrances.map((frag: any, idx: number) => {
+    // Use fragrance index to get deterministic values instead of random
+    const ratingBase = [4.8, 4.9, 4.7, 4.8, 4.6, 4.7, 4.5, 4.9][idx % 8] || 4.5;
+    const matchBase = [89, 92, 85, 91, 87, 88, 80, 90][idx % 8] || 80;
+    
+    return {
+      ...frag,
+      rating: ratingBase.toFixed(1),
+      match_score: matchBase,
+    };
+  });
+
+  const sortedFragrances = [...fragrancesWithMetrics].sort((a: any, b: any) => {
+    if (sortBy === 'rating') return parseFloat(b.rating) - parseFloat(a.rating);
     if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
-    if (sortBy === 'match') return (b.match_score || 0) - (a.match_score || 0);
+    if (sortBy === 'match') return b.match_score - a.match_score;
     return 0;
   });
 

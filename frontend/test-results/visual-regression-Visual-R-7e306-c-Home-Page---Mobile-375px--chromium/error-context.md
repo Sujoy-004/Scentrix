@@ -1,0 +1,260 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - button "🌿 ScentScape" [ref=e5] [cursor=pointer]:
+        - generic [ref=e6]: 🌿
+        - generic [ref=e7]: ScentScape
+      - button "Toggle navigation menu" [ref=e8] [cursor=pointer]
+      - generic [ref=e13]:
+        - button "Browse" [ref=e14] [cursor=pointer]
+        - button "Log In" [ref=e15] [cursor=pointer]
+        - button "Sign Up" [ref=e16] [cursor=pointer]
+  - main [ref=e17]:
+    - generic [ref=e21]:
+      - heading "Discover Your Perfect Scent" [level=1] [ref=e22]
+      - paragraph [ref=e23]: Personalized fragrance recommendations powered by AI. Find the signature scent that speaks to your essence.
+      - generic [ref=e24]:
+        - button "Start Discovery" [ref=e25] [cursor=pointer]
+        - button "Learn More" [ref=e26] [cursor=pointer]
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - generic [ref=e29]: 98%
+          - generic [ref=e30]: Match Satisfaction
+        - generic [ref=e31]:
+          - generic [ref=e32]: 1,000+
+          - generic [ref=e33]: Fragrance Database
+        - generic [ref=e34]:
+          - generic [ref=e35]: 50K+
+          - generic [ref=e36]: Happy Collectors
+    - generic [ref=e38]:
+      - generic [ref=e39]:
+        - heading "How It Works" [level=2] [ref=e40]
+        - paragraph [ref=e41]: Discover your perfect fragrance in three simple steps
+      - generic [ref=e42]:
+        - generic [ref=e43]:
+          - generic [ref=e44]: "1"
+          - generic [ref=e45]: ⭐
+          - heading "Rate Your Favorites" [level=3] [ref=e46]
+          - paragraph [ref=e47]: Answer quick questions about your favorite fragrances. Rate them on sweetness, woodiness, longevity, and intensity.
+          - generic [ref=e48]: 🎯
+        - generic [ref=e49]:
+          - generic [ref=e50]: "2"
+          - generic [ref=e51]: 🧠
+          - heading "Get AI-Matched" [level=3] [ref=e52]
+          - paragraph [ref=e53]: Our GraphSAGE AI analyzes your taste profile and compares it with 1000+ fragrances from our carefully curated database.
+          - generic [ref=e54]: 🔄
+        - generic [ref=e55]:
+          - generic [ref=e56]: "3"
+          - generic [ref=e57]: ✨
+          - heading "Explore & Discover" [level=3] [ref=e58]
+          - paragraph [ref=e59]: Browse personalized matches, view detailed notes, read community reviews, and save your favorites to your collection.
+          - generic [ref=e60]: 🎁
+    - generic [ref=e62]:
+      - generic [ref=e63]:
+        - heading "Explore Fragrance Families" [level=2] [ref=e64]
+        - paragraph [ref=e65]: Find your scent profile across these carefully curated families
+      - generic [ref=e66]:
+        - generic [ref=e67] [cursor=pointer]:
+          - generic [ref=e68]: 🌸
+          - heading "Floral" [level=3] [ref=e69]
+          - paragraph [ref=e70]: Delicate and feminine
+          - generic [ref=e71]: Roses, jasmine, lily
+          - button "Explore Family" [ref=e72]
+        - generic [ref=e73] [cursor=pointer]:
+          - generic [ref=e74]: 🌲
+          - heading "Woody" [level=3] [ref=e75]
+          - paragraph [ref=e76]: Rich and warm
+          - generic [ref=e77]: Sandalwood, cedar, vetiver
+          - button "Explore Family" [ref=e78]
+        - generic [ref=e79] [cursor=pointer]:
+          - generic [ref=e80]: 🍊
+          - heading "Citrus" [level=3] [ref=e81]
+          - paragraph [ref=e82]: Bright and energizing
+          - generic [ref=e83]: Bergamot, lemon, orange
+          - button "Explore Family" [ref=e84]
+        - generic [ref=e85] [cursor=pointer]:
+          - generic [ref=e86]: 🍯
+          - heading "Amber" [level=3] [ref=e87]
+          - paragraph [ref=e88]: Sweet and sensual
+          - generic [ref=e89]: Vanilla, tonka bean, musk
+          - button "Explore Family" [ref=e90]
+        - generic [ref=e91] [cursor=pointer]:
+          - generic [ref=e92]: 🌿
+          - heading "Aromatic" [level=3] [ref=e93]
+          - paragraph [ref=e94]: Fresh and herbal
+          - generic [ref=e95]: Lavender, rosemary, mint
+          - button "Explore Family" [ref=e96]
+        - generic [ref=e97] [cursor=pointer]:
+          - generic [ref=e98]: 🍓
+          - heading "Fruity" [level=3] [ref=e99]
+          - paragraph [ref=e100]: Juicy and playful
+          - generic [ref=e101]: Apple, peach, berries
+          - button "Explore Family" [ref=e102]
+        - generic [ref=e103] [cursor=pointer]:
+          - generic [ref=e104]: ✨
+          - heading "Chypré" [level=3] [ref=e105]
+          - paragraph [ref=e106]: Classic and elegant
+          - generic [ref=e107]: Oakmoss, patchouli, citrus
+          - button "Explore Family" [ref=e108]
+        - generic [ref=e109] [cursor=pointer]:
+          - generic [ref=e110]: 💧
+          - heading "Aquatic" [level=3] [ref=e111]
+          - paragraph [ref=e112]: Light and airy
+          - generic [ref=e113]: Marine, ozonic, fresh
+          - button "Explore Family" [ref=e114]
+    - generic [ref=e116]:
+      - heading "Loved by Fragrance Enthusiasts" [level=2] [ref=e118]
+      - generic [ref=e119]:
+        - generic [ref=e120]:
+          - generic [ref=e121]: 50K+
+          - generic [ref=e122]: Active Users
+        - generic [ref=e123]:
+          - generic [ref=e124]: 98%
+          - generic [ref=e125]: Match Satisfaction
+        - generic [ref=e126]:
+          - generic [ref=e127]: 1000+
+          - generic [ref=e128]: Fragrances Available
+      - generic [ref=e129]:
+        - generic [ref=e130]:
+          - generic [ref=e131]: ⭐⭐⭐⭐⭐
+          - paragraph [ref=e132]: "\"Finally found a fragrance that matches my personality perfectly. The AI recommendations are incredibly accurate!\""
+          - generic [ref=e133]:
+            - generic [ref=e134]: Sarah M.
+            - generic [ref=e135]: 92% Match
+        - generic [ref=e136]:
+          - generic [ref=e137]: ⭐⭐⭐⭐⭐
+          - paragraph [ref=e138]: "\"Best discovery platform for fragrances. I've found three new signatures in just a month.\""
+          - generic [ref=e139]:
+            - generic [ref=e140]: James L.
+            - generic [ref=e141]: 88% Match
+        - generic [ref=e142]:
+          - generic [ref=e143]: ⭐⭐⭐⭐⭐
+          - paragraph [ref=e144]: "\"Love the community ratings and detailed notes breakdowns. Makes choosing so much easier.\""
+          - generic [ref=e145]:
+            - generic [ref=e146]: Emma R.
+            - generic [ref=e147]: 95% Match
+    - generic [ref=e149]:
+      - generic [ref=e150]:
+        - heading "Discover Premium Fragrances" [level=2] [ref=e151]
+        - paragraph [ref=e152]: Handpicked fragrances from the world's finest brands
+      - generic [ref=e153]:
+        - generic [ref=e154] [cursor=pointer]:
+          - generic [ref=e155]: 🧴
+          - generic [ref=e156]:
+            - generic [ref=e157]: Gucci
+            - heading "Bloom" [level=3] [ref=e158]
+            - generic [ref=e159]:
+              - generic [ref=e160]: Tuberose
+              - generic [ref=e161]: Freesia
+              - generic [ref=e162]: Amber
+            - generic [ref=e163]:
+              - generic [ref=e164]: ⭐⭐⭐⭐
+              - generic [ref=e165]: (342)
+            - generic [ref=e166]:
+              - generic [ref=e167]: Your Match
+              - generic [ref=e168]: 89%
+            - button "View Details" [ref=e169]
+        - generic [ref=e170] [cursor=pointer]:
+          - generic [ref=e171]: 🧴
+          - generic [ref=e172]:
+            - generic [ref=e173]: Chanel
+            - heading "No. 5" [level=3] [ref=e174]
+            - generic [ref=e175]:
+              - generic [ref=e176]: Ylang-ylang
+              - generic [ref=e177]: Rose
+              - generic [ref=e178]: Sandalwood
+            - generic [ref=e179]:
+              - generic [ref=e180]: ⭐⭐⭐⭐
+              - generic [ref=e181]: (856)
+            - generic [ref=e182]:
+              - generic [ref=e183]: Your Match
+              - generic [ref=e184]: 92%
+            - button "View Details" [ref=e185]
+        - generic [ref=e186] [cursor=pointer]:
+          - generic [ref=e187]: 🧴
+          - generic [ref=e188]:
+            - generic [ref=e189]: Dior
+            - heading "J'adore" [level=3] [ref=e190]
+            - generic [ref=e191]:
+              - generic [ref=e192]: Jasmine
+              - generic [ref=e193]: Rose
+              - generic [ref=e194]: Violet
+            - generic [ref=e195]:
+              - generic [ref=e196]: ⭐⭐⭐⭐
+              - generic [ref=e197]: (621)
+            - generic [ref=e198]:
+              - generic [ref=e199]: Your Match
+              - generic [ref=e200]: 85%
+            - button "View Details" [ref=e201]
+        - generic [ref=e202] [cursor=pointer]:
+          - generic [ref=e203]: 🧴
+          - generic [ref=e204]:
+            - generic [ref=e205]: Tom Ford
+            - heading "Black Orchid" [level=3] [ref=e206]
+            - generic [ref=e207]:
+              - generic [ref=e208]: Orchid
+              - generic [ref=e209]: Spicy Notes
+              - generic [ref=e210]: Musk
+            - generic [ref=e211]:
+              - generic [ref=e212]: ⭐⭐⭐⭐
+              - generic [ref=e213]: (504)
+            - generic [ref=e214]:
+              - generic [ref=e215]: Your Match
+              - generic [ref=e216]: 91%
+            - button "View Details" [ref=e217]
+        - generic [ref=e218] [cursor=pointer]:
+          - generic [ref=e219]: 🧴
+          - generic [ref=e220]:
+            - generic [ref=e221]: Yves Saint Laurent
+            - heading "Mon Paris" [level=3] [ref=e222]
+            - generic [ref=e223]:
+              - generic [ref=e224]: Strawberry
+              - generic [ref=e225]: Raspberry
+              - generic [ref=e226]: Tuberose
+            - generic [ref=e227]:
+              - generic [ref=e228]: ⭐⭐⭐⭐
+              - generic [ref=e229]: (418)
+            - generic [ref=e230]:
+              - generic [ref=e231]: Your Match
+              - generic [ref=e232]: 87%
+            - button "View Details" [ref=e233]
+        - generic [ref=e234] [cursor=pointer]:
+          - generic [ref=e235]: 🧴
+          - generic [ref=e236]:
+            - generic [ref=e237]: Prada
+            - heading "L'Homme" [level=3] [ref=e238]
+            - generic [ref=e239]:
+              - generic [ref=e240]: Iris
+              - generic [ref=e241]: Cardamom
+              - generic [ref=e242]: Amber
+            - generic [ref=e243]:
+              - generic [ref=e244]: ⭐⭐⭐⭐
+              - generic [ref=e245]: (533)
+            - generic [ref=e246]:
+              - generic [ref=e247]: Your Match
+              - generic [ref=e248]: 88%
+            - button "View Details" [ref=e249]
+    - generic [ref=e251]:
+      - heading "Ready to Find Your Perfect Scent?" [level=2] [ref=e252]
+      - paragraph [ref=e253]: Join thousands discovering fragrances they love
+      - button "Start the Quiz Now" [ref=e254] [cursor=pointer]
+      - generic [ref=e255]:
+        - generic [ref=e256]:
+          - generic [ref=e257]: ✓
+          - generic [ref=e258]: 100% Authentic Fragrances
+        - generic [ref=e259]:
+          - generic [ref=e260]: ✓
+          - generic [ref=e261]: GDPR Compliant
+        - generic [ref=e262]:
+          - generic [ref=e263]: ✓
+          - generic [ref=e264]: Free US Shipping
+        - generic [ref=e265]:
+          - generic [ref=e266]: ✓
+          - generic [ref=e267]: Cancel Anytime
+  - button "Open Next.js Dev Tools" [ref=e273] [cursor=pointer]:
+    - img [ref=e274]
+  - alert [ref=e277]
+```

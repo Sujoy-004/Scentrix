@@ -27,7 +27,7 @@ test.describe('Authenticated User Quiz Flow', () => {
     // Check for form elements
     const formContent = await page.textContent('body');
     expect(formContent).toBeTruthy();
-    expect(formContent.length).toBeGreaterThan(0);
+    expect(formContent?.length ?? 0).toBeGreaterThan(0);
   });
 
   test('should handle quiz slider interactions', async ({
@@ -111,7 +111,7 @@ test.describe('Authenticated User Profile', () => {
     // Check for profile content
     const content = await page.textContent('body');
     expect(content).toBeTruthy();
-    expect(content.length).toBeGreaterThan(0);
+    expect(content?.length ?? 0).toBeGreaterThan(0);
   });
 
   test('should have logout button in profile/navbar', async ({

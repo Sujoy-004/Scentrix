@@ -1,3 +1,3 @@
-# Backend API
+"""Backend API package."""
 
-Initial placeholder for backend configuration and utilities.
+# Backend configuration and utilities initialization

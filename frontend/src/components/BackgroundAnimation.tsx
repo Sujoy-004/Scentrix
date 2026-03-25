@@ -28,6 +28,7 @@ export function BackgroundAnimation() {
   const particlesRef = useRef<Particle[]>([]);
   const bottlesRef = useRef<Bottle[]>([]);
   const timeRef = useRef(0);
+  const animationIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -237,7 +238,8 @@ export function BackgroundAnimation() {
         });
       }
 
-      requestAnimationFrame(animate);
+      // Store animation frame ID for proper cleanup
+      animationIdRef.current = requestAnimationFrame(animate);
     };
 
     animate();
@@ -252,6 +254,9 @@ export function BackgroundAnimation() {
     window.addEventListener('resize', resizeCanvas);
 
     return () => {
+      if (animationIdRef.current !== null) {
+        cancelAnimationFrame(animationIdRef.current);
+      }
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', resizeCanvas);
     };
@@ -266,6 +271,7 @@ export function BackgroundAnimation() {
         top: 0,
         left: 0,
         zIndex: 0,
+        pointerEvents: 'none',
         transform: `translateY(${scrollY * 0.5}px)`, // Parallax effect
         display: 'block',
       }}

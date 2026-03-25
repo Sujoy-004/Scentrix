@@ -1,0 +1,16 @@
+[tool.railway]
+projectId = ""
+# projectId will be set when you link to Railway
+
+[build]
+builder = "dockerfile"
+dockerfile = "./Dockerfile"
+
+[deploy]
+startCommand = "python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+healthcheckUrl = "/health"
+healthcheckInterval = 10
+healthcheckTimeout = 5
+
+[env]
+PYTHONUNBUFFERED = "1"

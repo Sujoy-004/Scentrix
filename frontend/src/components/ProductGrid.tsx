@@ -2,10 +2,34 @@
 
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { getFeaturedFragrances } from '@/lib/mockData';
 
 export function ProductGrid() {
   const router = useRouter();
   const sectionRef = useRef<HTMLDivElement>(null);
+
+  // Load actual fragrances from mock data (first 6 featured)
+  const featuredFragrances = getFeaturedFragrances(6);
+  
+  // Use static, deterministic data to avoid hydration mismatches
+  const staticMetrics = [
+    { rating: 4.8, reviews: 342, match: 89 },
+    { rating: 4.9, reviews: 856, match: 92 },
+    { rating: 4.7, reviews: 621, match: 85 },
+    { rating: 4.8, reviews: 504, match: 91 },
+    { rating: 4.6, reviews: 418, match: 87 },
+    { rating: 4.7, reviews: 533, match: 88 },
+  ];
+  
+  const fragrances = featuredFragrances.map((frag: any, idx: number) => ({
+    id: frag.id,
+    brand: frag.brand,
+    name: frag.name,
+    notes: frag.top_notes?.slice(0, 3) || [],
+    rating: staticMetrics[idx]?.rating || 4.5,
+    reviews: staticMetrics[idx]?.reviews || 300,
+    match: (staticMetrics[idx]?.match || 80) + '%',
+  }));
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -25,63 +49,6 @@ export function ProductGrid() {
     return () => observer.disconnect();
   }, []);
 
-  const fragrances = [
-    {
-      id: '1',
-      brand: 'Gucci',
-      name: 'Bloom',
-      notes: ['Tuberose', 'Freesia', 'Amber'],
-      rating: 4.8,
-      reviews: 342,
-      match: '89%',
-    },
-    {
-      id: '2',
-      brand: 'Chanel',
-      name: 'No. 5',
-      notes: ['Ylang-ylang', 'Rose', 'Sandalwood'],
-      rating: 4.9,
-      reviews: 856,
-      match: '92%',
-    },
-    {
-      id: '3',
-      brand: 'Dior',
-      name: 'J\'adore',
-      notes: ['Jasmine', 'Rose', 'Violet'],
-      rating: 4.7,
-      reviews: 621,
-      match: '85%',
-    },
-    {
-      id: '4',
-      brand: 'Tom Ford',
-      name: 'Black Orchid',
-      notes: ['Orchid', 'Spicy Notes', 'Musk'],
-      rating: 4.8,
-      reviews: 504,
-      match: '91%',
-    },
-    {
-      id: '5',
-      brand: 'Yves Saint Laurent',
-      name: 'Mon Paris',
-      notes: ['Strawberry', 'Raspberry', 'Tuberose'],
-      rating: 4.6,
-      reviews: 418,
-      match: '87%',
-    },
-    {
-      id: '6',
-      brand: 'Prada',
-      name: 'L\'Homme',
-      notes: ['Iris', 'Cardamom', 'Amber'],
-      rating: 4.7,
-      reviews: 533,
-      match: '88%',
-    },
-  ];
-
   return (
     <section className="product-grid" ref={sectionRef}>
       <div className="product-grid-container">
@@ -100,7 +67,7 @@ export function ProductGrid() {
                 <h3 className="fragrance-name">{fragrance.name}</h3>
                 
                 <div className="fragrance-notes">
-                  {fragrance.notes.map((note, i) => (
+                  {fragrance.notes.map((note: string, i: number) => (
                     <span key={i} className="note-pill">{note}</span>
                   ))}
                 </div>

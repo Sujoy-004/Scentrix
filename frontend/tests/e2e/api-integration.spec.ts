@@ -128,7 +128,8 @@ test.describe('API Integration Tests (Mocked)', () => {
       // Should load successfully
       await page.waitForTimeout(500);
 
-      expect(page.url()).toContain('wishlist') || expect(page.url()).toContain('profile');
+      const url = page.url();
+      expect(url.includes('wishlist') || url.includes('profile')).toBeTruthy();
     });
   });
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useFragrance } from '@/lib/hooks';
+import { getFragranceById } from '@/lib/mockData';
 import { useAppStore } from '@/stores/app-store';
 import './fragrance-detail.css';
 
@@ -16,7 +16,12 @@ export default function FragranceDetailPage({
   const view = searchParams.get('view');
   const sectionRef = useRef<HTMLDivElement>(null);
 
-  const { data: fragrance, isLoading, error } = useFragrance(params.id);
+  // Load fragrance from mock data
+  const fragrance = getFragranceById(params.id);
+  const isLoading = false;
+  const error = !fragrance;
+  
+  // Get store methods
   const { addToWishlist } = useAppStore();
 
   useEffect(() => {
@@ -50,12 +55,12 @@ export default function FragranceDetailPage({
     return (
       <div className="detail-error">
         <h2>Fragrance not found</h2>
-        <p>We couldn't find the fragrance you're looking for.</p>
+        <p>We couldn't find the fragrance you're looking for (ID: {params.id}).</p>
         <button
           className="error-button"
-          onClick={() => router.push('/recommendations')}
+          onClick={() => router.push('/fragrances')}
         >
-          Back to Recommendations
+          Back to All Fragrances
         </button>
       </div>
     );

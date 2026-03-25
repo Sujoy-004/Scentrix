@@ -9,7 +9,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_db, close_db
 from app.routers import auth, fragrances, users
+from app.sentry_config import init_sentry
 
+
+# Initialize Sentry for error tracking (if configured)
+init_sentry()
 
 # Configure logging
 logging.basicConfig(

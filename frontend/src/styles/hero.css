@@ -170,18 +170,19 @@
   transform: translateY(0);
 }
 
-/* Outline Button - Soft UI Evolution */
+/* Outline Button - Forest Green */
 .btn-outline {
-  background: rgba(255, 255, 255, 0.08); /* Semi-transparent white */
-  color: #E8F0EB;
-  border: 2px solid #C99A6E; /* Terracotta */
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(10px);
+  background: transparent;
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+  box-shadow: 0 4px 12px rgba(45, 90, 61, 0.1);
+  backdrop-filter: none;
 }
 
 .btn-outline:hover {
-  background: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 6px 20px rgba(201, 154, 110, 0.2);
+  background: var(--color-primary);
+  color: white;
+  box-shadow: 0 6px 16px rgba(45, 90, 61, 0.2);
   transform: translateY(-2px);
 }
 

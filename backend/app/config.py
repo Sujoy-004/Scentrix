@@ -25,6 +25,8 @@ class Settings(BaseSettings):
 
     # Sentry
     sentry_dsn: str | None = None
+    sentry_environment: str = "development"
+    sentry_traces_sample_rate: float = 0.1
 
     # API
     api_prefix: str = "/api/v1"

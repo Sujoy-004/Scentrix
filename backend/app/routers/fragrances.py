@@ -50,16 +50,70 @@ async def get_fragrance_detail(
     Raises:
         HTTPException: 404 if fragrance not found
     """
-    # TODO: Query Neo4j for fragrance by ID
-    # TODO: If user_id provided, calculate similarity to user taste vector
-    
     logger.info(f"GET /fragrances/{fragrance_id} (user: {user_id})")
     
-    # Placeholder response
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Fragrance not found",
-    )
+    # Mock fragrance data (TODO: Replace with Neo4j query)
+    mock_fragrances = {
+        "frag_001": FragranceDetail(
+            id="frag_001",
+            name="Sauvage",
+            brand="Dior",
+            year=2015,
+            concentration="Eau de Toilette",
+            gender_label="Men",
+            description="A fresh and spicy fragrance with prominent ambroxan base.",
+            top_notes=[
+                FragranceNote(id="note_1", name="Ambroxan", category="top", intensity=0.8),
+                FragranceNote(id="note_2", name="Pepper", category="top", intensity=0.6),
+            ],
+            middle_notes=[
+                FragranceNote(id="note_3", name="Ambroxan", category="middle", intensity=0.9),
+            ],
+            base_notes=[
+                FragranceNote(id="note_4", name="Cedar", category="base", intensity=0.7),
+                FragranceNote(id="note_5", name="Ambroxan", category="base", intensity=0.95),
+            ],
+            accords=[
+                FragranceAccord(id="acc_1", name="Aromatic", certainty=0.9),
+                FragranceAccord(id="acc_2", name="Spicy", certainty=0.8),
+            ],
+            similarity_score=0.85 if user_id else None,
+        ),
+        "frag_002": FragranceDetail(
+            id="frag_002",
+            name="Bleu de Chanel",
+            brand="Chanel",
+            year=2010,
+            concentration="Eau de Parfum",
+            gender_label="Men",
+            description="A citrus fruity fragrance with ginger and sandalwood.",
+            top_notes=[
+                FragranceNote(id="note_6", name="Ginger", category="top", intensity=0.8),
+                FragranceNote(id="note_7", name="Lemon", category="top", intensity=0.7),
+            ],
+            middle_notes=[
+                FragranceNote(id="note_8", name="Sandalwood", category="middle", intensity=0.8),
+            ],
+            base_notes=[
+                FragranceNote(id="note_9", name="Sandalwood", category="base", intensity=0.9),
+                FragranceNote(id="note_10", name="Incense", category="base", intensity=0.6),
+            ],
+            accords=[
+                FragranceAccord(id="acc_3", name="Citrus", certainty=0.85),
+                FragranceAccord(id="acc_4", name="Woody", certainty=0.8),
+            ],
+            similarity_score=0.78 if user_id else None,
+        ),
+    }
+    
+    fragrance = mock_fragrances.get(fragrance_id)
+    if not fragrance:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Fragrance '{fragrance_id}' not found",
+        )
+    
+    return fragrance
 
 
 @router.get("/search", response_model=List[FragranceSearchResult])
