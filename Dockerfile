@@ -13,11 +13,9 @@ RUN useradd -m -u 1000 appuser
 # Copy pyproject for dependency installation
 COPY backend/pyproject.toml .
 
-# Upgrade pip and install build tools
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
-
-# Install project dependencies with verbose output to catch errors
-RUN pip install --no-cache-dir --verbose .
+# Install project dependencies (use built-in pip)
+RUN pip install --no-cache-dir setuptools wheel && \
+    pip install --no-cache-dir .
 
 # Copy application code
 COPY backend/app app
