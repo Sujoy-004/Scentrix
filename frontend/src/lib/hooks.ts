@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from './api';
 
@@ -28,13 +29,13 @@ export function useRegister() {
 export function useRecommendations() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const fetch = async () => {
+  const fetchRecs = async () => {
     setLoading(true);
     try { const r = await api.get('/recommendations'); setData(r.data); }
     catch { setData([]); }
     finally { setLoading(false); }
   };
-  return { data, loading, fetch };
+  return { data, loading, fetch: fetchRecs };
 }
 
 export function useUserProfile() {
@@ -44,8 +45,7 @@ export function useUserProfile() {
 
 export function useUpdateUserPreferences() {
   const update = async (prefs: any) => {
-    try { await api.post('/user/preferences', prefs); }
-    catch { }
+    try { await api.post('/user/preferences', prefs); } catch { }
   };
   return { update };
 }
@@ -57,21 +57,41 @@ export function useWishlist() {
 
 export function useRemoveFromWishlist() {
   const remove = async (id: string) => {
-    try { await api.delete(`/user/wishlist/${id}`); }
-    catch { }
+    try { await api.delete(`/user/wishlist/${id}`); } catch { }
   };
   return { remove };
 }
 
-export function useAdaptiveQuizSession() {
-  const [session, setSession] = useState<any>(null);
-  return { session, setSession };
+export function useSubmitRating() {
+  return useMutation({
+    mutationFn: async ({ fragranceId, rating }: { fragranceId: string; rating: number }) => {
+      const { data } = await api.post(`/fragrances/${fragranceId}/rate`, { rating });
+      return data;
+    },
+  });
 }
 
-export function useSubmitRating() {
-  const submit = async (id: string, rating: number) => {
-    try { await api.post(`/fragrances/${id}/rate`, { rating }); }
-    catch { }
-  };
-  return { submit };
+export function useAdaptiveQuizSession() {
+  const startSession = useMutation({
+    mutationFn: async (payload: { seed_count: number; candidate_pool_size: number; filters: any }) => {
+      const { data } = await api.post('/quiz/session/start', payload);
+      return data;
+    },
+  });
+
+  const evaluateSession = useMutation({
+    mutationFn: async ({ sessionId, payload }: { sessionId: string; payload: any }) => {
+      const { data } = await api.post(`/quiz/session/${sessionId}/evaluate`, payload);
+      return data;
+    },
+  });
+
+  const extendSession = useMutation({
+    mutationFn: async ({ sessionId, payload }: { sessionId: string; payload: any }) => {
+      const { data } = await api.post(`/quiz/session/${sessionId}/extend`, payload);
+      return data;
+    },
+  });
+
+  return { startSession, evaluateSession, extendSession };
 }
