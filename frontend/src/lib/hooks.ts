@@ -93,5 +93,19 @@ export function useAdaptiveQuizSession() {
     },
   });
 
-  return { startSession, evaluateSession, extendSession };
+  const submitResponse = useMutation({
+    mutationFn: async ({ sessionId, payload }: { sessionId: string; payload: any }) => {
+      const { data } = await api.post(`/quiz/session/${sessionId}/response`, payload);
+      return data;
+    },
+  });
+
+  const fetchNextQuestions = useMutation({
+    mutationFn: async ({ sessionId, payload }: { sessionId: string; payload: any }) => {
+      const { data } = await api.post(`/quiz/session/${sessionId}/next`, payload);
+      return data;
+    },
+  });
+
+  return { startSession, evaluateSession, extendSession, submitResponse, fetchNextQuestions };
 }
