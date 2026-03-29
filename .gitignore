@@ -87,3 +87,6 @@ progress.json
 progress_phase6.json
 .github/agents/
 todo.html
+# Keep frontend app library sources tracked.
+!frontend/src/lib/
+!frontend/src/lib/**

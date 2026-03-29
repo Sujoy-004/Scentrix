@@ -11,6 +11,7 @@ help:
 	@echo "make test-backend    - Run backend pytest suite"
 	@echo "make test-frontend   - Run frontend Jest tests"
 	@echo "make lint            - Run linting on all code"
+	@echo "make enrich          - Process and enrich 24k fragrance dataset with canonical vibes"
 
 up:
 	docker-compose up -d
@@ -42,6 +43,13 @@ lint:
 	@echo "Linting frontend..."
 	cd frontend && npm run lint
 	@echo "✓ Linting complete"
+
+enrich:
+	@echo "Enriching dataset with canonical vibes..."
+	docker-compose exec backend python ml/pipeline/clean.py ml/data/fra_cleaned_canonical.json ml/data/fra_cleaned_canonical.json
+	@echo "Updating Neo4j graph..."
+	docker-compose exec backend python ml/pipeline/ingest.py ml/data/fra_cleaned_canonical.json
+	@echo "✓ Dataset enrichment complete"
 
 clean:
 	docker-compose down -v
