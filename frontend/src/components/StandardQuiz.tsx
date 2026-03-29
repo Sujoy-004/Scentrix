@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/stores/app-store';
-import { getQuizFragrances } from '@/lib/mockData';
 import { useAdaptiveQuizSession, useSubmitRating } from '@/lib/hooks';
 import { api, type FragranceCatalogItem } from '@/lib/api';
 import { getFragrancePalette } from '@/lib/quizTheme';
@@ -30,24 +29,6 @@ function getHttpStatus(error: unknown): number | null {
   const parsed = error as ApiErrorLike;
   const status = parsed?.response?.status;
   return typeof status === 'number' ? status : null;
-}
-
-function mapMockQuizToCards(): QuizCard[] {
-  return getQuizFragrances().map((fragrance) => {
-    const accords = Array.isArray(fragrance.accords)
-      ? fragrance.accords.map((value: unknown) => String(value))
-      : [];
-
-    return {
-      fragrance_id: fragrance.id,
-      name: fragrance.name,
-      brand: fragrance.brand,
-      top_notes: Array.isArray(fragrance.top_notes)
-        ? fragrance.top_notes.map((note) => String(note))
-        : [],
-      accords,
-    };
-  });
 }
 
 function mapCatalogToCards(items: FragranceCatalogItem[]): QuizCard[] {
@@ -77,6 +58,7 @@ export default function StandardQuiz() {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [authApiEnabled, setAuthApiEnabled] = useState(true);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const hasDowngradedAuthRef = useRef(false);
 
   const {
@@ -94,7 +76,7 @@ export default function StandardQuiz() {
 
   const submitRatingMutation = useSubmitRating();
   const adaptiveSession = useAdaptiveQuizSession();
-  const [fallbackFragrances, setFallbackFragrances] = useState<QuizCard[]>(() => mapMockQuizToCards());
+  const [fallbackFragrances, setFallbackFragrances] = useState<QuizCard[]>([]);
   const canUseAuthedApis = isAuthenticated && authApiEnabled;
 
   const downgradeToGuestMode = (warning: string) => {
@@ -115,7 +97,6 @@ export default function StandardQuiz() {
       document.cookie = 'auth_token=; Max-Age=0; path=/; SameSite=Lax';
     }
 
-    // Invalidate stale auth state while preserving in-progress local quiz answers.
     useAppStore.setState({ authToken: null, isAuthenticated: false, userId: null });
   };
 
@@ -133,9 +114,14 @@ export default function StandardQuiz() {
         const mapped = mapCatalogToCards(Array.isArray(page?.items) ? page.items : []);
         if (active && mapped.length > 0) {
           setFallbackFragrances(mapped);
+          setCatalogError(null);
+        } else if (active) {
+          setCatalogError('No fragrances available. Please try again later.');
         }
       } catch {
-        // Keep static fallback cards when catalog fetch is unavailable.
+        if (active) {
+          setCatalogError('Failed to load fragrances. Please check your connection and try again.');
+        }
       }
     };
 
@@ -278,7 +264,7 @@ export default function StandardQuiz() {
     }
   };
 
-  const isLoading = isBootstrapping;
+  const isLoading = isBootstrapping || (fallbackFragrances.length === 0 && !catalogError);
   const isBusy =
     isBootstrapping ||
     isTransitioning ||
@@ -320,7 +306,6 @@ export default function StandardQuiz() {
         rating,
       });
 
-      // Persist user ratings to the backend profile as the quiz progresses.
       if (canUseAuthedApis) {
         submitRatingMutation.mutate(
           { fragranceId: currentFragrance.fragrance_id, rating },
@@ -389,7 +374,26 @@ export default function StandardQuiz() {
     }
   };
 
-  if (isLoading || fragrances.length === 0) {
+  if (isLoading) {
+    return <div className="quiz-loading">Loading fragrances...</div>;
+  }
+
+  if (catalogError) {
+    return (
+      <div className="quiz-loading" style={{ textAlign: 'center', padding: '2rem' }}>
+        <p style={{ color: '#FF5A37', marginBottom: '1rem' }}>{catalogError}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="quiz-btn"
+          style={{ background: 'transparent', border: '1px solid #FF5A37', color: '#FF5A37', padding: '0.8rem 1.5rem', borderRadius: '8px', cursor: 'pointer' }}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (fragrances.length === 0) {
     return <div className="quiz-loading">Loading fragrances...</div>;
   }
 
@@ -587,6 +591,3 @@ export default function StandardQuiz() {
     </div>
   );
 }
-
-
-
