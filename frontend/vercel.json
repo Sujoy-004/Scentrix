@@ -6,12 +6,6 @@
   "framework": "nextjs",
   "regions": ["sfo1", "iad1"],
   "public": false,
-  "env": {
-    "NEXT_PUBLIC_API_URL": {
-      "description": "Backend API URL for production",
-      "required": true
-    }
-  },
   "headers": [
     {
       "source": "/(.*)",
