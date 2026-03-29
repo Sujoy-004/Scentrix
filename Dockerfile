@@ -12,10 +12,11 @@ RUN useradd -m -u 1000 appuser
 
 # Copy pyproject for dependency installation
 COPY backend/pyproject.toml .
+COPY backend/README.md .
 
 # Install project dependencies (use built-in pip)
 RUN pip install --no-cache-dir setuptools wheel && \
-    pip install --no-cache-dir .
+    pip install --no-cache-dir ".[ml]"
 
 # Copy application code
 COPY backend/app app
