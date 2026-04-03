@@ -1,0 +1,83 @@
+.final-cta {
+  padding: 8rem 0;
+  position: relative;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.final-cta .glow-effect {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(244, 187, 146, 0.05) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.final-cta-container {
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.final-cta-title {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 5vw, 3.5rem);
+  color: #fff;
+  margin-bottom: 1.5rem;
+  font-style: italic;
+}
+
+.final-cta-subtitle {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 3rem;
+  line-height: 1.6;
+}
+
+.final-cta-button {
+  padding: 1.25rem 2.5rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  background: #f4bb92;
+  color: #000;
+  border: none;
+  border-radius: 1rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 10px 30px rgba(244, 187, 146, 0.2);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.final-cta-button:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 15px 40px rgba(244, 187, 146, 0.4);
+}
+
+.badges-row-elite {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2rem;
+  margin-top: 5rem;
+}
+
+.badge-item-elite {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 700;
+}
+
+.badge-item-elite .icon-check {
+  color: #f4bb92;
+}

@@ -1,60 +1,104 @@
+'use client';
+
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Star, ShieldCheck, Zap, Library } from 'lucide-react';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.2,
+    }
+  }
+};
+
+const stepVariants = {
+  hidden: { opacity: 0, y: 40 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { type: 'spring' as const, stiffness: 60, damping: 20 }
+  }
+};
+
 export function HowItWorks() {
+  const steps = [
+    {
+      id: 1,
+      icon: <Star size={32} />,
+      title: "Rate Your Favorites",
+      description: "Answer quick questions about your favorite fragrances. Rate them on sweetness, woodiness, and intensity.",
+      visual: <div className="w-12 h-12 rounded-full border border-primary/20 flex items-center justify-center opacity-20"><Star size={24} /></div>
+    },
+    {
+      id: 2,
+      icon: <ShieldCheck size={32} />,
+      title: "AI-Powered Matching",
+      description: "Our GraphSAGE AI analyzes your taste profile and compares it with 5,130+ fragrances in our database.",
+      visual: <div className="w-12 h-12 rounded-full border border-primary/20 flex items-center justify-center opacity-20"><Zap size={24} /></div>
+    },
+    {
+      id: 3,
+      icon: <Library size={32} />,
+      title: "Explore & Discover",
+      description: "Browse personalized matches, view detailed notes, and save favorites to your private collection.",
+      visual: <div className="w-12 h-12 rounded-full border border-primary/20 flex items-center justify-center opacity-20"><Library size={24} /></div>
+    }
+  ];
 
   return (
-    <section className="how-it-works scroll-reveal">
-      <div className="how-it-works-container">
-        <div className="how-it-works-header">
-          <h2 className="section-title">How It Works</h2>
-          <p className="section-subtitle">Discover your perfect fragrance in three simple steps</p>
-        </div>
+    <section className="how-it-works py-32 relative overflow-hidden">
+      <div className="container mx-auto px-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center mb-24"
+        >
+          <h2 className="section-title text-center" style={{ marginBottom: '0.5rem', width: '100%', display: 'block' }}>The Alchemist's Path</h2>
+          <p className="section-subtitle text-center" style={{ marginTop: '0', marginBottom: '4rem', width: '100%', display: 'block' }}>
+            Three steps to your architectural scent profile
+          </p>
+        </motion.div>
 
-        <div className="steps-grid">
-          <div className="step-card step-1 scroll-reveal" style={{ animationDelay: "0.2s", textAlign: 'center' }} string="reveal">
-            <div className="step-number" style={{ left: '50%', transform: 'translateX(-50%)' }}>1</div>
-            <div className="step-emoji" style={{ margin: '0 auto' }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            </div>
-            <h3 className="step-heading" string="split" string-split="char">Rate Your Favorites</h3>
-            <p className="step-description">
-              Answer quick questions about your favorite fragrances. Rate them on sweetness, woodiness, longevity, and intensity.
-            </p>
-            <div className="step-visual" style={{ margin: '20px auto 0' }}>
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-            </div>
-          </div>
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          className="steps-grid grid grid-cols-1 md:grid-cols-3 gap-12"
+        >
+          {steps.map((step) => (
+            <motion.div 
+              key={step.id}
+              variants={stepVariants}
+              className="step-card group relative p-10 rounded-3xl border border-white/5 bg-white/2 hover:bg-white/5 transition-colors text-center"
+            >
+              <div className="step-number absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold shadow-lg shadow-primary/20">
+                {step.id}
+              </div>
+              
+              <motion.div 
+                whileHover={{ scale: 1.1, rotate: 5 }}
+                className="step-emoji mb-8 flex justify-center text-primary"
+              >
+                {step.icon}
+              </motion.div>
 
-          <div className="step-card step-2 scroll-reveal" style={{ animationDelay: "0.4s", textAlign: 'center' }} string="reveal">
-            <div className="step-number" style={{ left: '50%', transform: 'translateX(-50%)' }}>2</div>
-            <div className="step-emoji" style={{ margin: '0 auto' }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4.5V11m0 0 5-2.5m-5 2.5-5-2.5M12 11v8.5m-3-13h6a3 3 0 0 1 3 3v4a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5v-4a3 3 0 0 1 3-3Z"/></svg>
-            </div>
-            <h3 className="step-heading" string="split" string-split="char">Get AI-Matched</h3>
-            <p className="step-description">
-              Our GraphSAGE AI analyzes your taste profile and compares it with 1000+ fragrances from our carefully curated database.
-            </p>
-            <div className="step-visual" style={{ margin: '20px auto 0' }}>
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
-            </div>
-          </div>
+              <h3 className="step-heading text-xl font-display italic mb-4">{step.title}</h3>
+              <p className="step-description text-muted text-sm leading-relaxed mb-8">
+                {step.description}
+              </p>
 
-          <div className="step-card step-3 scroll-reveal" style={{ animationDelay: "0.6s", textAlign: 'center' }} string="reveal">
-            <div className="step-number" style={{ left: '50%', transform: 'translateX(-50%)' }}>3</div>
-            <div className="step-emoji" style={{ margin: '0 auto' }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-            </div>
-            <h3 className="step-heading" string="split" string-split="char">Explore & Discover</h3>
-            <p className="step-description">
-              Browse personalized matches, view detailed notes, read community reviews, and save your favorites to your collection.
-            </p>
-            <div className="step-visual" style={{ margin: '20px auto 0' }}>
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-            </div>
-          </div>
-        </div>
+              <div className="flex justify-center mt-auto">
+                {step.visual}
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
       </div>
     </section>
   );
 }
-
-
-

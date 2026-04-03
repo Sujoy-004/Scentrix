@@ -1,76 +1,97 @@
 'use client';
 
+import React from 'react';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
+import '@/styles/fragrance-families.css';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+    }
+  }
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, scale: 0.95, y: 30 },
+  visible: { 
+    opacity: 1, 
+    scale: 1, 
+    y: 0,
+    transition: { type: 'spring' as const, stiffness: 60, damping: 20 }
+  }
+};
+
+const families = [
+  { name: 'Floral', slug: 'floral', description: 'Delicate Petals' },
+  { name: 'Woody', slug: 'woody', description: 'Deep Roots' },
+  { name: 'Citrus', slug: 'fresh', description: 'Bright Zest' },
+  { name: 'Oriental', slug: 'oriental', description: 'Exotic Spices' },
+  { name: 'Smoky', slug: 'smoky', description: 'Incense & Fire' },
+  { name: 'Fruity', slug: 'fruity', description: 'Sun-Drenched' },
+  { name: 'Gourmand', slug: 'gourmand', description: 'Divine Sweets' },
+  { name: 'Leather', slug: 'leather', description: 'Tanned Earth' },
+  { name: 'Spicy', slug: 'spicy', description: 'Warm Sands' },
+  { name: 'Powdery', slug: 'powdery', description: 'Velvet Dust' },
+];
 
 export function FragranceFamilies() {
   const router = useRouter();
 
-  const families = [
-    { name: 'Floral', slug: 'floral', notes: 'Roses, jasmine, lily', description: 'Delicate and feminine' },
-    { name: 'Woody', slug: 'woody', notes: 'Sandalwood, cedar, vetiver', description: 'Rich and warm' },
-    { name: 'Citrus', slug: 'citrus', notes: 'Bergamot, lemon, orange', description: 'Bright and energizing' },
-    { name: 'Amber', slug: 'amber', notes: 'Vanilla, tonka bean, musk', description: 'Sweet and sensual' },
-    { name: 'Aromatic', slug: 'aromatic', notes: 'Lavender, rosemary, mint', description: 'Fresh and herbal' },
-    { name: 'Fruity', slug: 'fruity', notes: 'Apple, peach, berries', description: 'Juicy and playful' },
-    { name: 'Aquatic', slug: 'aquatic', notes: 'Marine, ozonic, fresh', description: 'Light and airy' },
-    { name: 'Gourmand', slug: 'gourmand', notes: 'Caramel, chocolate, vanilla', description: 'Edible and delicious' },
-    { name: 'Animalic', slug: 'animalic', notes: 'Civet, musk, honey', description: 'Primal and deep' },
-    { name: 'Earthy', slug: 'earthy', notes: 'Patchouli, moss, soil', description: 'Natural and grounded' },
-    { name: 'Fresh', slug: 'fresh', notes: 'Aldehydes, citrus, water', description: 'Clean and crisp' },
-    { name: 'Green', slug: 'green', notes: 'Grass, leaves, galbanum', description: 'Verdant and lush' },
-    { name: 'Leather', slug: 'leather', notes: 'Birch tar, saffron, skin', description: 'Sophisticated and bold' },
-    { name: 'Musky', slug: 'musky', notes: 'White musk, ambrette', description: 'Soft and intimate' },
-    { name: 'Oriental', slug: 'oriental', notes: 'Oud, spices, resins', description: 'Exotic and mysterious' },
-    { name: 'Powdery', slug: 'powdery', notes: 'Iris, violet, orris', description: 'Classic and refined' },
-    { name: 'Smoky', slug: 'smoky', notes: 'Incense, tobacco, leather', description: 'Atmospheric and dark' },
-    { name: 'Spicy', slug: 'spicy', notes: 'Cinnamon, pepper, ginger', description: 'Warm and vibrant' },
-  ];
-
   return (
-    <section className="fragrance-families scroll-reveal">
-      <div className="fragrance-families-container">
-        <div className="section-header families-header">
-          <h2 className="section-title" string="split" string-repeat="true" string-split="word">Explore Fragrance Families</h2>
-          <p className="section-subtitle" string="split" string-repeat="true" string-split="word">Find your scent profile across these carefully curated families</p>
-        </div>
+    <section className="fragrance-families">
+      <div className="families-container">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center mb-20"
+        >
+          <h2 className="section-title italic mb-4">Architectural Families</h2>
+          <p className="section-subtitle mx-auto">Explore the scent foundations of the elite curators</p>
+        </motion.div>
 
-        <div className="elite-grid-container">
-          {families.slice(0, 10).map((family, index) => (
-            <div 
-              key={index} 
-              className="elite-family-card glass-card scroll-reveal" 
-              style={{ '--stagger-index': index } as any}
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          className="families-grid"
+        >
+          {families.map((family) => (
+            <motion.div 
+              key={family.slug}
+              variants={cardVariants}
+              className="elite-family-card"
               onClick={() => router.push(`/fragrances?family=${family.slug}`)}
             >
-              <div className="elite-card-bg">
+              <div className="family-image-container">
                 <img 
                   src={`/assets/families/${family.slug}.png`} 
                   alt={family.name} 
-                  className="elite-bg-img"
+                  className="family-image"
                   loading="lazy"
                 />
-                <div className="elite-card-overlay"></div>
+                <div className="family-overlay" />
               </div>
               
-              <div className="elite-card-content">
-                <h3 className="family-name text-gradient-amber">{family.name}</h3>
-                <p className="family-description">{family.description}</p>
-                <button className="family-btn-minimal">
-                  Explore
-                </button>
+              <div className="family-content">
+                <h3 className="family-name">
+                  {family.name}
+                </h3>
+                <p className="family-desc">
+                  {family.description}
+                </p>
+                <div className="explore-trigger">
+                  <span className="explore-text">Explore</span>
+                </div>
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
-
-        <div className="families-footer">
-          <button 
-            className="btn btn-outline show-more-btn scroll-reveal"
-            onClick={() => router.push('/fragrances')}
-          >
-            Explore All 18 Families
-          </button>
-        </div>
+        </motion.div>
       </div>
     </section>
   );

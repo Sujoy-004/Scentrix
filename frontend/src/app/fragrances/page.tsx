@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence, useScroll, useSpring, useTransform } from 'framer-motion';
 import { api, type FragranceCatalogItem } from '@/lib/api';
 import './fragrances.css';
 
@@ -10,7 +11,9 @@ const FAMILIES = [
   'Floral', 'Fresh', 'Fruity', 'Gourmand', 'Green', 'Leather', 
   'Musky', 'Oriental', 'Powdery', 'Smoky', 'Spicy', 'Woody'
 ];
-const PER_PAGE = 12;
+const VIDEO_FAMILIES = ['animalic', 'aquatic', 'citrus', 'earthy', 'floral', 'fresh', 'fruity', 'leather', 'aromatic', 'amber', 'all'];
+const EXTRACTED_FAMILIES = ['all', 'amber', 'aromatic', 'fruity', 'leather'];
+const PER_PAGE = 21;
 
 export default function FragrancesPage() {
   const router = useRouter();
@@ -25,6 +28,7 @@ export default function FragrancesPage() {
   const [filterFamily, setFilterFamily] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
+  const [jumpPage, setJumpPage] = useState('');
 
   // Load data from server
   useEffect(() => {
@@ -58,6 +62,8 @@ export default function FragrancesPage() {
     setPage(1);
   }, [filterFamily, searchQuery]);
 
+  // Load data from server
+
   useEffect(() => {
     if (!gridRef.current || isLoading) return;
     gridRef.current.querySelectorAll('.frag-list-card').forEach((card: Element, i: number) => {
@@ -69,12 +75,7 @@ export default function FragrancesPage() {
   if (isLoading && items.length === 0) {
     return (
       <div className="browse-page">
-        <div className="browse-header">
-          <div className="browse-header-inner container">
-            <p className="browse-eyebrow">✦ Collection</p>
-            <h1 className="browse-title">Loading <span className="text-gradient-amber">Elite Library</span>...</h1>
-          </div>
-        </div>
+        <DiscoveryLoader />
       </div>
     );
   }
@@ -83,6 +84,8 @@ export default function FragrancesPage() {
 
   return (
     <div className="browse-page">
+      <DiscoveryScrubber family={filterFamily || 'all'} />
+      
       <div className="browse-header">
         <div className="browse-header-inner container">
           <div>
@@ -90,9 +93,6 @@ export default function FragrancesPage() {
             <h1 className="browse-title">
               Explore <span className="text-gradient-amber">Fragrances</span>
             </h1>
-            <p className="browse-subtitle">
-              {total.toLocaleString()} fragrances curated from the Elite collection
-            </p>
           </div>
           <div className="browse-search-wrap">
             <span className="search-icon" aria-hidden="true">⌕</span>
@@ -113,17 +113,21 @@ export default function FragrancesPage() {
         <aside className="browse-sidebar" aria-label="Filters">
           <div className="sidebar-section">
             <p className="sidebar-label">Olfactive Families</p>
-            <div className="family-chip-grid">
-              <button 
-                className={`family-chip ${filterFamily === '' ? 'active' : ''}`} 
-                onClick={() => setFilterFamily('')}
-              >All</button>
+            <div className="family-button-grid">
+              <FamilyWideBtn 
+                name="All Families" 
+                slug="all" 
+                active={filterFamily === ''} 
+                onClick={() => setFilterFamily('')} 
+              />
               {FAMILIES.map((f) => (
-                <button
+                <FamilyWideBtn 
                   key={f}
-                  className={`family-chip ${filterFamily === f.toLowerCase() ? 'active' : ''}`}
-                  onClick={() => setFilterFamily(f.toLowerCase())}
-                >{f}</button>
+                  name={f} 
+                  slug={f.toLowerCase()} 
+                  active={filterFamily === f.toLowerCase()} 
+                  onClick={() => setFilterFamily(f.toLowerCase())} 
+                />
               ))}
             </div>
           </div>
@@ -177,25 +181,223 @@ export default function FragrancesPage() {
           )}
 
           {totalPages > 1 && (
-            <div className="pagination">
-              <button className="page-btn" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} aria-label="Previous page">←</button>
+            <div className="discovery-pagination">
+              <motion.button 
+                whileHover={{ x: -4 }}
+                whileTap={{ scale: 0.95 }}
+                className="page-nav-btn prev" 
+                onClick={() => setPage((p) => Math.max(1, p - 1))} 
+                disabled={page === 1}
+              >
+                <span className="nav-arrow">←</span>
+              </motion.button>
               
-              {/* Show limited page numbers */}
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let p = i + 1;
-                if (page > 3) p = page - 3 + i;
-                if (p > totalPages) return null;
-                return (
-                  <button key={p} className={`page-btn ${p === page ? 'active' : ''}`} onClick={() => setPage(p)}>{p}</button>
-                );
-              })}
+              <div className="page-numbers-nexus">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let p = i + 1;
+                  if (page > 3) p = page - 3 + (i + 1);
+                  if (p > totalPages) return null;
+                  
+                  const isActive = p === page;
+                  
+                  return (
+                    <motion.button 
+                      key={p} 
+                      className={`page-num-btn ${isActive ? 'active' : ''}`} 
+                      onClick={() => setPage(p)}
+                      whileHover={{ y: -2, scale: 1.1 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      {isActive && (
+                        <motion.div 
+                          layoutId="active-pill"
+                          className="active-pill-glow"
+                          transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                        />
+                      )}
+                      <span className="num-label">{p}</span>
+                    </motion.button>
+                  );
+                })}
+              </div>
 
-              <button className="page-btn" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} aria-label="Next page">→</button>
+              <motion.button 
+                whileHover={{ x: 4 }}
+                whileTap={{ scale: 0.95 }}
+                className="page-nav-btn next" 
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))} 
+                disabled={page === totalPages}
+              >
+                <span className="nav-arrow">→</span>
+              </motion.button>
+              
+              <div className="jump-nexus">
+                <input 
+                  className="jump-input" 
+                  placeholder="GOTO" 
+                  value={jumpPage} 
+                  onChange={(e) => setJumpPage(e.target.value.replace(/\D/g, ''))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const p = parseInt(jumpPage);
+                      if (p >= 1 && p <= totalPages) {
+                        setPage(p);
+                        setJumpPage('');
+                      }
+                    }
+                  }}
+                />
+              </div>
             </div>
           )}
         </main>
       </div>
     </div>
+  );
+}
+
+function DiscoveryLoader() {
+  return (
+    <div className="discovery-loader-full">
+      <motion.div 
+        className="loader-4d-nexus"
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <div className="loader-supernova" />
+        <motion.div 
+          className="loader-logo-layer"
+          animate={{ 
+            y: [0, -10, 0],
+            rotateY: [0, 15, 0],
+            rotateX: [0, -10, 0]
+          }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <img src="/assets/logo.png" alt="Scentrix Logo" className="loader-logo-img" />
+        </motion.div>
+        
+        <motion.p 
+          className="loader-synthesis-text"
+          animate={{ opacity: [0.4, 1, 0.4] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          Neural Synthesis in Progress...
+        </motion.p>
+      </motion.div>
+    </div>
+  );
+}
+
+function DiscoveryScrubber({ family }: { family: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const currentImageRef = useRef<HTMLImageElement | null>(null);
+  const frameRequestRef = useRef<number>(0);
+  
+  const { scrollYProgress } = useScroll();
+  const smoothProgress = useSpring(scrollYProgress, { stiffness: 45, damping: 22 });
+  
+  const isExtracted = EXTRACTED_FAMILIES.includes(family);
+  const activeFamily = isExtracted ? family : 'all';
+
+  const renderFrameToCanvas = (img: HTMLImageElement) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !img.complete) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Clear and draw with cover aspect
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const canvasAspect = canvas.width / canvas.height;
+    const imgAspect = img.width / img.height;
+    let dW, dH, dX, dY;
+
+    if (canvasAspect > imgAspect) {
+      dW = canvas.width;
+      dH = canvas.width / imgAspect;
+      dX = 0;
+      dY = (canvas.height - dH) / 2;
+    } else {
+      dH = canvas.height;
+      dW = canvas.height * imgAspect;
+      dX = (canvas.width - dW) / 2;
+      dY = 0;
+    }
+    ctx.drawImage(img, dX, dY, dW, dH);
+  };
+
+  useEffect(() => {
+    return smoothProgress.onChange(latest => {
+      // Cancel previous frame to avoid over-rendering
+      if (frameRequestRef.current) cancelAnimationFrame(frameRequestRef.current);
+      
+      frameRequestRef.current = requestAnimationFrame(() => {
+        const idx = Math.min(Math.max(Math.floor(latest * 239) + 1, 1), 240);
+        const frameStr = idx.toString().padStart(3, '0');
+        const img = new Image();
+        img.src = `/assets/${activeFamily}_extracted/ezgif-frame-${frameStr}.png`;
+        img.onload = () => renderFrameToCanvas(img);
+        currentImageRef.current = img;
+      });
+    });
+  }, [activeFamily, smoothProgress]);
+
+  // Handle Resize and Orientation
+  useEffect(() => {
+    const handleResize = () => {
+      if (canvasRef.current) {
+        canvasRef.current.width = window.innerWidth;
+        canvasRef.current.height = window.innerHeight;
+        if (currentImageRef.current) renderFrameToCanvas(currentImageRef.current);
+      }
+    };
+    window.addEventListener('resize', handleResize, { passive: true });
+    handleResize();
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return (
+    <div className="discovery-scrubber-wrap">
+      <div className="scrubber-overlay" />
+      <canvas
+        ref={canvasRef}
+        className="scrubber-frame-canvas"
+      />
+    </div>
+  );
+}
+
+function FamilyWideBtn({ name, slug, active, onClick }: { name: string; slug: string; active: boolean; onClick: () => void }) {
+  const hasVideo = VIDEO_FAMILIES.includes(slug);
+
+  return (
+    <button
+      className={`family-btn-wide ${active ? 'active' : ''}`}
+      onClick={onClick}
+    >
+      {hasVideo ? (
+        <video 
+          autoPlay 
+          loop 
+          muted 
+          playsInline 
+          className="btn-bg-img"
+          poster={`/assets/families/${slug}.png`}
+        >
+          <source src={`/assets/families/${slug}.mp4`} type="video/mp4" />
+        </video>
+      ) : (
+        <img 
+          src={`/assets/families/${slug}.png`} 
+          alt={name} 
+          className="btn-bg-img" 
+          loading="lazy"
+        />
+      )}
+      <div className="btn-overlay" />
+      <span className="btn-label">{name}</span>
+    </button>
   );
 }
 

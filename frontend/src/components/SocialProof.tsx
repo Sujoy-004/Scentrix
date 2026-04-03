@@ -1,6 +1,37 @@
 'use client';
 
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Users, Zap, Library, Quote, Star } from 'lucide-react';
+import '@/styles/social-proof.css';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.15,
+      delayChildren: 0.3
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, scale: 0.9, y: 20 },
+  visible: { 
+    opacity: 1, 
+    scale: 1, 
+    y: 0,
+    transition: { type: 'spring' as const, stiffness: 50, damping: 20 }
+  }
+};
+
 export function SocialProof() {
+  const stats = [
+    { icon: <Users size={24} />, value: "5,130", label: "Elite Members" },
+    { icon: <Zap size={24} />, value: "91.5%", label: "Satisfaction" },
+    { icon: <Library size={24} />, value: "2K+", label: "Masterpieces" }
+  ];
 
   const testimonials = [
     {
@@ -12,7 +43,7 @@ export function SocialProof() {
     {
       name: 'James L.',
       rating: 5,
-      text: 'Best discovery platform for fragrances. I\'ve found three new signatures in just a month.',
+      text: "Best discovery platform for fragrances. I've found three new signatures in just a month.",
       match: '88% Match',
     },
     {
@@ -24,60 +55,70 @@ export function SocialProof() {
   ];
 
   return (
-    <section className="social-proof section">
-      <div className="social-proof-container">
-        <div className="section-header">
-          <h2 className="section-title">Loved by Fragrance Enthusiasts</h2>
-        </div>
+    <section className="social-proof">
+      <div className="container mx-auto px-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="social-proof-header text-center mb-24"
+        >
+          <h2 className="text-3xl font-display italic text-white">Loved by the Collection</h2>
+        </motion.div>
 
-        <div className="stats-row">
-          <div className="stat-card reveal-cascade">
-            <div className="stat-icon-premium">
-               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M8 7h8"/><path d="M10 11h4"/><path d="M12 15h0"/></svg>
-            </div>
-            <div className="stat-number-elite serif">1,500</div>
-            <div className="stat-label-elite">Active Users</div>
-          </div>
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          className="stats-grid-elite"
+        >
+          {stats.map((stat, idx) => (
+            <motion.div 
+              key={idx}
+              variants={itemVariants}
+              className="stat-card-elite"
+            >
+              <div className="stat-icon text-primary/40 mb-2">{stat.icon}</div>
+              <div className="stat-value">{stat.value}</div>
+              <div className="stat-label">{stat.label}</div>
+            </motion.div>
+          ))}
+        </motion.div>
 
-          <div className="stat-card reveal-cascade">
-            <div className="stat-icon-premium">
-               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m16 8-8 8"/><path d="m8 8 8 8"/></svg>
-            </div>
-            <div className="stat-number-elite serif">91.5%</div>
-            <div className="stat-label-elite">Match Satisfaction</div>
-          </div>
-
-          <div className="stat-card reveal-cascade">
-            <div className="stat-icon-premium">
-               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/><path d="m3 9 2.45-4.9A2 2 0 0 1 7.24 3h9.52a2 2 0 0 1 1.8 1.1L21 9"/><path d="M12 3v6"/></svg>
-            </div>
-            <div className="stat-number-elite serif">2k+</div>
-            <div className="stat-label-elite">Fragrance Available</div>
-          </div>
-        </div>
-
-        <div className="testimonials-grid">
-          {testimonials.map((testimonial, index) => (
-            <div key={index} className="testimonial-card glass-card scroll-reveal">
-              <div className="testimonial-glow"></div>
-              <div className="testimonial-rating">
-                {Array.from({ length: testimonial.rating }).map((_, i) => (
-                  <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill="var(--amber-glow)" style={{ opacity: 0.8 }}>
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                  </svg>
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          className="testimonials-grid-elite"
+        >
+          {testimonials.map((t, idx) => (
+            <motion.div 
+              key={idx}
+              variants={itemVariants}
+              whileHover={{ y: -8 }}
+              className="testimonial-card-elite group"
+            >
+              <Quote className="quote-icon" size={64} />
+              
+              <div className="stars-row">
+                {[...Array(t.rating)].map((_, i) => (
+                  <Star key={i} size={12} fill="var(--color-primary)" stroke="none" />
                 ))}
               </div>
-              <p className="testimonial-text">"{testimonial.text}"</p>
+
+              <p className="testimonial-text">"{t.text}"</p>
+
               <div className="testimonial-footer">
-                <div className="testimonial-info">
-                  <span className="testimonial-name">{testimonial.name}</span>
-                  <span className="testimonial-badge">{testimonial.match}</span>
-                </div>
+                <span className="client-name">{t.name}</span>
+                <span className="match-badge">
+                  {t.match}
+                </span>
               </div>
-              <div className="testimonial-sheen"></div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

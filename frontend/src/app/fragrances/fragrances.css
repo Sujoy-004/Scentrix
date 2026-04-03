@@ -2,68 +2,114 @@
    FRAGRANCES BROWSE PAGE — Aether & Amber
    ===================================================== */
 
+/* ── Discovery Scrubber ── */
+.discovery-scrubber-wrap {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: -2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.scrubber-frame-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 1;
+  transition: opacity 0.8s ease;
+}
+
+.scrubber-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.45) 100%);
+  z-index: 1;
+}
+
+/* ── Discovery Loader ── */
+.discovery-loader-full {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0c0b0a;
+  z-index: 2000;
+}
+
+.loader-4d-nexus {
+  position: relative;
+  width: 280px;
+  height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.loader-supernova {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(244, 187, 146, 0.4) 0%, transparent 70%);
+  filter: blur(40px);
+  animation: supernova-pulse 4s infinite alternate;
+}
+
+@keyframes supernova-pulse {
+  from { scale: 1; opacity: 0.4; }
+  to { scale: 1.5; opacity: 0.8; }
+}
+
+.loader-logo-layer {
+  position: relative;
+  z-index: 10;
+  perspective: 1000px;
+}
+
+.loader-logo-img {
+  width: 120px;
+  height: auto;
+  filter: drop-shadow(0 0 20px rgba(244, 187, 146, 0.5));
+}
+
+.loader-synthesis-text {
+  margin-top: 40px;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  opacity: 0.8;
+}
+
 /* ── Page Shell ── */
 .browse-page {
-  --browse-page-from: #17120f;
-  --browse-page-to: #0f0c0a;
-  --browse-aura-1: rgba(244, 187, 146, 0.22);
-  --browse-aura-2: rgba(201, 169, 110, 0.2);
-  --browse-beam: rgba(255, 225, 182, 0.2);
-  --browse-ink: #f6ede6;
-  --browse-glass-bg: rgba(35, 31, 28, 0.64);
-  --browse-glass-bg-hover: rgba(45, 41, 39, 0.88);
-  --browse-glass-border: rgba(244, 187, 146, 0.18);
-  --browse-chip-from: #f0be9c;
-  --browse-chip-to: #c38a64;
-  --browse-chip-glow: rgba(244, 187, 146, 0.26);
-  --browse-badge-bg: rgba(93, 69, 20, 0.84);
-  --browse-badge-border: rgba(228, 194, 133, 0.35);
-  --browse-badge-ink: #f6d89e;
-  --browse-focus-ring: rgba(244, 187, 146, 0.35);
   min-height: 100dvh;
-  background:
-    radial-gradient(circle at 14% 16%, var(--browse-aura-1), transparent 40%),
-    radial-gradient(circle at 88% 82%, var(--browse-aura-2), transparent 44%),
-    radial-gradient(circle at 60% 38%, color-mix(in srgb, var(--browse-chip-glow) 34%, transparent), transparent 52%),
-    linear-gradient(160deg, var(--browse-page-from), var(--browse-page-to));
+  background: #050505;
   color: var(--browse-ink);
   position: relative;
   isolation: isolate;
-  overflow-x: clip;
-  transition: background 320ms var(--ease-premium), color 320ms var(--ease-premium);
 }
 
-.browse-page::before {
-  content: '';
-  position: absolute;
-  inset: -6% -8%;
-  background:
-    linear-gradient(118deg, transparent 16%, var(--browse-beam) 48%, transparent 84%),
-    radial-gradient(circle at 24% 22%, color-mix(in srgb, var(--browse-aura-1) 54%, transparent), transparent 58%),
-    radial-gradient(circle at 76% 78%, color-mix(in srgb, var(--browse-aura-2) 50%, transparent), transparent 62%);
-  filter: blur(42px);
-  opacity: 0.42;
-  mix-blend-mode: screen;
-  pointer-events: none;
-  z-index: -1;
+/* Remove global glass layers as requested */
+.browse-page::before, .browse-page::after {
+  display: none !important;
 }
 
-.browse-page::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, transparent 36%),
-    repeating-linear-gradient(
-      130deg,
-      rgba(255, 255, 255, 0.03) 0px,
-      rgba(255, 255, 255, 0.03) 2px,
-      transparent 2px,
-      transparent 16px
-    );
-  opacity: 0.28;
-  pointer-events: none;
-  z-index: -1;
+.browse-header {
+  position: relative;
+  padding: 120px 0 60px 0;
+  z-index: 10;
+}
+
+/* Remove global glass layers as requested */
+.browse-page::before, .browse-page::after {
+  display: none !important;
 }
 
 /* ── Header Band ── */
@@ -219,37 +265,77 @@
   margin: 0;
 }
 
-.family-chip-grid {
+.family-button-grid {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
-.family-chip {
-  padding: 0.3rem 0.75rem;
-  border-radius: var(--radius-full);
-  border: 1px solid color-mix(in srgb, var(--browse-glass-border) 72%, transparent);
-  background: color-mix(in srgb, var(--browse-glass-bg) 92%, transparent);
-  color: color-mix(in srgb, var(--browse-ink) 74%, #bdbdbd 26%);
-  font-family: var(--font-body);
-  font-size: 0.78rem;
-  font-weight: 500;
+.family-btn-wide {
+  position: relative;
+  width: 100%;
+  height: 80px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--surface-low);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.4s var(--ease-premium);
 }
 
-.family-chip:hover {
-  border-color: color-mix(in srgb, var(--browse-glass-border) 96%, transparent);
-  color: var(--browse-ink);
-  background: color-mix(in srgb, var(--browse-chip-glow) 25%, var(--browse-glass-bg));
+.family-btn-wide:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
-.family-chip.active {
-  background: linear-gradient(135deg, var(--browse-chip-from), var(--browse-chip-to));
-  border-color: transparent;
-  color: #1d130f;
+.btn-bg-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 1.2s var(--ease-premium);
+  filter: saturate(0.6) brightness(0.85);
+}
+
+.family-btn-wide:hover .btn-bg-img {
+  transform: scale(1.1);
+  filter: saturate(1) brightness(1);
+}
+
+.btn-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(16, 14, 13, 0.2) 0%, rgba(16, 14, 13, 0.8) 100%);
+  transition: opacity 0.4s;
+}
+
+.family-btn-wide.active {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 20px rgba(244, 187, 146, 0.3);
+}
+
+.family-btn-wide.active .btn-overlay {
+  background: linear-gradient(135deg, rgba(244, 187, 146, 0.1) 0%, rgba(244, 187, 146, 0.2) 100%);
+}
+
+.btn-label {
+  position: relative;
+  z-index: 10;
+  padding: 0 1rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
   font-weight: 600;
-  box-shadow: 0 2px 12px color-mix(in srgb, var(--browse-chip-glow) 80%, transparent);
+  color: var(--color-on-surface);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.family-btn-wide.active .btn-label {
+  color: var(--color-primary);
 }
 
 .sort-btn-group {
@@ -326,9 +412,21 @@
 /* ── Card Grid ── */
 .fragrances-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--space-5);
   margin-bottom: var(--space-8);
+}
+
+@media (max-width: 1024px) {
+  .fragrances-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .fragrances-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ── Individual Card ── */
@@ -725,7 +823,131 @@
   .browse-header-inner { flex-direction: column; align-items: flex-start; }
   .browse-search-wrap { min-width: 100%; }
   .fragrances-grid { grid-template-columns: 1fr; }
-  .pagination {
-    justify-content: flex-start;
+  .discovery-pagination {
+    justify-content: space-between;
+    gap: var(--space-4);
   }
+}
+
+/* ── Discovery Pagination ── */
+.discovery-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  margin-top: var(--space-12);
+  padding: var(--space-10) 0;
+  position: relative;
+  z-index: 20;
+}
+
+.page-numbers-nexus {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  background: rgba(12, 11, 10, 0.4);
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(244, 187, 146, 0.1);
+  backdrop-filter: blur(12px);
+}
+
+.page-num-btn {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  outline: none;
+}
+
+.num-label {
+  position: relative;
+  z-index: 5;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--browse-ink) 45%, transparent);
+  transition: color 0.4s var(--ease-premium);
+}
+
+.page-num-btn.active .num-label {
+  color: #fff;
+  font-weight: 700;
+  text-shadow: 0 0 15px rgba(244, 187, 146, 0.5);
+}
+
+.active-pill-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(244, 187, 146, 0.25) 0%, transparent 80%);
+  border-bottom: 2px solid var(--color-primary);
+  z-index: 1;
+}
+
+.page-nav-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-primary);
+  font-size: 1.8rem;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: all 0.3s var(--ease-premium);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-nav-btn:disabled {
+  opacity: 0.15;
+  cursor: not-allowed;
+  color: #555;
+}
+
+.page-nav-btn:hover:not(:disabled) {
+  opacity: 1;
+  text-shadow: 0 0 10px var(--color-primary);
+}
+
+.nav-arrow {
+  line-height: 1;
+}
+
+/* ── Jump Nexus ── */
+.jump-nexus {
+  margin-left: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.jump-input {
+  width: 72px;
+  height: 44px;
+  background: rgba(20, 18, 16, 0.4);
+  border: 1px solid rgba(244, 187, 146, 0.15);
+  border-radius: var(--radius-full);
+  color: var(--color-primary);
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  transition: all 0.3s var(--ease-premium);
+  outline: none;
+}
+
+.jump-input::placeholder {
+  color: rgba(244, 187, 146, 0.3);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.jump-input:focus {
+  border-color: var(--color-primary);
+  background: rgba(244, 187, 146, 0.05);
+  box-shadow: 0 0 15px rgba(244, 187, 146, 0.15);
 }
