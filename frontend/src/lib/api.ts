@@ -2,23 +2,34 @@ import axios from 'axios';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-export const api = Object.assign(
-  axios.create({
-    baseURL: BASE_URL,
-    timeout: 10000,
-    headers: { 'Content-Type': 'application/json' },
-  }),
-  {
-    getFragranceCatalog: async (limit: number, offset: number) => {
-      try {
-        const { data } = await axios.get(`${BASE_URL}/fragrances/catalog`, { params: { limit, offset } });
-        return data;
-      } catch {
-        return { items: [] };
-      }
-    },
-  }
-);
+const apiInstance = axios.create({
+  baseURL: BASE_URL,
+  timeout: 10000,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+export const api = {
+  get: apiInstance.get.bind(apiInstance),
+  post: apiInstance.post.bind(apiInstance),
+  put: apiInstance.put.bind(apiInstance),
+  delete: apiInstance.delete.bind(apiInstance),
+  patch: apiInstance.patch.bind(apiInstance),
+  
+  getFragranceCatalog: async (limit: number, offset: number, filters?: { q?: string; brand?: string; family?: string }) => {
+    try {
+      const { data } = await apiInstance.get('/fragrances/catalog', { 
+        params: { limit, offset, ...filters } 
+      });
+      return data;
+    } catch {
+      return { items: [] };
+    }
+  },
+  submitRating: async (id: string, rating: number) => {
+    const { data } = await apiInstance.post(`/fragrances/${id}/rate`, { rating });
+    return data;
+  },
+};
 
 export interface FragranceCatalogItem {
   id: string;
@@ -31,4 +42,7 @@ export interface FragranceCatalogItem {
   family?: string;
   description?: string;
   image_url?: string;
+  rating?: number;
+  popularity_score?: number;
+  match_score?: number;
 }

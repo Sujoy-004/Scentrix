@@ -153,6 +153,7 @@ class FragranceCatalogItem(BaseModel):
     id: str
     name: str
     brand: str
+    family: str = "Unknown"
     year: Optional[int] = None
     concentration: str = "N/A"
     gender_label: str = "N/A"

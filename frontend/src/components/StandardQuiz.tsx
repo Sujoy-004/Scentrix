@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/stores/app-store';
 import { useAdaptiveQuizSession, useSubmitRating } from '@/lib/hooks';
@@ -14,6 +14,7 @@ type QuizCard = {
   brand: string;
   top_notes: string[];
   accords: string[];
+  family?: string;
 };
 
 type ApiErrorLike = {
@@ -42,8 +43,9 @@ function mapCatalogToCards(items: FragranceCatalogItem[]): QuizCard[] {
         ? item.top_notes.map((note) => String(note))
         : [],
       accords: Array.isArray(item.accords)
-        ? item.accords.map((value) => String(value))
+        ? item.accords.map((value: any) => String(value))
         : [],
+      family: item.family,
     }));
 }
 
@@ -242,7 +244,7 @@ export default function StandardQuiz() {
         if (nextQuestions.questions.length > 0) {
           appendAdaptiveQuestions(nextQuestions.questions);
           setAdaptivePhase('extension');
-          setCurrentFragranceIndex((index) => index + 1);
+          setCurrentFragranceIndex((index: number) => index + 1);
           setRating(null);
           return;
         }
@@ -310,7 +312,7 @@ export default function StandardQuiz() {
         submitRatingMutation.mutate(
           { fragranceId: currentFragrance.fragrance_id, rating },
           {
-            onError: (err) => {
+            onError: (err: any) => {
               const status = getHttpStatus(err);
               if (status === 401) {
                 downgradeToGuestMode('Your session expired. Continuing in guest mode.');
@@ -324,11 +326,9 @@ export default function StandardQuiz() {
         try {
           await adaptiveSession.submitResponse.mutateAsync({
             sessionId,
-            payload: {
-              fragrance_id: currentFragrance.fragrance_id,
-              rating_1_to_10: rating,
-              source: isCorePhase ? 'quiz_core' : 'quiz_extension',
-            },
+            fragrance_id: currentFragrance.fragrance_id,
+            rating_1_to_10: rating,
+            source: isCorePhase ? 'quiz_core' : 'quiz_extension',
           });
           markAdaptiveAnswer(isCorePhase);
         } catch (error) {
@@ -475,7 +475,7 @@ export default function StandardQuiz() {
                   max="10"
                   step="0.1"
                   value={rating ?? ''}
-                  onChange={(e) => {
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     const raw = e.target.value;
                     if (!raw) {
                       handleRating(null);
@@ -495,7 +495,7 @@ export default function StandardQuiz() {
                 max="10"
                 step="0.1"
                 value={rating ?? 5.0}
-                onChange={(e) => handleRating(Number(e.target.value))}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleRating(Number(e.target.value))}
                 className="rating-slider"
                 aria-label="Adjust rating from 1 to 10"
               />

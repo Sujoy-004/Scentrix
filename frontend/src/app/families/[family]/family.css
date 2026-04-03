@@ -1,200 +1,203 @@
-'use client';
+.fragrances-page {
+  padding: 2rem;
+  background: var(--color-background);
+  min-height: 100vh;
+}
 
-import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { api, type FragranceCatalogItem } from '@/lib/api';
-import '../../fragrances/fragrances.css';
-import './family.css';
+.fragrances-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
 
-const FAMILY_NAMES: Record<string, string> = {
-  floral: '🌸 Floral', woody: '🌲 Woody', citrus: '🍊 Citrus',
-  amber: '🍯 Amber', aromatic: '🌿 Aromatic', fruity: '🍓 Fruity',
-  chypre: '✨ Chypré', aquatic: '💧 Aquatic',
-};
+.fragrances-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
 
-const FAMILY_DESCRIPTIONS: Record<string, string> = {
-  floral: 'Delicate, romantic, and elegant. Floral fragrances celebrate the beauty of flowers with notes like roses, jasmine, and gardenias.',
-  woody: 'Rich, warm, and grounding. Woody fragrances feature deep base notes from sandalwood, cedar, and vetiver.',
-  citrus: 'Bright, fresh, and energizing. Citrus fragrances open with zesty top notes of bergamot, lemon, and orange.',
-  amber: 'Sweet, sensual, and warm. Amber fragrances create a cozy aura with vanilla, tonka bean, and musk notes.',
-  aromatic: 'Fresh, herbal, and invigorating. Aromatic fragrances feature lavender, rosemary, and mint.',
-  fruity: 'Juicy, playful, and vibrant. Fruity fragrances burst with apple, peach, and berry notes.',
-  chypre: 'Classic, elegant, and timeless. Chypré fragrances blend citrus, florals, and woody base notes.',
-  aquatic: 'Light, airy, and refreshing. Aquatic fragrances evoke the ocean with fresh, ozonic notes.',
-};
+.back-to-home {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  background: var(--color-surface-variant);
+  color: var(--color-on-surface-variant);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
 
-const RATINGS = [4.8, 4.9, 4.7, 4.8, 4.6, 4.7, 4.5, 4.9];
-const MATCHES = [89, 92, 85, 91, 87, 88, 80, 90];
+.back-to-home:hover {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
 
-export default function FamilyPage({ params }: { params: { family: string } }) {
-  const router = useRouter();
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const [sortBy, setSortBy] = useState<'rating' | 'name' | 'match'>('rating');
-  const [fragrances, setFragrances] = useState<FragranceCatalogItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+.family-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: var(--color-surface);
+  border-radius: 12px;
+  border: 1px solid var(--color-outline-variant);
+}
 
-  useEffect(() => {
-    const load = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const page = await api.getFragranceCatalog(100, 0);
-        const items: FragranceCatalogItem[] = Array.isArray(page?.items) ? page.items : [];
-        const filtered = items.filter(
-          (f) => f.family?.toLowerCase() === params.family.toLowerCase()
-        );
-        setFragrances(filtered.length > 0 ? filtered : items.slice(0, 20));
-      } catch {
-        setError('Failed to load fragrances. Please try again later.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    void load();
-  }, [params.family]);
+.sort-select {
+  padding: 0.5rem;
+  border-radius: 8px;
+  background: var(--color-surface-variant);
+  border: 1px solid var(--color-outline);
+  color: var(--color-on-surface);
+}
 
-  useEffect(() => {
-    if (!sectionRef.current) return;
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) entry.target.classList.add('animate-fade-in');
-      });
-    });
-    const cards = sectionRef.current.querySelectorAll('.fragrance-list-card');
-    cards.forEach((card, index) => {
-      (card as HTMLElement).style.animationDelay = `${index * 0.03}s`;
-      observer.observe(card);
-    });
-    return () => observer.disconnect();
-  }, [fragrances]);
+.family-description {
+  margin-bottom: 3rem;
+  text-align: center;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
 
-  const enriched = fragrances.map((f, idx) => ({
-    ...f,
-    rating: RATINGS[idx % RATINGS.length].toFixed(1),
-    match_score: MATCHES[idx % MATCHES.length],
-  }));
+.description-text {
+  font-size: 1.25rem;
+  font-style: italic;
+  color: var(--color-on-surface-variant);
+  line-height: 1.6;
+}
 
-  const sorted = [...enriched].sort((a, b) => {
-    if (sortBy === 'rating') return parseFloat(b.rating as string) - parseFloat(a.rating as string);
-    if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
-    if (sortBy === 'match') return (b.match_score as number) - (a.match_score as number);
-    return 0;
-  });
+.fragrances-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 2rem;
+}
 
-  const familyName = FAMILY_NAMES[params.family.toLowerCase()] || params.family;
+.fragrance-list-card {
+  background: var(--color-surface);
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--color-outline-variant);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
 
-  if (isLoading) {
-    return (
-      <div className="fragrances-loading">
-        <div className="loading-spinner">
-          <p>Loading {familyName} fragrances...</p>
-          <div className="spinner" />
-        </div>
-      </div>
-    );
-  }
+.fragrance-list-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+}
 
-  if (error) {
-    return (
-      <div className="fragrances-error">
-        <h2>Unable to load fragrances</h2>
-        <p>{error}</p>
-        <button className="error-button" onClick={() => router.push('/fragrances')}>
-          Back to All Fragrances
-        </button>
-      </div>
-    );
-  }
+.card-emoji {
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4rem;
+  background: linear-gradient(135deg, var(--color-surface-variant), var(--color-surface));
+}
 
-  return (
-    <div className="fragrances-page">
-      <div className="fragrances-container">
-        <div className="fragrances-header">
-          <div>
-            <h1>{familyName} Fragrances</h1>
-            <p>Explore {sorted.length} fragrance{sorted.length !== 1 ? 's' : ''} in this family</p>
-          </div>
-          <button className="back-to-home" onClick={() => router.push('/fragrances')}>
-            ← All Fragrances
-          </button>
-        </div>
+.card-content {
+  padding: 1.5rem;
+  flex-grow: 1;
+}
 
-        <div className="controls-section family-controls">
-          <div className="sort-group">
-            <label>Sort by:</label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'rating' | 'name' | 'match')}
-              className="sort-select"
-            >
-              <option value="rating">Highest Rated</option>
-              <option value="match">Best Match</option>
-              <option value="name">Alphabetical</option>
-            </select>
-          </div>
-          <div className="result-count">Showing {sorted.length} fragrance{sorted.length !== 1 ? 's' : ''}</div>
-        </div>
+.card-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
 
-        <div className="family-description">
-          <p className="description-text">{FAMILY_DESCRIPTIONS[params.family.toLowerCase()] || ''}</p>
-        </div>
+.card-brand {
+  color: var(--color-primary);
+  font-weight: 500;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
 
-        <div className="fragrances-grid" ref={sectionRef}>
-          {sorted.map((fragrance, index) => (
-            <div key={fragrance.id || index} className="fragrance-list-card">
-              <div className="card-emoji">🧴</div>
-              <div className="card-content">
-                <h3 className="card-title">{fragrance.name}</h3>
-                <p className="card-brand">{fragrance.brand}</p>
-                {fragrance.top_notes && (
-                  <div className="card-notes">
-                    <p className="notes-label">Top Notes</p>
-                    <div className="notes-pills">
-                      {fragrance.top_notes.slice(0, 2).map((note, i) => (
-                        <span key={i} className="note-pill">{note}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div className="card-metrics">
-                  <div className="metric">
-                    <span className="stars">⭐</span>
-                    <span className="metric-value">{fragrance.rating as string || '4.5'}</span>
-                  </div>
-                  <div className="metric">
-                    <span className="metric-label">Match</span>
-                    <span className="metric-value">{fragrance.match_score as number || 78}%</span>
-                  </div>
-                </div>
-              </div>
-              <button
-                className="card-button"
-                onClick={() => router.push(`/fragrances/${fragrance.id || `frag-${index}`}`)}
-              >
-                View
-              </button>
-            </div>
-          ))}
-        </div>
+.card-notes {
+  margin-bottom: 1rem;
+}
 
-        {sorted.length === 0 && (
-          <div className="empty-state">
-            <p>No fragrances found in this family.</p>
-            <button className="error-button" onClick={() => router.push('/fragrances')}>
-              View All Fragrances
-            </button>
-          </div>
-        )}
+.notes-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--color-on-surface-variant);
+  margin-bottom: 0.5rem;
+}
 
-        <div className="still-exploring">
-          <h2>Still Exploring?</h2>
-          <p>Check out other fragrance families or take the quiz for personalized recommendations</p>
-          <button className="explore-btn" onClick={() => router.push('/onboarding/quiz')}>
-            Get Personalized Recommendations
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+.notes-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.note-pill {
+  padding: 0.25rem 0.75rem;
+  background: var(--color-surface-variant);
+  border-radius: 12px;
+  font-size: 0.75rem;
+}
+
+.card-metrics {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--color-outline-variant);
+  padding-top: 1rem;
+}
+
+.metric {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.metric-value {
+  font-weight: 600;
+}
+
+.card-button {
+  width: 100%;
+  padding: 1rem;
+  border: none;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: 600;
+  transition: opacity 0.2s ease;
+}
+
+.card-button:hover {
+  opacity: 0.9;
+}
+
+.still-exploring {
+  margin-top: 5rem;
+  padding: 4rem;
+  text-align: center;
+  background: linear-gradient(to right, var(--color-primary-container), var(--color-secondary-container));
+  border-radius: 24px;
+}
+
+.explore-btn {
+  margin-top: 2rem;
+  padding: 1rem 2rem;
+  border-radius: 30px;
+  background: var(--color-on-primary-container);
+  color: var(--color-primary-container);
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.explore-btn:hover {
+  transform: scale(1.05);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.6s ease forwards;
 }

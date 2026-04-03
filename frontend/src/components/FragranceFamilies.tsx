@@ -1,69 +1,75 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 export function FragranceFamilies() {
   const router = useRouter();
-  const sectionRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver((entries, obs) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-inview');
-          obs.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.12, rootMargin: '0px 0px -10% 0px' });
-
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-      const cards = sectionRef.current.querySelectorAll('.family-card');
-      cards.forEach((card, index) => {
-        (card as HTMLElement).style.animationDelay = `${index * 0.1}s`;
-        observer.observe(card);
-      });
-    }
-
-    return () => observer.disconnect();
-  }, []);
 
   const families = [
-    { emoji: '🌸', name: 'Floral', slug: 'floral', notes: 'Roses, jasmine, lily', description: 'Delicate and feminine' },
-    { emoji: '🌲', name: 'Woody', slug: 'woody', notes: 'Sandalwood, cedar, vetiver', description: 'Rich and warm' },
-    { emoji: '🍊', name: 'Citrus', slug: 'citrus', notes: 'Bergamot, lemon, orange', description: 'Bright and energizing' },
-    { emoji: '🍯', name: 'Amber', slug: 'amber', notes: 'Vanilla, tonka bean, musk', description: 'Sweet and sensual' },
-    { emoji: '🌿', name: 'Aromatic', slug: 'aromatic', notes: 'Lavender, rosemary, mint', description: 'Fresh and herbal' },
-    { emoji: '🍓', name: 'Fruity', slug: 'fruity', notes: 'Apple, peach, berries', description: 'Juicy and playful' },
-    { emoji: '✨', name: 'Chypré', slug: 'chypre', notes: 'Oakmoss, patchouli, citrus', description: 'Classic and elegant' },
-    { emoji: '💧', name: 'Aquatic', slug: 'aquatic', notes: 'Marine, ozonic, fresh', description: 'Light and airy' },
+    { name: 'Floral', slug: 'floral', notes: 'Roses, jasmine, lily', description: 'Delicate and feminine' },
+    { name: 'Woody', slug: 'woody', notes: 'Sandalwood, cedar, vetiver', description: 'Rich and warm' },
+    { name: 'Citrus', slug: 'citrus', notes: 'Bergamot, lemon, orange', description: 'Bright and energizing' },
+    { name: 'Amber', slug: 'amber', notes: 'Vanilla, tonka bean, musk', description: 'Sweet and sensual' },
+    { name: 'Aromatic', slug: 'aromatic', notes: 'Lavender, rosemary, mint', description: 'Fresh and herbal' },
+    { name: 'Fruity', slug: 'fruity', notes: 'Apple, peach, berries', description: 'Juicy and playful' },
+    { name: 'Aquatic', slug: 'aquatic', notes: 'Marine, ozonic, fresh', description: 'Light and airy' },
+    { name: 'Gourmand', slug: 'gourmand', notes: 'Caramel, chocolate, vanilla', description: 'Edible and delicious' },
+    { name: 'Animalic', slug: 'animalic', notes: 'Civet, musk, honey', description: 'Primal and deep' },
+    { name: 'Earthy', slug: 'earthy', notes: 'Patchouli, moss, soil', description: 'Natural and grounded' },
+    { name: 'Fresh', slug: 'fresh', notes: 'Aldehydes, citrus, water', description: 'Clean and crisp' },
+    { name: 'Green', slug: 'green', notes: 'Grass, leaves, galbanum', description: 'Verdant and lush' },
+    { name: 'Leather', slug: 'leather', notes: 'Birch tar, saffron, skin', description: 'Sophisticated and bold' },
+    { name: 'Musky', slug: 'musky', notes: 'White musk, ambrette', description: 'Soft and intimate' },
+    { name: 'Oriental', slug: 'oriental', notes: 'Oud, spices, resins', description: 'Exotic and mysterious' },
+    { name: 'Powdery', slug: 'powdery', notes: 'Iris, violet, orris', description: 'Classic and refined' },
+    { name: 'Smoky', slug: 'smoky', notes: 'Incense, tobacco, leather', description: 'Atmospheric and dark' },
+    { name: 'Spicy', slug: 'spicy', notes: 'Cinnamon, pepper, ginger', description: 'Warm and vibrant' },
   ];
 
   return (
-    <section className="fragrance-families scroll-reveal" ref={sectionRef}>
+    <section className="fragrance-families scroll-reveal">
       <div className="fragrance-families-container">
         <div className="section-header families-header">
           <h2 className="section-title" string="split" string-repeat="true" string-split="word">Explore Fragrance Families</h2>
           <p className="section-subtitle" string="split" string-repeat="true" string-split="word">Find your scent profile across these carefully curated families</p>
         </div>
 
-        <div className="families-grid">
-          {families.map((family, index) => (
-              <div key={index} className="family-card tilt-card scroll-reveal" string="magnetic|glide" string-radius="320" string-strength="0.06" string-glide="0.22">
-              <div className="family-emoji super-magnetic-element" string="magnetic" string-radius="140" string-strength="0.2" style={{display: 'inline-block'}}>{family.emoji}</div>
-              <h3 className="family-name">{family.name}</h3>
-              <p className="family-description">{family.description}</p>
-              <div className="family-notes">{family.notes}</div>
-              <button 
-                className="family-btn magnetic-element"
-                string="magnetic" string-radius="260" string-strength="0.08"
-                onClick={() => router.push(`/families/${family.slug}`)}
-              >
-                Explore Family
-              </button>
+        <div className="elite-grid-container">
+          {families.slice(0, 10).map((family, index) => (
+            <div 
+              key={index} 
+              className="elite-family-card glass-card scroll-reveal" 
+              style={{ '--stagger-index': index } as any}
+              onClick={() => router.push(`/fragrances?family=${family.slug}`)}
+            >
+              <div className="elite-card-bg">
+                <img 
+                  src={`/assets/families/${family.slug}.png`} 
+                  alt={family.name} 
+                  className="elite-bg-img"
+                  loading="lazy"
+                />
+                <div className="elite-card-overlay"></div>
+              </div>
+              
+              <div className="elite-card-content">
+                <h3 className="family-name text-gradient-amber">{family.name}</h3>
+                <p className="family-description">{family.description}</p>
+                <button className="family-btn-minimal">
+                  Explore
+                </button>
+              </div>
             </div>
           ))}
+        </div>
+
+        <div className="families-footer">
+          <button 
+            className="btn btn-outline show-more-btn scroll-reveal"
+            onClick={() => router.push('/fragrances')}
+          >
+            Explore All 18 Families
+          </button>
         </div>
       </div>
     </section>

@@ -1,72 +1,76 @@
-import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from './api';
 
 export function useLogin() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const login = async (email: string, password: string) => {
-    setLoading(true);
-    try { await api.post('/auth/login', { email, password }); }
-    catch (e: any) { setError(e.message); }
-    finally { setLoading(false); }
-  };
-  return { login, loading, error };
+  return useMutation({
+    mutationFn: async ({ email, password }: any) => {
+      const { data } = await api.post('/auth/login', { email, password });
+      return data;
+    },
+  });
 }
 
 export function useRegister() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const register = async (email: string, password: string) => {
-    setLoading(true);
-    try { await api.post('/auth/register', { email, password }); }
-    catch (e: any) { setError(e.message); }
-    finally { setLoading(false); }
-  };
-  return { register, loading, error };
+  return useMutation({
+    mutationFn: async ({ email, password }: any) => {
+      const { data } = await api.post('/auth/register', { email, password });
+      return data;
+    },
+  });
 }
 
 export function useRecommendations() {
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const fetchRecs = async () => {
-    setLoading(true);
-    try { const r = await api.get('/recommendations'); setData(r.data); }
-    catch { setData([]); }
-    finally { setLoading(false); }
-  };
-  return { data, loading, fetch: fetchRecs };
+  return useQuery({
+    queryKey: ['recommendations'],
+    queryFn: async () => {
+      const { data } = await api.get('/recommendations');
+      return Array.isArray(data) ? data : [];
+    },
+  });
 }
 
 export function useUserProfile() {
-  const [profile, setProfile] = useState<any>(null);
-  return { profile, setProfile };
+  return useQuery({
+    queryKey: ['user-profile'],
+    queryFn: async () => {
+      const { data } = await api.get('/user/profile');
+      return data;
+    },
+  });
 }
 
 export function useUpdateUserPreferences() {
-  const update = async (prefs: any) => {
-    try { await api.post('/user/preferences', prefs); } catch { }
-  };
-  return { update };
+  return useMutation({
+    mutationFn: async (prefs: any) => {
+      const { data } = await api.post('/user/preferences', prefs);
+      return data;
+    },
+  });
 }
 
 export function useWishlist() {
-  const [wishlist, setWishlist] = useState<any[]>([]);
-  return { wishlist, setWishlist };
+  return useQuery({
+    queryKey: ['wishlist'],
+    queryFn: async () => {
+      const { data } = await api.get('/user/wishlist');
+      return Array.isArray(data) ? data : [];
+    },
+  });
 }
 
 export function useRemoveFromWishlist() {
-  const remove = async (id: string) => {
-    try { await api.delete(`/user/wishlist/${id}`); } catch { }
-  };
-  return { remove };
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.delete(`/user/wishlist/${id}`);
+      return data;
+    },
+  });
 }
 
 export function useSubmitRating() {
   return useMutation({
     mutationFn: async ({ fragranceId, rating }: { fragranceId: string; rating: number }) => {
-      const { data } = await api.post(`/fragrances/${fragranceId}/rate`, { rating });
-      return data;
+      return api.submitRating(fragranceId, rating);
     },
   });
 }
@@ -80,32 +84,39 @@ export function useAdaptiveQuizSession() {
   });
 
   const evaluateSession = useMutation({
-    mutationFn: async ({ sessionId, payload }: { sessionId: string; payload: any }) => {
+    mutationFn: async ({ sessionId, ...payload }: { sessionId: string; [key: string]: any }) => {
       const { data } = await api.post(`/quiz/session/${sessionId}/evaluate`, payload);
       return data;
     },
   });
 
   const extendSession = useMutation({
-    mutationFn: async ({ sessionId, payload }: { sessionId: string; payload: any }) => {
+    mutationFn: async ({ sessionId, ...payload }: { sessionId: string; [key: string]: any }) => {
       const { data } = await api.post(`/quiz/session/${sessionId}/extend`, payload);
       return data;
     },
   });
 
   const submitResponse = useMutation({
-    mutationFn: async ({ sessionId, payload }: { sessionId: string; payload: any }) => {
+    mutationFn: async ({ sessionId, ...payload }: { sessionId: string; [key: string]: any }) => {
       const { data } = await api.post(`/quiz/session/${sessionId}/response`, payload);
       return data;
     },
   });
 
   const fetchNextQuestions = useMutation({
-    mutationFn: async ({ sessionId, payload }: { sessionId: string; payload: any }) => {
+    mutationFn: async ({ sessionId, ...payload }: { sessionId: string; [key: string]: any }) => {
       const { data } = await api.post(`/quiz/session/${sessionId}/next`, payload);
       return data;
     },
   });
 
   return { startSession, evaluateSession, extendSession, submitResponse, fetchNextQuestions };
+}
+
+export function useFragranceCatalog(limit: number, offset: number, filters?: { q?: string; brand?: string; family?: string }) {
+  return useQuery({
+    queryKey: ['fragrance-catalog', limit, offset, filters],
+    queryFn: () => api.getFragranceCatalog(limit, offset, filters),
+  });
 }

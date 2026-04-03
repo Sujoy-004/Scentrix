@@ -36,14 +36,19 @@ def _catalog_path_candidates() -> tuple[list[Path], list[Path]]:
     primary: list[Path] = []
     fallback: list[Path] = []
 
+    # Check environment variable first (SSOT Lock)
+    env_data_path = os.getenv("SCENTSCAPE_DATA_PATH")
+    
     for root in _candidate_roots():
-        primary.extend(
-            [
-                root / "seed_fragrances_canonical.json",
-                root / "ml" / "data" / "fra_cleaned_canonical.json",
-                root / "ml" / "data" / "seed_fragrances_canonical.json",
-            ]
-        )
+        if env_data_path:
+            # If absolute, use it; if relative, join it with root
+            p = Path(env_data_path)
+            primary.append(p if p.is_absolute() else root / p)
+        
+        # Always prioritize Elite file locally
+        primary.append(root / "ml" / "data" / "fra_elite_5k.json")
+        
+        # Fallback for continuity
         fallback.append(root / "ml" / "data" / "seed_fragrances.json")
 
     return primary, fallback
@@ -148,6 +153,7 @@ def _normalize_record(raw: dict[str, Any]) -> dict[str, Any] | None:
         "rating_count": _safe_float(raw.get("rating_count")),
         "view_count": _safe_float(raw.get("view_count")),
         "popularity_score": _safe_float(raw.get("popularity_score")),
+        "rating": _safe_float(raw.get("rating")),
     }
 
 
@@ -167,7 +173,7 @@ def _merge_record(base: dict[str, Any], incoming: dict[str, Any]) -> dict[str, A
         if not existing and incoming_values:
             merged[list_key] = incoming_values
 
-    for numeric_key in ("review_count", "rating_count", "view_count", "popularity_score"):
+    for numeric_key in ("review_count", "rating_count", "view_count", "popularity_score", "rating"):
         if merged.get(numeric_key) is None and incoming.get(numeric_key) is not None:
             merged[numeric_key] = incoming[numeric_key]
 

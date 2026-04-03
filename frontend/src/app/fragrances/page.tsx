@@ -1,93 +1,85 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, type FragranceCatalogItem } from '@/lib/api';
 import './fragrances.css';
 
-const FAMILIES = ['Floral', 'Woody', 'Citrus', 'Amber', 'Aromatic', 'Fruity', 'Chypré', 'Aquatic'];
-const CONCENTRATIONS = ['All', 'EDP', 'EDT', 'Parfum', 'EDC'];
-const RATINGS = [4.8, 4.9, 4.7, 4.8, 4.6, 4.7, 4.5, 4.9];
-const MATCHES = [89, 92, 85, 91, 87, 88, 80, 90];
+const FAMILIES = [
+  'Amber', 'Animalic', 'Aquatic', 'Aromatic', 'Citrus', 'Earthy', 
+  'Floral', 'Fresh', 'Fruity', 'Gourmand', 'Green', 'Leather', 
+  'Musky', 'Oriental', 'Powdery', 'Smoky', 'Spicy', 'Woody'
+];
 const PER_PAGE = 12;
 
 export default function FragrancesPage() {
   const router = useRouter();
   const gridRef = useRef<HTMLDivElement>(null);
-  const [allItems, setAllItems] = useState<FragranceCatalogItem[]>([]);
+  
+  const [items, setItems] = useState<FragranceCatalogItem[]>([]);
+  const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // States for filters/sorting
   const [sortBy, setSortBy] = useState<'rating' | 'name' | 'match'>('rating');
   const [filterFamily, setFilterFamily] = useState('');
-  const [filterConc, setFilterConc] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
 
+  // Load data from server
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
       try {
-        const data = await api.getFragranceCatalog(200, 0);
-        setAllItems(Array.isArray(data?.items) ? data.items : []);
-      } catch {
-        setAllItems([]);
+        const offset = (page - 1) * PER_PAGE;
+        const result = await api.getFragranceCatalog(PER_PAGE, offset, {
+          q: searchQuery || undefined,
+          family: filterFamily || undefined
+        });
+        
+        setItems(result?.items || []);
+        setTotal(result?.total || 0);
+      } catch (err) {
+        console.error('Failed to load catalog:', err);
+        setItems([]);
+        setTotal(0);
       } finally {
         setIsLoading(false);
       }
     };
-    void load();
-  }, []);
+    
+    // Debounce search
+    const timer = setTimeout(load, searchQuery ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [page, filterFamily, searchQuery]);
 
-  const enriched = allItems.map((f, i) => ({
-    ...f,
-    rating: RATINGS[i % RATINGS.length],
-    match_score: MATCHES[i % MATCHES.length],
-  }));
-
-  const filtered = enriched.filter((f) => {
-    const matchesFamily = !filterFamily || f.family?.toLowerCase() === filterFamily.toLowerCase();
-    const matchesSearch = !searchQuery || (() => {
-      const q = searchQuery.toLowerCase();
-      return (
-        f.name?.toLowerCase().includes(q) ||
-        f.brand?.toLowerCase().includes(q) ||
-        f.top_notes?.some((n) => n.toLowerCase().includes(q))
-      );
-    })();
-    return matchesFamily && matchesSearch;
-  });
-
-  const sorted = [...filtered].sort((a, b) => {
-    if (sortBy === 'rating') return (b.rating as number) - (a.rating as number);
-    if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
-    if (sortBy === 'match') return (b.match_score as number) - (a.match_score as number);
-    return 0;
-  });
-
-  const totalPages = Math.ceil(sorted.length / PER_PAGE);
-  const paginated = sorted.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-
-  useEffect(() => { setPage(1); }, [filterFamily, searchQuery, sortBy]);
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [filterFamily, searchQuery]);
 
   useEffect(() => {
-    if (!gridRef.current) return;
-    gridRef.current.querySelectorAll('.frag-list-card').forEach((card, i) => {
+    if (!gridRef.current || isLoading) return;
+    gridRef.current.querySelectorAll('.frag-list-card').forEach((card: Element, i: number) => {
       (card as HTMLElement).style.animationDelay = `${i * 40}ms`;
       card.classList.add('card-enter');
     });
-  }, [paginated.length, page]);
+  }, [items, isLoading]);
 
-  if (isLoading) {
+  if (isLoading && items.length === 0) {
     return (
       <div className="browse-page">
         <div className="browse-header">
           <div className="browse-header-inner container">
             <p className="browse-eyebrow">✦ Collection</p>
-            <h1 className="browse-title">Loading fragrances...</h1>
+            <h1 className="browse-title">Loading <span className="text-gradient-amber">Elite Library</span>...</h1>
           </div>
         </div>
       </div>
     );
   }
+
+  const totalPages = Math.ceil(total / PER_PAGE);
 
   return (
     <div className="browse-page">
@@ -98,7 +90,9 @@ export default function FragrancesPage() {
             <h1 className="browse-title">
               Explore <span className="text-gradient-amber">Fragrances</span>
             </h1>
-            <p className="browse-subtitle">{sorted.length} fragrances curated for discovery</p>
+            <p className="browse-subtitle">
+              {total.toLocaleString()} fragrances curated from the Elite collection
+            </p>
           </div>
           <div className="browse-search-wrap">
             <span className="search-icon" aria-hidden="true">⌕</span>
@@ -118,9 +112,12 @@ export default function FragrancesPage() {
       <div className="browse-layout container">
         <aside className="browse-sidebar" aria-label="Filters">
           <div className="sidebar-section">
-            <p className="sidebar-label">Family</p>
+            <p className="sidebar-label">Olfactive Families</p>
             <div className="family-chip-grid">
-              <button className={`family-chip ${filterFamily === '' ? 'active' : ''}`} onClick={() => setFilterFamily('')}>All</button>
+              <button 
+                className={`family-chip ${filterFamily === '' ? 'active' : ''}`} 
+                onClick={() => setFilterFamily('')}
+              >All</button>
               {FAMILIES.map((f) => (
                 <button
                   key={f}
@@ -131,15 +128,7 @@ export default function FragrancesPage() {
             </div>
           </div>
           <div className="sidebar-section">
-            <p className="sidebar-label">Concentration</p>
-            <div className="family-chip-grid">
-              {CONCENTRATIONS.map((c) => (
-                <button key={c} className={`family-chip ${filterConc === c ? 'active' : ''}`} onClick={() => setFilterConc(c)}>{c}</button>
-              ))}
-            </div>
-          </div>
-          <div className="sidebar-section">
-            <p className="sidebar-label">Sort By</p>
+            <p className="sidebar-label">Sort Preferences</p>
             <div className="sort-btn-group">
               {(['rating', 'match', 'name'] as const).map((s) => (
                 <button key={s} className={`sort-btn ${sortBy === s ? 'active' : ''}`} onClick={() => setSortBy(s)}>
@@ -152,7 +141,9 @@ export default function FragrancesPage() {
 
         <main className="browse-main">
           <div className="browse-toolbar">
-            <span className="result-count">Showing <strong>{paginated.length}</strong> of {sorted.length}</span>
+            <span className="result-count">
+              Showing <strong>{items.length}</strong> of {total.toLocaleString()}
+            </span>
             <div className="toolbar-sort-mobile">
               <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="sort-select-mobile" aria-label="Sort fragrances">
                 <option value="rating">Highest Rated</option>
@@ -162,16 +153,25 @@ export default function FragrancesPage() {
             </div>
           </div>
 
-          {paginated.length === 0 ? (
+          {items.length === 0 && !isLoading ? (
             <div className="empty-state">
               <p style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontStyle: 'italic', color: 'var(--color-on-surface-var)' }}>No fragrances found</p>
-              <p style={{ color: 'var(--color-muted)', marginTop: '8px' }}>Try adjusting your search or filters</p>
+              <p style={{ color: 'var(--color-muted)', marginTop: '8px' }}>Refine your filters to discover more of the collection</p>
               <button className="btn btn-outline" style={{ marginTop: '24px' }} onClick={() => { setFilterFamily(''); setSearchQuery(''); }}>Clear All</button>
             </div>
           ) : (
-            <div className="fragrances-grid" ref={gridRef}>
-              {paginated.map((frag, idx) => (
-                <FragCard key={frag.id || idx} frag={frag} index={idx} onClick={() => router.push(`/fragrances/${frag.id || `frag-${idx}`}`)} />
+            <div className={`fragrances-grid ${isLoading ? 'opacity-50' : ''}`} ref={gridRef}>
+              {items.map((frag, idx) => (
+                <FragCard 
+                  key={frag.id} 
+                  frag={{
+                    ...frag,
+                    rating: frag.rating || 3.8,
+                    match_score: frag.match_score || 82
+                  }} 
+                  index={idx} 
+                  onClick={() => router.push(`/fragrances/${frag.id}`)} 
+                />
               ))}
             </div>
           )}
@@ -179,9 +179,17 @@ export default function FragrancesPage() {
           {totalPages > 1 && (
             <div className="pagination">
               <button className="page-btn" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} aria-label="Previous page">←</button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <button key={p} className={`page-btn ${p === page ? 'active' : ''}`} onClick={() => setPage(p)} aria-label={`Page ${p}`} aria-current={p === page ? 'page' : undefined}>{p}</button>
-              ))}
+              
+              {/* Show limited page numbers */}
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let p = i + 1;
+                if (page > 3) p = page - 3 + i;
+                if (p > totalPages) return null;
+                return (
+                  <button key={p} className={`page-btn ${p === page ? 'active' : ''}`} onClick={() => setPage(p)}>{p}</button>
+                );
+              })}
+
               <button className="page-btn" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} aria-label="Next page">→</button>
             </div>
           )}

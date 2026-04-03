@@ -22,13 +22,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "ScentScapeAI — Discover Your Perfect Fragrance",
+  title: "Scentrix — Discover Your Perfect Fragrance",
   description:
     "AI-powered fragrance discovery platform. Find your signature scent through personalized recommendations powered by graph neural networks and natural language understanding.",
   keywords: "fragrance, perfume, AI recommendations, scent discovery, personalized",
-  authors: [{ name: "ScentScapeAI" }],
+  authors: [{ name: "Scentrix" }],
   openGraph: {
-    title: "ScentScapeAI — Discover Your Perfect Fragrance",
+    title: "Scentrix — Discover Your Perfect Fragrance",
     description: "AI-powered fragrance discovery. Find your signature scent.",
     type: "website",
   },

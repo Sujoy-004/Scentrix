@@ -98,7 +98,7 @@ async def run_integration_test(
     
     # Set default seed data path
     if seed_data_path is None:
-        seed_data_path = Path(__file__).parent.parent / "data" / "seed_fragrances.json"
+        seed_data_path = Path(__file__).parent.parent / "data" / "fra_elite_5k.json"
     
     logger.info("=" * 80)
     logger.info("STARTING INTEGRATION TEST - Phase 1 Data Pipeline")

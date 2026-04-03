@@ -74,6 +74,7 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev_secret_key_change_in_production}
       SENTRY_DSN: ${SENTRY_DSN:-}
       SCENTSCAPE_REPO_ROOT: ${SCENTSCAPE_REPO_ROOT:-/app}
+      PYTHONPATH: /app
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,7 +83,8 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ./ml/data:/app/ml/data:ro
+      - ./ml:/app/ml:ro
+      - ./backend:/app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
@@ -118,7 +120,8 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ./ml/data:/app/ml/data:ro
+      - ./ml:/app/ml:ro
+      - ./backend:/app
     healthcheck:
       disable: true
     networks:
@@ -137,9 +140,14 @@ services:
         condition: service_healthy
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NODE_ENV: development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
     networks:
       - scentscape
-    command: npm start -- --hostname 0.0.0.0 --port 3000
+    command: npm run dev -- --hostname 0.0.0.0 --port 3000
 
 volumes:
   postgres_data:

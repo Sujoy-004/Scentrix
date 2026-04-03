@@ -1,28 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-
 export function SocialProof() {
-  const sectionRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver((entries, obs) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-inview');
-          obs.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.12, rootMargin: '0px 0px -10% 0px' });
-
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-      const testimonials = sectionRef.current.querySelectorAll('.testimonial');
-      testimonials.forEach((testimonial) => observer.observe(testimonial));
-    }
-
-    return () => observer.disconnect();
-  }, []);
 
   const testimonials = [
     {
@@ -46,38 +24,57 @@ export function SocialProof() {
   ];
 
   return (
-    <section className="social-proof scroll-reveal" ref={sectionRef}>
+    <section className="social-proof section">
       <div className="social-proof-container">
         <div className="section-header">
           <h2 className="section-title">Loved by Fragrance Enthusiasts</h2>
         </div>
 
         <div className="stats-row">
-          <div className="stat-card">
-            <div className="stat-number">50K+</div>
-            <div className="stat-label">Active Users</div>
+          <div className="stat-card reveal-cascade">
+            <div className="stat-icon-premium">
+               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M8 7h8"/><path d="M10 11h4"/><path d="M12 15h0"/></svg>
+            </div>
+            <div className="stat-number-elite serif">1,500</div>
+            <div className="stat-label-elite">Active Users</div>
           </div>
-          <div className="stat-card">
-            <div className="stat-number">98%</div>
-            <div className="stat-label">Match Satisfaction</div>
+
+          <div className="stat-card reveal-cascade">
+            <div className="stat-icon-premium">
+               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m16 8-8 8"/><path d="m8 8 8 8"/></svg>
+            </div>
+            <div className="stat-number-elite serif">91.5%</div>
+            <div className="stat-label-elite">Match Satisfaction</div>
           </div>
-          <div className="stat-card">
-            <div className="stat-number">1000+</div>
-            <div className="stat-label">Fragrances Available</div>
+
+          <div className="stat-card reveal-cascade">
+            <div className="stat-icon-premium">
+               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/><path d="m3 9 2.45-4.9A2 2 0 0 1 7.24 3h9.52a2 2 0 0 1 1.8 1.1L21 9"/><path d="M12 3v6"/></svg>
+            </div>
+            <div className="stat-number-elite serif">2k+</div>
+            <div className="stat-label-elite">Fragrance Available</div>
           </div>
         </div>
 
         <div className="testimonials-grid">
           {testimonials.map((testimonial, index) => (
-            <div key={index} className="testimonial scroll-reveal">
+            <div key={index} className="testimonial-card glass-card scroll-reveal">
+              <div className="testimonial-glow"></div>
               <div className="testimonial-rating">
-                {'⭐'.repeat(testimonial.rating)}
+                {Array.from({ length: testimonial.rating }).map((_, i) => (
+                  <svg key={i} width="14" height="14" viewBox="0 0 24 24" fill="var(--amber-glow)" style={{ opacity: 0.8 }}>
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                  </svg>
+                ))}
               </div>
               <p className="testimonial-text">"{testimonial.text}"</p>
               <div className="testimonial-footer">
-                <div className="testimonial-name">{testimonial.name}</div>
-                <div className="testimonial-match">{testimonial.match}</div>
+                <div className="testimonial-info">
+                  <span className="testimonial-name">{testimonial.name}</span>
+                  <span className="testimonial-badge">{testimonial.match}</span>
+                </div>
               </div>
+              <div className="testimonial-sheen"></div>
             </div>
           ))}
         </div>

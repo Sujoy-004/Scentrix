@@ -35,7 +35,7 @@ export default function Navbar() {
             onClick={() => router.push('/')}
           >
             <span className="logo-icon">✦</span>
-            <span className="logo-text">ScentScape</span>
+            <span className="logo-text">Scentrix</span>
           </button>
         </div>
 

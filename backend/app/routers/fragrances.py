@@ -219,6 +219,7 @@ async def get_catalog(
                 id=row["id"],
                 name=row["name"],
                 brand=row["brand"],
+                family=row.get("accords", ["Unknown"])[0],
                 year=row.get("year"),
                 concentration=row.get("concentration", "N/A"),
                 gender_label=row.get("gender_label", "N/A"),
