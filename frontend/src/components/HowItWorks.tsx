@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Star, ShieldCheck, Zap, Library } from 'lucide-react';
+import '@/styles/how-it-works.css';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -15,52 +16,51 @@ const containerVariants = {
 };
 
 const stepVariants = {
-  hidden: { opacity: 0, y: 40 },
+  hidden: { opacity: 0, scale: 0.95, y: 30 },
   visible: { 
     opacity: 1, 
+    scale: 1,
     y: 0,
-    transition: { type: 'spring' as const, stiffness: 60, damping: 20 }
+    transition: { type: 'spring' as const, stiffness: 50, damping: 20 }
   }
 };
 
 export function HowItWorks() {
   const steps = [
     {
-      id: 1,
-      icon: <Star size={32} />,
-      title: "Rate Your Favorites",
-      description: "Answer quick questions about your favorite fragrances. Rate them on sweetness, woodiness, and intensity.",
-      visual: <div className="w-12 h-12 rounded-full border border-primary/20 flex items-center justify-center opacity-20"><Star size={24} /></div>
+      id: "01",
+      icon: <Star size={40} />,
+      title: "Archetypal Discovery",
+      description: "Reveal your olfactory preferences through our high-fidelity rating interface, masking complexity with elegant interaction design.",
+      visual: <div className="w-16 h-1 rounded-full bg-gradient-to-r from-primary/0 via-primary/40 to-primary/0" />
     },
     {
-      id: 2,
-      icon: <ShieldCheck size={32} />,
-      title: "AI-Powered Matching",
-      description: "Our GraphSAGE AI analyzes your taste profile and compares it with 5,130+ fragrances in our database.",
-      visual: <div className="w-12 h-12 rounded-full border border-primary/20 flex items-center justify-center opacity-20"><Zap size={24} /></div>
+      id: "02",
+      icon: <ShieldCheck size={40} />,
+      title: "Neural Graph Mapping",
+      description: "Our proprietary GraphSAGE engine scans 5,130 elite masterpieces, identifying latent patterns in your taste architecture.",
+      visual: <div className="w-20 h-1 rounded-full bg-gradient-to-r from-primary/0 via-primary/50 to-primary/0" />
     },
     {
-      id: 3,
-      icon: <Library size={32} />,
-      title: "Explore & Discover",
-      description: "Browse personalized matches, view detailed notes, and save favorites to your private collection.",
-      visual: <div className="w-12 h-12 rounded-full border border-primary/20 flex items-center justify-center opacity-20"><Library size={24} /></div>
+      id: "03",
+      icon: <Library size={40} />,
+      title: "Elite Curation",
+      description: "Receive a distilled collection of architectural fragrances, synchronized across your profile for a seamless, cinematic encounter.",
+      visual: <div className="w-24 h-1 rounded-full bg-gradient-to-r from-primary/0 via-primary/60 to-primary/0" />
     }
   ];
 
   return (
-    <section className="how-it-works py-32 relative overflow-hidden">
+    <section className="how-it-works py-40">
       <div className="container mx-auto px-6">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-24"
+          className="text-center mb-32"
         >
-          <h2 className="section-title text-center" style={{ marginBottom: '0.5rem', width: '100%', display: 'block' }}>The Alchemist's Path</h2>
-          <p className="section-subtitle text-center" style={{ marginTop: '0', marginBottom: '4rem', width: '100%', display: 'block' }}>
-            Three steps to your architectural scent profile
-          </p>
+          <h2 className="section-title italic mb-4">Architectural Process</h2>
+          <p className="section-subtitle mx-auto">Three pillars of the Scentrix elite discovery engine</p>
         </motion.div>
 
         <motion.div 
@@ -68,31 +68,28 @@ export function HowItWorks() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
-          className="steps-grid grid grid-cols-1 md:grid-cols-3 gap-12"
+          className="steps-grid grid grid-cols-1 md:grid-cols-3 gap-10"
         >
           {steps.map((step) => (
             <motion.div 
               key={step.id}
               variants={stepVariants}
-              className="step-card group relative p-10 rounded-3xl border border-white/5 bg-white/2 hover:bg-white/5 transition-colors text-center"
+              className="step-card group"
             >
-              <div className="step-number absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold shadow-lg shadow-primary/20">
+              <div className="step-number">
                 {step.id}
               </div>
               
-              <motion.div 
-                whileHover={{ scale: 1.1, rotate: 5 }}
-                className="step-emoji mb-8 flex justify-center text-primary"
-              >
+              <div className="step-emoji">
                 {step.icon}
-              </motion.div>
+              </div>
 
-              <h3 className="step-heading text-xl font-display italic mb-4">{step.title}</h3>
-              <p className="step-description text-muted text-sm leading-relaxed mb-8">
+              <h3 className="step-heading">{step.title}</h3>
+              <p className="step-description">
                 {step.description}
               </p>
 
-              <div className="flex justify-center mt-auto">
+              <div className="step-visual">
                 {step.visual}
               </div>
             </motion.div>

@@ -8,68 +8,117 @@
 }
 
 .families-container {
-  max-width: 1300px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 0 2rem;
 }
 
+/* Consolidated Grid: Clean 5-column layout for the 10 Elite Families */
 .families-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 2rem;
-  margin-top: 4rem;
+  gap: 1.5rem;
+  margin-top: 6rem;
+  width: 100%;
+}
+
+@media (max-width: 1600px) {
+  .families-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1.25rem;
+  }
 }
 
 /* Tablet / Large Mobile Breakpoints */
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
   .families-grid {
     grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .families-grid {
+    grid-template-columns: repeat(2, 1fr);
     gap: 1.5rem;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 480px) {
   .families-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
+    grid-template-columns: 1fr;
+    gap: 2rem;
   }
 }
 
+/* ── ELITE FAMILY CARD: GLASS PILLAR EFFECT ── */
 .elite-family-card {
   position: relative;
-  aspect-ratio: 10 / 14;
+  aspect-ratio: 10 / 16; /* Taller pillar for better grid fit */
   border-radius: 2rem;
   overflow: hidden;
   background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
   cursor: pointer;
-  transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.9s cubic-bezier(0.2, 1, 0.2, 1);
   isolation: isolate;
 }
 
+/* The Pillar Highlighting */
+.elite-family-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(244, 187, 146, 0.1),
+    rgba(255, 255, 255, 0.15),
+    rgba(244, 187, 146, 0.1),
+    transparent
+  );
+  transform: skewX(-25deg);
+  transition: 0.8s;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.elite-family-card:hover::before {
+  left: 150%;
+}
+
 .elite-family-card:hover {
-  transform: translateY(-8px) scale(1.02);
-  border-color: rgba(244, 187, 146, 0.3);
+  transform: translateY(-12px) scale(1.02);
+  border-color: rgba(244, 187, 146, 0.4);
+  background: rgba(0, 0, 0, 0.5);
   box-shadow: 
-    0 20px 40px rgba(0, 0, 0, 0.6),
-    0 0 20px rgba(244, 187, 146, 0.1);
+    0 40px 80px rgba(0, 0, 0, 0.8),
+    0 0 40px rgba(244, 187, 146, 0.15);
 }
 
 .family-image-container {
   position: absolute;
   inset: 0;
   z-index: -1;
+  overflow: hidden;
 }
 
 .family-image {
   width: 100%;
   height: 100%;
-  object-cover: center;
-  transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  object-fit: cover;
+  transition: transform 1.5s cubic-bezier(0.2, 1, 0.2, 1);
+  filter: saturate(0.8) brightness(0.6);
 }
 
 .elite-family-card:hover .family-image {
-  transform: scale(1.15);
+  transform: scale(1.1);
+  filter: saturate(1.1) brightness(0.8);
 }
 
 .family-overlay {
@@ -78,10 +127,10 @@
   background: linear-gradient(
     to top,
     rgba(0, 0, 0, 0.95) 0%,
-    rgba(0, 0, 0, 0.4) 40%,
-    transparent 100%
+    rgba(0, 0, 0, 0.4) 50%,
+    rgba(0, 0, 0, 0.2) 100%
   );
-  transition: opacity 0.5s ease;
+  transition: opacity 0.8s ease;
 }
 
 .family-content {
@@ -90,39 +139,41 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: 1.75rem;
+  padding: 2.5rem 1.5rem;
   text-align: center;
+  z-index: 2;
 }
 
 .family-name {
   font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 400;
+  font-size: 2rem;
+  font-weight: 500;
   font-style: italic;
-  color: #fff;
   margin-bottom: 0.5rem;
+  color: #fff;
   text-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
-  background: linear-gradient(135deg, #fff, #f4bb92);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  transition: all 0.7s cubic-bezier(0.2, 1, 0.2, 1);
+}
+
+.elite-family-card:hover .family-name {
+  transform: scale(1.05);
+  color: #f4bb92;
 }
 
 .family-desc {
   font-family: var(--font-body);
-  font-size: 0.6rem;
+  font-size: 0.65rem;
   text-transform: uppercase;
-  letter-spacing: 0.25em;
+  letter-spacing: 0.3em;
   color: rgba(255, 255, 255, 0.5);
   font-weight: 700;
-  opacity: 0;
-  transform: translateY(10px);
-  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-bottom: 1.5rem;
+  transition: all 0.5s ease;
 }
 
 .elite-family-card:hover .family-desc {
-  opacity: 1;
-  transform: translateY(0);
+  color: rgba(255, 255, 255, 0.8);
+  letter-spacing: 0.4em;
 }
 
 .explore-trigger {
@@ -130,17 +181,19 @@
   padding-top: 1rem;
   border-top: 1px solid rgba(244, 187, 146, 0.2);
   opacity: 0;
-  transition: opacity 0.5s ease 0.1s;
+  transform: translateY(10px);
+  transition: all 0.6s cubic-bezier(0.2, 1, 0.2, 1);
 }
 
 .elite-family-card:hover .explore-trigger {
   opacity: 1;
+  transform: translateY(0);
 }
 
 .explore-text {
-  font-size: 0.55rem;
+  font-size: 0.6rem;
   text-transform: uppercase;
-  letter-spacing: 0.3em;
+  letter-spacing: 0.4em;
   color: #f4bb92;
   font-weight: 900;
 }

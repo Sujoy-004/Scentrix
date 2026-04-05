@@ -32,15 +32,10 @@ const springConfig = { type: 'spring', stiffness: 300, damping: 30, mass: 1 };
 export default function StandardQuiz() {
   const router = useRouter();
   const [currentFragranceIndex, setCurrentFragranceIndex] = useState(0);
-  const [rating, setRating] = useState<number | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [adaptiveEnabled, setAdaptiveEnabled] = useState(true);
-  const [adaptiveWarning, setAdaptiveWarning] = useState<string | null>(null);
+  const [rating, setRating] = useState<number | null>(5.0); 
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [authApiEnabled, setAuthApiEnabled] = useState(true);
   const [catalogError, setCatalogError] = useState<string | null>(null);
-  const hasDowngradedAuthRef = useRef(false);
 
   const {
     addQuizResponse,
@@ -48,46 +43,62 @@ export default function StandardQuiz() {
     isAuthenticated,
     adaptiveQuiz,
     initializeAdaptiveQuiz,
-    appendAdaptiveQuestions,
-    markAdaptiveAnswer,
-    setAdaptivePhase,
-    setAdaptiveConfidence,
     resetAdaptiveQuiz,
   } = useAppStore();
 
   const submitRatingMutation = useSubmitRating();
   const adaptiveSession = useAdaptiveQuizSession();
   const [fallbackFragrances, setFallbackFragrances] = useState<QuizCard[]>([]);
-  const canUseAuthedApis = isAuthenticated && authApiEnabled;
+
+  // 3D TILT LOGIC
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const rotateX = useTransform(mouseY, [-300, 300], [10, -10]);
+  const rotateY = useTransform(mouseX, [-300, 300], [-10, 10]);
 
   const fragrances = adaptiveQuiz.questionQueue.length > 0
     ? adaptiveQuiz.questionQueue
     : fallbackFragrances;
-  const sessionId = adaptiveQuiz.sessionId;
 
   // Swipe logic
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-200, 200], [-25, 25]);
+  const rotate = useTransform(x, [-200, 200], [-10, 10]);
   const opacity = useTransform(x, [-200, -150, 0, 150, 200], [0, 1, 1, 1, 0]);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    const centerX = rect.left + width / 2;
+    const centerY = rect.top + height / 2;
+    mouseX.set(e.clientX - centerX);
+    mouseY.set(e.clientY - centerY);
+  };
+
+  const handleMouseLeave = () => {
+    mouseX.set(0);
+    mouseY.set(0);
+  };
 
   useEffect(() => {
     let active = true;
     const loadCatalogFallback = async () => {
       try {
-        const page = await api.getFragranceCatalog(8, 0);
-        const mapped = page?.items?.map(item => ({
+        const page = await api.getFragranceCatalog(100, 0);
+        const mapped = (page?.items?.map((item: FragranceCatalogItem) => ({
           fragrance_id: item.id,
           name: item.name,
           brand: item.brand,
           top_notes: item.top_notes || [],
           accords: item.accords || [],
           family: item.family
-        })) || [];
+        })) || []).sort(() => Math.random() - 0.5);
+        
         if (active && mapped.length > 0) {
-          setFallbackFragrances(mapped);
+          setFallbackFragrances(mapped.slice(0, 12));
         }
       } catch (err) {
-        if (active) setCatalogError('Failed to load library.');
+        if (active) setCatalogError('Neural link failed.');
       }
     };
     void loadCatalogFallback();
@@ -99,10 +110,7 @@ export default function StandardQuiz() {
     const bootstrapAdaptiveQuiz = async () => {
       setIsBootstrapping(true);
       resetAdaptiveQuiz();
-      if (!canUseAuthedApis) {
-        if (active) setIsBootstrapping(false);
-        return;
-      }
+      clearQuizResponses(); // Full Neural Purge for clean guest recommendations
       try {
         const response = await adaptiveSession.startSession.mutateAsync({
           seed_count: 8,
@@ -117,14 +125,14 @@ export default function StandardQuiz() {
           });
         }
       } catch (error) {
-        if (active) setAdaptiveEnabled(false);
+        // Fallback for non-authed sessions
       } finally {
-        if (active) setIsBootstrapping(false);
+        if (active) setTimeout(() => setIsBootstrapping(false), 1200);
       }
     };
     void bootstrapAdaptiveQuiz();
     return () => { active = false; };
-  }, [canUseAuthedApis]);
+  }, []);
 
   const handleNext = async (val?: number) => {
     const finalRating = val ?? rating;
@@ -135,14 +143,13 @@ export default function StandardQuiz() {
 
     try {
       addQuizResponse({ fragrance_id: currentFragrance.fragrance_id, rating: finalRating });
-      
-      if (canUseAuthedApis) {
+      if (isAuthenticated) {
         submitRatingMutation.mutate({ fragranceId: currentFragrance.fragrance_id, rating: finalRating });
       }
 
       if (currentFragranceIndex < fragrances.length - 1) {
         setCurrentFragranceIndex(prev => prev + 1);
-        setRating(null);
+        setRating(5.0);
         x.set(0);
       } else {
         router.push('/recommendations');
@@ -152,10 +159,10 @@ export default function StandardQuiz() {
     }
   };
 
-  if (isBootstrapping) return <div className="quiz-loading glass">Calibrating Senses...</div>;
+  if (isBootstrapping) return <DiscoveryLoader title="Calibrating Senses" />;
 
   const currentFragrance = fragrances[currentFragranceIndex];
-  if (!currentFragrance) return null;
+  if (!currentFragrance) return <div className="quiz-empty-state">Neural link lost. Refreshing...</div>;
 
   const palette = getFragrancePalette(currentFragrance);
   const progress = ((currentFragranceIndex + 1) / fragrances.length) * 100;
@@ -165,114 +172,133 @@ export default function StandardQuiz() {
       className="quiz-page"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
       style={{
         '--quiz-soft': palette.soft,
         '--quiz-glow': palette.glow,
         '--quiz-accent': palette.accent,
-        '--quiz-page-from': palette.pageFrom,
-        '--quiz-page-to': palette.pageTo,
       } as any}
     >
-      <div className="quiz-container max-w-2xl mx-auto px-6 pt-32">
+      <div className="quiz-background-fixed" />
+      
+      <div className="quiz-container">
         <motion.header 
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="text-center mb-12"
+          className="quiz-meta-header"
         >
-          <h1 className="text-3xl font-display italic text-white mb-2">Discovery Protocol</h1>
-          <p className="text-muted text-sm">Rating {currentFragranceIndex + 1} of {fragrances.length}</p>
-          
-          <div className="w-full h-1 bg-white/5 rounded-full mt-8 overflow-hidden">
-            <motion.div 
-              className="h-full bg-primary shadow-[0_0_8px_var(--color-primary)]"
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              transition={springConfig}
-            />
+          <div className="progress-indicator">
+            <span className="step-count">Protocol {currentFragranceIndex + 1} / {fragrances.length}</span>
+            <div className="progress-bar-wrap">
+              <motion.div 
+                className="progress-bar-fill"
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+              />
+            </div>
           </div>
         </motion.header>
 
         <AnimatePresence mode="wait">
           <motion.div
             key={currentFragrance.fragrance_id}
-            initial={{ x: 100, opacity: 0, rotate: 10 }}
-            animate={{ x: 0, opacity: 1, rotate: 0 }}
-            exit={{ x: -100, opacity: 0, rotate: -10 }}
-            transition={springConfig}
-            className="quiz-card-elite glass p-10 rounded-[2.5rem] relative"
-            style={{ x, rotate, opacity }}
+            initial={{ scale: 0.9, opacity: 0, y: 30 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 1.1, opacity: 0, y: -30 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="quiz-card-elite"
+            style={{ x, rotate, opacity, rotateX, rotateY, perspective: 1000 }}
             drag="x"
             dragConstraints={{ left: 0, right: 0 }}
             onDragEnd={(_, info) => {
-              if (info.offset.x > 100 && rating !== null) handleNext();
-              else if (info.offset.x < -100) setCurrentFragranceIndex(prev => Math.min(prev + 1, fragrances.length - 1));
+              if (info.offset.x > 150) handleNext();
+              else if (info.offset.x < -150) setCurrentFragranceIndex(prev => Math.min(prev + 1, fragrances.length - 1));
             }}
           >
-            <div className="text-center mb-10">
+            <div className="quiz-card-glass-pillar" />
+            
+            <div className="quiz-card-visual">
               <motion.div 
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="w-24 h-24 mx-auto mb-6 flex items-center justify-center bg-primary/10 rounded-full text-primary"
+                animate={{ y: [0, -12, 0], rotate: [0, 5, 0] }}
+                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                className="visual-icon-nexus"
               >
-                <Sparkles size={40} />
+                <Sparkles size={48} strokeWidth={1} />
               </motion.div>
-              <h2 className="text-2xl font-display italic text-white mb-1">{currentFragrance.name}</h2>
-              <p className="text-primary text-xs uppercase tracking-widest font-bold">{currentFragrance.brand}</p>
+              
+              <div className="visual-details">
+                <h2 className="frag-name-title italic">
+                  {currentFragrance.accords.slice(0, 2).map((a, i) => (
+                    <span key={a}>
+                      {a}{i === 0 && currentFragrance.accords.length > 1 ? " & " : ""}
+                    </span>
+                  ))}
+                  <span className="block text-[0.8rem] opacity-50 tracking-widest mt-2">Neural Profile {currentFragranceIndex + 1}</span>
+                </h2>
+              </div>
+
+              {/* LIVE NEURAL GRAPHING COMPONENT */}
+              <div className="quiz-live-graph-wrap">
+                <NeuralGraph rating={rating || 5} />
+              </div>
             </div>
 
-            <div className="space-y-8">
-              <div className="rating-area">
-                <div className="flex justify-between text-[0.65rem] uppercase tracking-tighter text-muted mb-4 px-2">
-                  <span>Muted</span>
-                  <span>Intense</span>
-                </div>
+            <div className="quiz-rating-interaction">
+              <p className="interaction-label">Olfactory Signature</p>
+              
+              <div className="notes-capsules-nexus mb-10">
+                {currentFragrance.top_notes.slice(0, 5).map(note => (
+                  <motion.span 
+                    key={note} 
+                    className="note-capsule"
+                    whileHover={{ scale: 1.1, backgroundColor: "var(--quiz-accent)", color: "#000", borderColor: "transparent" }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {note}
+                  </motion.span>
+                ))}
+              </div>
+              
+              <div className="rating-slider-nexus">
                 <input 
                   type="range" 
                   min="1" max="10" step="0.1"
                   value={rating ?? 5}
                   onChange={(e) => setRating(parseFloat(e.target.value))}
-                  className="w-full h-2 bg-white/5 rounded-full appearance-none cursor-pointer accent-primary"
+                  className="elite-rating-range"
                 />
-                <div className="text-center mt-6">
+                
+                <div className="rating-readout">
                   <motion.span 
                     key={rating}
-                    initial={{ scale: 1.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="text-4xl font-display italic text-gradient-amber"
+                    initial={{ y: 10, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    className="rating-value-h-f"
                   >
-                    {rating ? rating.toFixed(1) : "—"}
+                    {rating ? rating.toFixed(1) : "5.0"}
                   </motion.span>
-                  <span className="text-muted ml-2">/ 10</span>
-                </div>
-              </div>
-
-              <div className="border-t border-white/5 pt-8">
-                <h4 className="text-[0.65rem] uppercase tracking-widest text-muted mb-4">Aromatic Profile</h4>
-                <div className="flex flex-wrap gap-2">
-                  {currentFragrance.top_notes.slice(0, 4).map(note => (
-                    <span key={note} className="px-3 py-1 bg-white/5 rounded-full text-[0.65rem] text-white/70 border border-white/10 italic">
-                      {note}
-                    </span>
-                  ))}
+                  <span className="rating-total-h-f">/ 10</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-4 mt-12">
+            <div className="quiz-card-actions">
               <button 
                 onClick={() => setCurrentFragranceIndex(prev => Math.min(prev + 1, fragrances.length - 1))}
-                className="flex-1 py-4 rounded-2xl bg-white/5 text-muted text-xs uppercase font-bold tracking-widest hover:bg-white/10 transition-colors"
+                className="quiz-action-btn skip"
               >
-                Skip
+                Skip 
               </button>
               <motion.button 
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleNext()}
                 disabled={rating === null || isTransitioning}
-                className="flex-[2] py-4 rounded-2xl bg-primary text-on-primary text-xs uppercase font-bold tracking-widest shadow-xl shadow-primary/20 disabled:opacity-50"
+                className="quiz-action-btn confirm"
               >
-                {isTransitioning ? "Analyzing..." : "Confirm Rating"}
+                {isTransitioning ? "Synthesizing..." : "Confirm Rating"}
               </motion.button>
             </div>
           </motion.div>
@@ -282,12 +308,136 @@ export default function StandardQuiz() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1 }}
-          className="mt-12 text-center text-[0.65rem] text-muted flex items-center justify-center gap-2"
+          className="quiz-footer-meta"
         >
-          <AlertCircle size={12} />
-          <span>Ratings directly influence your curated Neural Scent Graph</span>
+          <div className="meta-badge">
+            <AlertCircle size={14} />
+            <span>AI NEURAL SYNTHESIS ACTIVE</span>
+          </div>
         </motion.footer>
       </div>
     </motion.div>
+  );
+}
+
+function NeuralGraph({ rating }: { rating: number }) {
+  const nodeCount = 6;
+  const radius = 40;
+  const centerX = 50;
+  const centerY = 50;
+
+  // Generate nodes in a circle
+  const nodes = Array.from({ length: nodeCount }).map((_, i) => {
+    const angle = (i * 2 * Math.PI) / nodeCount;
+    // Nodes move outward as the rating increases
+    const offset = (rating / 10) * 10; 
+    return {
+      x: centerX + (radius + offset) * Math.cos(angle),
+      y: centerY + (radius + offset) * Math.sin(angle),
+    };
+  });
+
+  // Calculate the "Core" path based on rating
+  const coreRadius = 15 + (rating * 1.5);
+  const pathD = Array.from({ length: nodeCount }).map((_, i) => {
+    const angle = (i * 2 * Math.PI) / nodeCount;
+    const px = centerX + coreRadius * Math.cos(angle);
+    const py = centerY + coreRadius * Math.sin(angle);
+    return `${i === 0 ? "M" : "L"} ${px} ${py}`;
+  }).join(" ") + " Z";
+
+  return (
+    <div className="neural-nexus-container">
+      <svg viewBox="0 0 100 100" className="neural-nexus-svg">
+        <defs>
+          <radialGradient id="neuralGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="var(--quiz-accent)" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="var(--quiz-accent)" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        
+        {/* NEURAL AURA */}
+        <motion.circle 
+          cx="50" cy="50" r="45"
+          fill="url(#neuralGlow)"
+          animate={{ r: [40, 45, 40], opacity: [0.3, 0.5, 0.3] }}
+          transition={{ duration: 4, repeat: Infinity }}
+        />
+
+        {/* CONNECTIONS (WEBS) */}
+        {nodes.map((n, i) => (
+          <motion.line 
+            key={`line-${i}`}
+            x1="50" y1="50"
+            x2={n.x} y2={n.y}
+            stroke="var(--quiz-accent)"
+            strokeWidth="0.2"
+            opacity="0.2"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+          />
+        ))}
+
+        {/* MORPHING FLAVOR CORE */}
+        <motion.path 
+          d={pathD}
+          fill="var(--quiz-accent)"
+          fillOpacity={0.1 + (rating / 100)}
+          stroke="var(--quiz-accent)"
+          strokeWidth="0.8"
+          animate={{ scale: [1, 1.02, 1] }}
+          transition={{ 
+            d: { type: "spring", stiffness: 300, damping: 30 },
+            scale: { duration: 2, repeat: Infinity, ease: "easeInOut" }
+          }}
+        />
+
+        {/* DISCOVERY NODES */}
+        {nodes.map((n, i) => (
+          <motion.circle 
+            key={`node-${i}`}
+            cx={n.x} cy={n.y} r="1.5"
+            fill="var(--quiz-accent)"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: i * 0.1 }}
+          />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function DiscoveryLoader({ title = "Refining Essence" }: { title?: string }) {
+  return (
+    <div className="discovery-loader-full">
+      <motion.div 
+        className="loader-4d-nexus"
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <div className="loader-supernova" />
+        <motion.div 
+          className="loader-logo-layer"
+          animate={{ 
+            y: [0, -10, 0],
+            rotateY: [0, 15, 0],
+            rotateX: [0, -10, 0]
+          }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <img src="/assets/ui/logo.png" alt="Scentrix Logo" className="loader-logo-img" />
+        </motion.div>
+        
+        <motion.p 
+          className="loader-synthesis-text"
+          animate={{ opacity: [0.4, 1, 0.4] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {title}...
+        </motion.p>
+      </motion.div>
+    </div>
   );
 }

@@ -7,13 +7,15 @@ interface ScrollSequenceProps {
   basePath: string;
   prefix?: string;
   extension?: string;
+  padding?: number;
 }
 
 export function ScrollSequence({ 
   frameCount, 
   basePath, 
-  prefix = 'ezgif-frame-', 
+  prefix = 'frame_', 
   extension = 'png',
+  padding = 5,
   isFixed = true 
 }: ScrollSequenceProps & { isFixed?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -28,7 +30,7 @@ export function ScrollSequence({
 
       for (let i = 1; i <= frameCount; i++) {
         const img = new Image();
-        const frameNumber = i.toString().padStart(3, '0');
+        const frameNumber = i.toString().padStart(padding, '0');
         img.src = `${basePath}/${prefix}${frameNumber}.${extension}`;
         img.onload = () => {
           count++;
@@ -130,7 +132,7 @@ export function ScrollSequence({
       <div className="scroll-sequence-sticky" style={wrapperStyle}>
         <canvas 
           ref={canvasRef} 
-          style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.95 }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 1 }}
         />
         {loadedCount < frameCount && (
           <div className="sequence-loader" style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#161310', color: 'var(--amber-glow)', zIndex: 1000 }}>

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence, useScroll, useSpring, useTransform } from 'framer-motion';
+import { motion, useScroll, useSpring } from 'framer-motion';
 import { api, type FragranceCatalogItem } from '@/lib/api';
 import './fragrances.css';
 
@@ -12,8 +12,19 @@ const FAMILIES = [
   'Musky', 'Oriental', 'Powdery', 'Smoky', 'Spicy', 'Woody'
 ];
 const VIDEO_FAMILIES = ['animalic', 'aquatic', 'citrus', 'earthy', 'floral', 'fresh', 'fruity', 'leather', 'aromatic', 'amber', 'all'];
-const EXTRACTED_FAMILIES = ['all', 'amber', 'aromatic', 'fruity', 'leather'];
-const PER_PAGE = 21;
+
+const BOTTLE_COLORS: Record<string, string> = {
+  '1': 'linear-gradient(135deg, #6b3a1f, #c87941)',
+  '2': 'linear-gradient(135deg, #b8860b, #ffe08a)',
+  '3': 'linear-gradient(135deg, #1a4a1a, #4caf50)',
+  '4': 'linear-gradient(135deg, #4a3728, #8b6347)',
+  '5': 'linear-gradient(135deg, #8b1a4a, #e91e8c)',
+  '6': 'linear-gradient(135deg, #1a3a5c, #4a90d9)',
+  '7': 'linear-gradient(135deg, #8b4513, #ff8c00)',
+  '8': 'linear-gradient(135deg, #1a2a3a, #4a6fa5)',
+  'all': 'linear-gradient(135deg, #c9a86c, #f0d090)',
+};
+const PER_PAGE = 20;
 
 export default function FragrancesPage() {
   const router = useRouter();
@@ -23,14 +34,12 @@ export default function FragrancesPage() {
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   
-  // States for filters/sorting
   const [sortBy, setSortBy] = useState<'rating' | 'name' | 'match'>('rating');
   const [filterFamily, setFilterFamily] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [jumpPage, setJumpPage] = useState('');
 
-  // Load data from server
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
@@ -52,17 +61,13 @@ export default function FragrancesPage() {
       }
     };
     
-    // Debounce search
     const timer = setTimeout(load, searchQuery ? 300 : 0);
     return () => clearTimeout(timer);
   }, [page, filterFamily, searchQuery]);
 
-  // Reset page when filters change
   useEffect(() => {
     setPage(1);
   }, [filterFamily, searchQuery]);
-
-  // Load data from server
 
   useEffect(() => {
     if (!gridRef.current || isLoading) return;
@@ -84,7 +89,7 @@ export default function FragrancesPage() {
 
   return (
     <div className="browse-page">
-      <DiscoveryScrubber family={filterFamily || 'all'} />
+      <FamilyBackground family={filterFamily || 'all'} />
       
       <div className="browse-header">
         <div className="browse-header-inner container">
@@ -256,6 +261,19 @@ export default function FragrancesPage() {
   );
 }
 
+function FamilyBackground({ family }: { family: string }) {
+  return (
+    <div className="family-discovery-bg">
+      <img 
+        src={`/assets/family/${family}.png`} 
+        alt={family} 
+        className="family-discovery-img"
+      />
+      <div className="family-discovery-dimmer" />
+    </div>
+  );
+}
+
 function DiscoveryLoader() {
   return (
     <div className="discovery-loader-full">
@@ -275,7 +293,7 @@ function DiscoveryLoader() {
           }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
         >
-          <img src="/assets/logo.png" alt="Scentrix Logo" className="loader-logo-img" />
+          <img src="/assets/ui/logo.png" alt="Scentrix Logo" className="loader-logo-img" />
         </motion.div>
         
         <motion.p 
@@ -290,114 +308,39 @@ function DiscoveryLoader() {
   );
 }
 
-function DiscoveryScrubber({ family }: { family: string }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const currentImageRef = useRef<HTMLImageElement | null>(null);
-  const frameRequestRef = useRef<number>(0);
-  
-  const { scrollYProgress } = useScroll();
-  const smoothProgress = useSpring(scrollYProgress, { stiffness: 45, damping: 22 });
-  
-  const isExtracted = EXTRACTED_FAMILIES.includes(family);
-  const activeFamily = isExtracted ? family : 'all';
-
-  const renderFrameToCanvas = (img: HTMLImageElement) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !img.complete) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    // Clear and draw with cover aspect
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const canvasAspect = canvas.width / canvas.height;
-    const imgAspect = img.width / img.height;
-    let dW, dH, dX, dY;
-
-    if (canvasAspect > imgAspect) {
-      dW = canvas.width;
-      dH = canvas.width / imgAspect;
-      dX = 0;
-      dY = (canvas.height - dH) / 2;
-    } else {
-      dH = canvas.height;
-      dW = canvas.height * imgAspect;
-      dX = (canvas.width - dW) / 2;
-      dY = 0;
-    }
-    ctx.drawImage(img, dX, dY, dW, dH);
-  };
-
-  useEffect(() => {
-    return smoothProgress.onChange(latest => {
-      // Cancel previous frame to avoid over-rendering
-      if (frameRequestRef.current) cancelAnimationFrame(frameRequestRef.current);
-      
-      frameRequestRef.current = requestAnimationFrame(() => {
-        const idx = Math.min(Math.max(Math.floor(latest * 239) + 1, 1), 240);
-        const frameStr = idx.toString().padStart(3, '0');
-        const img = new Image();
-        img.src = `/assets/${activeFamily}_extracted/ezgif-frame-${frameStr}.png`;
-        img.onload = () => renderFrameToCanvas(img);
-        currentImageRef.current = img;
-      });
-    });
-  }, [activeFamily, smoothProgress]);
-
-  // Handle Resize and Orientation
-  useEffect(() => {
-    const handleResize = () => {
-      if (canvasRef.current) {
-        canvasRef.current.width = window.innerWidth;
-        canvasRef.current.height = window.innerHeight;
-        if (currentImageRef.current) renderFrameToCanvas(currentImageRef.current);
-      }
-    };
-    window.addEventListener('resize', handleResize, { passive: true });
-    handleResize();
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  return (
-    <div className="discovery-scrubber-wrap">
-      <div className="scrubber-overlay" />
-      <canvas
-        ref={canvasRef}
-        className="scrubber-frame-canvas"
-      />
-    </div>
-  );
-}
-
 function FamilyWideBtn({ name, slug, active, onClick }: { name: string; slug: string; active: boolean; onClick: () => void }) {
-  const hasVideo = VIDEO_FAMILIES.includes(slug);
-
   return (
     <button
       className={`family-btn-wide ${active ? 'active' : ''}`}
       onClick={onClick}
     >
-      {hasVideo ? (
-        <video 
-          autoPlay 
-          loop 
-          muted 
-          playsInline 
-          className="btn-bg-img"
-          poster={`/assets/families/${slug}.png`}
-        >
-          <source src={`/assets/families/${slug}.mp4`} type="video/mp4" />
-        </video>
-      ) : (
-        <img 
-          src={`/assets/families/${slug}.png`} 
-          alt={name} 
-          className="btn-bg-img" 
-          loading="lazy"
-        />
-      )}
+      <img 
+        src={`/assets/family/${slug}.png`} 
+        alt={name} 
+        className="btn-bg-img" 
+        loading="lazy"
+      />
       <div className="btn-overlay" />
       <span className="btn-label">{name}</span>
     </button>
+  );
+}
+
+function BottleVisual({ id, color }: { id: string; color?: string }) {
+  const finalColor = color || BOTTLE_COLORS[id] || BOTTLE_COLORS[parseInt(id) % 8 || 1];
+  return (
+    <div className="card-bottle-visual">
+      <div className="bottle-glow" style={{ background: finalColor }} />
+      <div className="bottle-3d" style={{ background: finalColor }}>
+        <div className="bottle-body">
+          <div className="bottle-neck" />
+          <div className="bottle-cap" />
+          <div className="bottle-liquid" />
+          <div className="bottle-shine" />
+        </div>
+      </div>
+      <div className="bottle-shadow" />
+    </div>
   );
 }
 
@@ -460,11 +403,18 @@ function FragCard({ frag, index, onClick }: { frag: any; index: number; onClick:
       data-cursor-active="0"
     >
       <div className="frag-list-image">
-        <div className="bottle-placeholder" aria-hidden="true">
-          <div className="bottle-svg">
-            <div className="bottle-glow" />
-            <span style={{ fontSize: '3.5rem', position: 'relative', zIndex: 1 }}>🧴</span>
-          </div>
+        <div className="glass-pillar" />
+        <div className="bottle-visual-wrapper">
+          {frag.image_url ? (
+            <img 
+              src={frag.image_url} 
+              alt={frag.name} 
+              className="frag-card-img" 
+              onError={(e) => (e.currentTarget.style.display = 'none')}
+            />
+          ) : (
+            <BottleVisual id={frag.id} />
+          )}
         </div>
         <div className="match-badge" aria-label={`${frag.match_score}% match`}>⚡ {frag.match_score}%</div>
       </div>

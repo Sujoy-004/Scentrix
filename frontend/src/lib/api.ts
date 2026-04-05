@@ -29,6 +29,10 @@ export const api = {
     const { data } = await apiInstance.post(`/fragrances/${id}/rate`, { rating });
     return data;
   },
+  getGuestRecommendations: async (ratings: { fragrance_id: string; rating: number }[]) => {
+    const { data } = await apiInstance.post('/recommendations/guest', { ratings });
+    return data;
+  },
 };
 
 export interface FragranceCatalogItem {

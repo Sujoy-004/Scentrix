@@ -11,7 +11,7 @@ export default function Home() {
   return (
     <>
       <ScrollSequence 
-        frameCount={240} 
+        frameCount={400} 
         basePath="/assets/all_extracted"
         isFixed={true}
       />

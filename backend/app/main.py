@@ -1,4 +1,4 @@
-"""FastAPI application entry point for ScentScape backend."""
+"""FastAPI application entry point for Scentrix backend."""
 
 import logging
 from contextlib import asynccontextmanager
@@ -27,10 +27,10 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
     # Startup
-    logger.info("Initializing ScentScape API...")
+    logger.info("Initializing Scentrix API...")
     await init_db()
     logger.info(f"Database initialized: {settings.database_url}")
-    logger.info("ScentScape API started successfully")
+    logger.info("Scentrix API started successfully")
     
     yield
     
@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI):
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="ScentScape API",
+    title="Scentrix API",
     description="AI-Driven Fragrance Discovery & Personalization",
     version="0.1.0",
     docs_url="/docs",

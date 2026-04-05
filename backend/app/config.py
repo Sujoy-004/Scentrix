@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     )
 
     # Database
-    database_url: str = "postgresql+asyncpg://scentscape:scentscape_password@localhost:5432/scentscape"
+    database_url: str = "postgresql+asyncpg://scentrix:scentrix_password@localhost:5432/scentrix"
 
     # Neo4j
     neo4j_uri: str = "neo4j://localhost:7687"

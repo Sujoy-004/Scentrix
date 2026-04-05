@@ -10,7 +10,7 @@ const containerVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.08,
+      staggerChildren: 0.1,
     }
   }
 };
@@ -25,17 +25,26 @@ const cardVariants = {
   }
 };
 
+// Expanded list of 18 families (excluding 'all.png' for the primary grid)
 const families = [
   { name: 'Floral', slug: 'floral', description: 'Delicate Petals' },
-  { name: 'Woody', slug: 'woody', description: 'Deep Roots' },
-  { name: 'Citrus', slug: 'fresh', description: 'Bright Zest' },
-  { name: 'Oriental', slug: 'oriental', description: 'Exotic Spices' },
-  { name: 'Smoky', slug: 'smoky', description: 'Incense & Fire' },
+  { name: 'Woody', slug: 'woody', description: 'Ancient Forests' },
+  { name: 'Citrus', slug: 'citrus', description: 'Zesty Vibrance' },
+  { name: 'Oriental', slug: 'oriental', description: 'Exotic Splendor' },
+  { name: 'Amber', slug: 'amber', description: 'Resinous Warmth' },
+  { name: 'Smoky', slug: 'smoky', description: 'Incense & Embers' },
   { name: 'Fruity', slug: 'fruity', description: 'Sun-Drenched' },
   { name: 'Gourmand', slug: 'gourmand', description: 'Divine Sweets' },
-  { name: 'Leather', slug: 'leather', description: 'Tanned Earth' },
+  { name: 'Leather', slug: 'leather', description: 'Tanned Elegance' },
   { name: 'Spicy', slug: 'spicy', description: 'Warm Sands' },
-  { name: 'Powdery', slug: 'powdery', description: 'Velvet Dust' },
+  { name: 'Aquatic', slug: 'aquatic', description: 'Oceanic Mist' },
+  { name: 'Aromatic', slug: 'aromatic', description: 'Herbal Harmony' },
+  { name: 'Green', slug: 'green', description: 'Verdant Leaves' },
+  { name: 'Musky', slug: 'musky', description: 'Velvet Aura' },
+  { name: 'Powdery', slug: 'powdery', description: 'Silk Dust' },
+  { name: 'Earthy', slug: 'earthy', description: 'Foraged Roots' },
+  { name: 'Animalic', slug: 'animalic', description: 'Raw Sensuality' },
+  { name: 'Fresh', slug: 'fresh', description: 'Crisp Morning' },
 ];
 
 export function FragranceFamilies() {
@@ -48,10 +57,10 @@ export function FragranceFamilies() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-center mb-20"
+          className="text-center mb-24"
         >
-          <h2 className="section-title italic mb-4">Architectural Families</h2>
-          <p className="section-subtitle mx-auto">Explore the scent foundations of the elite curators</p>
+          <h2 className="section-title italic mb-6">Discovery Families</h2>
+          <p className="section-subtitle mx-auto">Explore 10 structural foundations of the elite curator's library</p>
         </motion.div>
 
         <motion.div 
@@ -61,7 +70,7 @@ export function FragranceFamilies() {
           viewport={{ once: true, margin: "-100px" }}
           className="families-grid"
         >
-          {families.map((family) => (
+          {families.slice(0, 10).map((family) => (
             <motion.div 
               key={family.slug}
               variants={cardVariants}
@@ -70,7 +79,7 @@ export function FragranceFamilies() {
             >
               <div className="family-image-container">
                 <img 
-                  src={`/assets/families/${family.slug}.png`} 
+                  src={`/assets/family/${family.slug}.png`} 
                   alt={family.name} 
                   className="family-image"
                   loading="lazy"
@@ -86,11 +95,27 @@ export function FragranceFamilies() {
                   {family.description}
                 </p>
                 <div className="explore-trigger">
-                  <span className="explore-text">Explore</span>
+                  <span className="explore-text">Explore Collection</span>
                 </div>
               </div>
             </motion.div>
           ))}
+        </motion.div>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="flex justify-center mt-32"
+        >
+          <motion.button
+            whileHover={{ scale: 1.05, y: -4 }}
+            whileTap={{ scale: 0.95 }}
+            className="btn btn-outline border-primary/30 text-primary px-12 py-5 text-xs tracking-[0.3em] font-bold"
+            onClick={() => router.push('/fragrances')}
+          >
+            Explore More
+          </motion.button>
         </motion.div>
       </div>
     </section>

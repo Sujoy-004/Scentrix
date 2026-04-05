@@ -81,20 +81,15 @@ def _select_seed_questions(rows: list[dict], count: int) -> list[dict]:
     if not rows:
         return []
 
-    ordered = sorted(
-        rows,
-        key=lambda row: (
-            str(row.get("brand", "")).lower(),
-            str(row.get("name", "")).lower(),
-            str(row.get("id", "")),
-        ),
-    )
+    # RANDOMIZE first to break any alphabetical brand bias (e.g. Aqua di Parma appearing first)
+    random.shuffle(rows)
 
     selected: list[dict] = []
     seen_brands: set[str] = set()
     seen_accords: set[str] = set()
 
-    for row in ordered:
+    # Strategy: Maximize Olfactory Diversity (Accords) and Brand Variation
+    for row in rows:
         if len(selected) >= count:
             break
 
@@ -105,21 +100,20 @@ def _select_seed_questions(rows: list[dict], count: int) -> list[dict]:
             if str(v).strip()
         }
 
-        should_take = False
-        if brand and brand not in seen_brands:
-            should_take = True
-        if accords and accords.difference(seen_accords):
-            should_take = True
+        # We take the fragrance if it adds a NEW Accord or a NEW Brand to the seed set
+        has_new_brand = brand and brand not in seen_brands
+        has_new_accords = accords and accords.difference(seen_accords)
 
-        if should_take:
+        if has_new_brand or has_new_accords:
             selected.append(row)
             if brand:
                 seen_brands.add(brand)
             seen_accords.update(accords)
 
+    # If we didn't hit the count via diversity, fill with remaining randomized items
     if len(selected) < count:
         used_ids = {str(item.get("id", "")) for item in selected}
-        for row in ordered:
+        for row in rows:
             if len(selected) >= count:
                 break
             row_id = str(row.get("id", ""))
@@ -490,7 +484,8 @@ async def get_next_quiz_questions(
         popularity_score = _safe_float(row.get("popularity_score"))
         engagement = min((review_count / 1000.0) + (view_count / 50000.0) + (popularity_score / 100.0), 1.0)
 
-        total_score = (0.5 * uncertainty) + (0.3 * diversity) + (0.2 * engagement)
+        # Neural Scent Graph priority: Uncertainty (60%), Diversity (30%), Engagement (10%)
+        total_score = (0.6 * uncertainty) + (0.3 * diversity) + (0.1 * engagement)
         scored.append((total_score, row))
 
     scored.sort(key=lambda item: item[0], reverse=True)

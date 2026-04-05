@@ -16,52 +16,11 @@
   background: transparent;
 }
 
-/* Ambient amber radial glow */
-.hero-section::before {
-  content: '';
-  position: absolute;
-  width: 700px;
-  height: 700px;
-  background: radial-gradient(circle, rgba(139, 94, 60, 0.14) 0%, transparent 65%);
-  border-radius: 50%;
-  top: -200px;
-  right: -200px;
-  animation: blob-float 12s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.hero-section::after {
-  content: '';
-  position: absolute;
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, rgba(228, 194, 133, 0.07) 0%, transparent 65%);
-  border-radius: 50%;
-  bottom: -150px;
-  left: -150px;
-  animation: blob-float 16s ease-in-out infinite reverse;
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* Constellation dot layer */
+/* Removed ambient amber glows and constellations to reveal unedited cinematic background frames */
+.hero-section::before,
+.hero-section::after,
 .hero-gradient {
-  position: absolute;
-  inset: 0;
-  background-image:
-    radial-gradient(circle at 10% 20%, rgba(228, 194, 133, 0.2) 1px, transparent 1px),
-    radial-gradient(circle at 90% 10%, rgba(228, 194, 133, 0.15) 1px, transparent 1px),
-    radial-gradient(circle at 50% 80%, rgba(228, 194, 133, 0.12) 1px, transparent 1px),
-    radial-gradient(circle at 75% 55%, rgba(244, 187, 146, 0.1) 1px, transparent 1px),
-    radial-gradient(circle at 25% 45%, rgba(228, 194, 133, 0.08) 1px, transparent 1px),
-    radial-gradient(circle at 60% 30%, rgba(228, 194, 133, 0.1) 1px, transparent 1px),
-    radial-gradient(circle at 40% 65%, rgba(244, 187, 146, 0.08) 1px, transparent 1px);
-  background-size: 280px 240px, 320px 270px, 290px 310px, 350px 280px, 260px 300px, 400px 220px, 310px 350px;
-  opacity: 0.7;
-  animation: constellation-drift 30s linear infinite;
-  pointer-events: none;
-  z-index: 0;
+  display: none !important;
 }
 
 @keyframes constellation-drift {
@@ -279,16 +238,7 @@
   flex-wrap: wrap;
   margin-top: 6rem;
   padding: 3rem 4rem;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0.4) 15%,
-    rgba(0, 0, 0, 0.4) 85%,
-    rgba(0, 0, 0, 0) 100%
-  );
-  backdrop-filter: blur(8px);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: transparent;
   position: relative;
   z-index: 10;
 }
@@ -1948,40 +1898,8 @@
 }
 
 /* Background Decor for Social Proof */
-.social-proof-bg-glow {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle at center, rgba(244, 187, 146, 0.03) 0%, transparent 70%);
-  z-index: 0;
-  pointer-events: none;
-}
-
+/* Removed background decor to reveal unedited cinematic background frames */
+.social-proof-bg-glow,
 .social-proof-bg-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  z-index: 0;
-  pointer-events: none;
-}
-
-.orb-1 {
-  top: 20%;
-  left: 10%;
-  width: 300px;
-  height: 300px;
-  background: rgba(244, 187, 146, 0.05);
-  animation: float-slow 15s infinite ease-in-out;
-}
-
-.orb-2 {
-  bottom: 20%;
-  right: 15%;
-  width: 400px;
-  height: 400px;
-  background: rgba(228, 194, 133, 0.04);
-  animation: float-slow 20s infinite reverse ease-in-out;
+  display: none !important;
 }

@@ -11,6 +11,9 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# SSOT Neural Cache: Resetting to None to ensure fresh calibration from ML/Data
+_catalog_cache: list[dict[str, Any]] | None = None
+
 def _candidate_roots() -> list[Path]:
     roots: list[Path] = []
 
@@ -41,15 +44,12 @@ def _catalog_path_candidates() -> tuple[list[Path], list[Path]]:
     
     for root in _candidate_roots():
         if env_data_path:
-            # If absolute, use it; if relative, join it with root
             p = Path(env_data_path)
             primary.append(p if p.is_absolute() else root / p)
         
-        # Always prioritize Elite file locally
-        primary.append(root / "ml" / "data" / "fra_elite_5k.json")
-        
-        # Fallback for continuity
-        fallback.append(root / "ml" / "data" / "seed_fragrances.json")
+        # ELITE SSOT: Only load the real seed data. 
+        # The synthetic 5k file is officially deprecated to ensure high-fidelity results.
+        primary.append(root / "ml" / "data" / "seed_fragrances.json")
 
     return primary, fallback
 

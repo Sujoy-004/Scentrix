@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from './api';
+import { useAppStore } from '@/stores/app-store';
 
 export function useLogin() {
   return useMutation({
@@ -20,11 +21,19 @@ export function useRegister() {
 }
 
 export function useRecommendations() {
+  const { isAuthenticated, quizResponses } = useAppStore();
+
   return useQuery({
-    queryKey: ['recommendations'],
+    queryKey: ['recommendations', isAuthenticated, quizResponses.length],
     queryFn: async () => {
-      const { data } = await api.get('/recommendations');
-      return Array.isArray(data) ? data : [];
+      if (isAuthenticated) {
+        const { data } = await api.get('/recommendations/for-me');
+        return Array.isArray(data) ? data : [];
+      } else {
+        // GUEST MODE: Use local store responses (quizResponses) to generate recommendations
+        if (quizResponses.length === 0) return [];
+        return api.getGuestRecommendations(quizResponses);
+      }
     },
   });
 }
