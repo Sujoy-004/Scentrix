@@ -1,21 +1,3 @@
-# Frontend Build Stage
-FROM node:20-alpine AS builder
-
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm install
-
-# Copy source code
-COPY . .
-
-# Build Next.js app
-RUN npm run build
-
-# Production Stage
 FROM node:20-alpine
 
 WORKDIR /app
@@ -23,14 +5,14 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm install --production
+# Install all dependencies (including devDeps for next dev)
+RUN npm install
 
-# Copy built app from builder
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.ts ./
+# Copy source code
+COPY . .
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+# Default to dev mode for local environment.
+# Note: docker-compose overrides this with npm run dev.
+CMD ["npm", "run", "dev"]

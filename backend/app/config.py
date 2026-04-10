@@ -45,6 +45,10 @@ class Settings(BaseSettings):
         default=7,
         validation_alias=AliasChoices("REFRESH_TOKEN_EXPIRE_DAYS"),
     )
+    data_encryption_key: str = Field(
+        default="JvdTsZlB_aVSl3WWVVOm7t_gQKzkj5Wbex8MAVPBn9I=",
+        validation_alias=AliasChoices("DATA_ENCRYPTION_KEY"),
+    )
 
     # Sentry
     sentry_dsn: str | None = None

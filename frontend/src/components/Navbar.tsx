@@ -14,6 +14,7 @@ import {
   Settings 
 } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
+import { ScentrixLogo } from './ScentrixLogo';
 import './navbar.css';
 
 // Transition Constants for "Quiet Luxury"
@@ -85,13 +86,7 @@ export default function Navbar() {
             className="navbar-logo"
             onClick={() => router.push('/')}
           >
-            <motion.img 
-              src="/assets/ui/logo.png"
-              alt="Scentrix Logo"
-              className="navbar-logo-img"
-              animate={{ opacity: [0.8, 1, 0.8] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            />
+            <ScentrixLogo size={36} />
             <span className="logo-text">Scentrix</span>
           </button>
         </motion.div>
@@ -101,6 +96,22 @@ export default function Navbar() {
           <MagneticLink href="/fragrances" isActive={pathname === '/fragrances'} onClick={() => router.push('/fragrances')}>
             Browse
           </MagneticLink>
+
+          <div className="nav-search-portal">
+            <Search className="nav-search-icon" size={14} />
+            <input 
+              type="text" 
+              placeholder="Search scents..."
+              className="nav-search-input"
+              defaultValue={typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('q') || '' : ''}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const val = (e.target as HTMLInputElement).value;
+                  router.push(`/fragrances${val ? `?q=${encodeURIComponent(val)}` : ''}`);
+                }
+              }}
+            />
+          </div>
 
           {!isAuthenticated ? (
             <>

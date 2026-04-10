@@ -1,745 +1,432 @@
 /* =====================================================
-   FRAGRANCE DETAIL PAGE — Aether & Amber
+   AETHERIC PRESENCE — Scentrix DNA Reconstruction
+   "Quiet Luxury, High Fidelity, Cinematic Depth"
    ===================================================== */
+
+:root {
+  --aura-color-1: rgba(244, 187, 146, 0.15); /* Primary Aura (Amber) */
+  --aura-color-2: rgba(45, 41, 38, 0.3);    /* Surface Base Blend */
+  --glass-bg: rgba(30, 27, 24, 0.45);
+  --glass-border: rgba(244, 187, 146, 0.08);
+  --glass-blur: 48px;
+}
 
 .fragrance-detail-page {
   min-height: 100dvh;
-  background: var(--surface-base);
-  padding: var(--space-8) var(--space-6) var(--space-16);
+  background: #080707; /* Dark velvet luxury baseline */
+  position: relative;
+  overflow-x: hidden;
+  padding: 0;
+}
+
+/* ── The Liquid Aura (Atmospheric Pulse) ── */
+.fragrance-detail-page::before {
+  content: '';
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 150vw;
+  height: 150vh;
+  background: radial-gradient(
+    circle at center,
+    var(--aura-color-1) 0%,
+    transparent 45%
+  );
+  transform: translate(-50%, -50%);
+  filter: blur(80px);
+  z-index: 0;
+  pointer-events: none;
+  animation: aura-pulse 12s var(--ease-premium) infinite alternate;
+}
+
+@keyframes aura-pulse {
+  0% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 0.15; }
+  100% { transform: translate(-45%, -55%) scale(1.15) rotate(5deg); opacity: 0.3; }
 }
 
 .detail-container {
-  max-width: 1100px;
+  max-width: 1400px; /* Wider for "The Spine" layout */
   margin: 0 auto;
+  position: relative;
+  z-index: 1;
+  padding: var(--space-12) var(--space-8);
 }
 
-/* ── Back button ── */
-.back-button, .back-to-home {
-  background: rgba(30, 27, 24, 0.6);
-  border: 1px solid rgba(244, 187, 146, 0.1);
-  color: var(--color-on-surface-var);
-  padding: 0.45rem 1rem;
-  border-radius: var(--radius-full);
+/* ── The Aetheric Spine (Vertical Branding) ── */
+.detail-container::after {
+  content: "SCENTSCAPE GENETIC DNA";
+  position: fixed;
+  right: var(--space-4);
+  top: 50%;
+  transform: translateY(-50%) rotate(90deg);
   font-family: var(--font-body);
-  font-size: 0.8rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-bottom: var(--space-8);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  backdrop-filter: blur(8px);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: rgba(244, 187, 146, 0.15);
+  white-space: nowrap;
+  pointer-events: none;
+  display: block;
 }
 
-.back-button:hover, .back-to-home:hover {
-  border-color: rgba(244, 187, 146, 0.3);
-  color: var(--color-primary);
-  background: rgba(244, 187, 146, 0.06);
-}
-
-/* ── Two-column header ── */
+/* ── Deconstructed Header (The Fragmented Reveal) ── */
 .detail-header {
   display: grid;
-  grid-template-columns: 340px 1fr;
-  gap: var(--space-10);
-  margin-bottom: var(--space-12);
-  align-items: start;
-  animation: fade-up 0.7s var(--ease-premium) both;
-}
-
-/* ── Image / Bottle column ── */
-.fragrance-image-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.fragrance-image-large {
-  aspect-ratio: 3/4;
-  background: linear-gradient(135deg, var(--surface-low) 0%, var(--surface-highest) 100%);
-  border-radius: var(--radius-xl);
-  border: 1px solid rgba(244, 187, 146, 0.06);
-  display: flex;
+  grid-template-columns: 420px 1fr;
+  gap: var(--space-16);
+  margin-bottom: var(--space-20);
   align-items: center;
-  justify-content: center;
-  font-size: 5rem;
-  position: relative;
-  overflow: hidden;
 }
 
-.fragrance-image-large::before {
+/* ── Floating Showcase ── */
+.bottle-showcase {
+  position: relative;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  min-height: 480px;
+}
+
+.bottle-showcase::before {
   content: '';
   position: absolute;
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle, rgba(244, 187, 146, 0.1), transparent 70%);
+  top: 50%;
+  left: 50%;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, var(--aura-color-1), transparent 70%);
+  transform: translate(-50%, -50%);
   border-radius: 50%;
-  animation: float 5s ease-in-out infinite;
+  opacity: 0.4;
+  filter: blur(40px);
 }
 
-.wishlist-btn-large {
-  padding: var(--space-3) var(--space-6);
-  background: transparent;
-  border: 1px solid rgba(244, 187, 146, 0.2);
-  color: var(--color-primary);
-  border-radius: var(--radius-full);
-  font-family: var(--font-body);
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-align: center;
+/* ── Immersive DNA Core Detail ── */
+.dna-core-visual-detail {
+    position: relative;
+    width: 320px;
+    height: 320px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
 }
 
-.wishlist-btn-large:hover {
-  background: rgba(244, 187, 146, 0.08);
-  border-color: rgba(244, 187, 146, 0.4);
-  transform: translateY(-2px);
+.dna-core-glass-detail {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(16px);
+    overflow: hidden;
+    box-shadow: 
+        0 40px 80px rgba(0,0,0,0.8),
+        inset 0 0 40px rgba(255, 255, 255, 0.1);
+    z-index: 2;
 }
 
-/* ── Info column ── */
-.fragrance-info-section { display: flex; flex-direction: column; gap: var(--space-6); }
+.dna-liquid-glow-detail {
+    position: absolute;
+    bottom: -15%;
+    left: -15%;
+    width: 130%;
+    height: 100%;
+    background: inherit;
+    filter: blur(25px);
+    opacity: 0.7;
+    animation: liquid-sway 12s infinite alternate ease-in-out;
+}
 
-.fragrance-header-info { display: flex; flex-direction: column; gap: var(--space-2); }
+@keyframes liquid-sway {
+    0% { transform: translateY(0) rotate(0); }
+    100% { transform: translateY(-15px) rotate(20deg); }
+}
 
+.dna-rim-highlight-detail {
+    position: absolute;
+    top: 5%;
+    left: 10%;
+    right: 10%;
+    height: 40%;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.25), transparent);
+    border-radius: 50% 50% 0 0;
+}
+
+.dna-center-particle-detail {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    background: #fff;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 20px #fff;
+    animation: particle-spark-detail 4s infinite;
+}
+
+@keyframes particle-spark-detail {
+    0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(0.9); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.4); }
+}
+
+.dna-label-tag-detail {
+    position: absolute;
+    bottom: 20px;
+    font-size: 0.6rem;
+    letter-spacing: 0.4em;
+    color: var(--color-primary);
+    opacity: 0.3;
+    font-weight: 700;
+}
+
+.dna-core-pulse-aura-detail {
+    position: absolute;
+    width: 140%;
+    height: 140%;
+    filter: blur(60px);
+    opacity: 0.2;
+    animation: aura-expand-detail 18s infinite linear;
+}
+
+@keyframes aura-expand-detail {
+    0% { transform: rotate(0) scale(1); }
+    100% { transform: rotate(-360deg) scale(1.05); }
+}
+
+.detail-bottle-img {
+    width: 100%;
+    height: auto;
+    max-height: 400px;
+    object-fit: contain;
+    filter: drop-shadow(0 20px 40px rgba(0,0,0,0.8));
+    animation: float-detail 6s ease-in-out infinite;
+}
+
+@keyframes float-detail {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-15px); }
+}
+
+/* ── Cinematic Typography ── */
 .fragrance-detail-title {
-  font-family: var(--font-display);
-  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-size: clamp(3rem, 8vw, 5.5rem);
+  letter-spacing: -0.04em;
+  line-height: 0.9;
   font-style: italic;
-  font-weight: 400;
-  color: var(--color-on-surface);
-  margin: 0;
-  line-height: 1.05;
-  letter-spacing: -0.02em;
+  margin-bottom: var(--space-4);
 }
 
 .fragrance-detail-brand {
-  font-family: var(--font-body);
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--color-secondary);
-  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.85;
+  margin-bottom: var(--space-10);
+  border-left: 2px solid var(--color-primary);
+  padding-left: var(--space-4);
 }
 
-.fragrance-year {
-  font-family: var(--font-body);
-  font-size: 0.8rem;
-  color: var(--color-muted);
-  margin: 0;
-}
-
-/* Metrics row */
+/* ── Genetic Metrics (Glassmorphic Materiality) ── */
 .fragrance-metrics {
   display: flex;
-  gap: var(--space-6);
-  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-12);
 }
 
 .metric-block {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-4) var(--space-5);
-  background: rgba(30, 27, 24, 0.6);
-  border-radius: var(--radius-lg);
-  border: 1px solid rgba(244, 187, 146, 0.06);
-  min-width: 100px;
-  backdrop-filter: blur(8px);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  padding: var(--space-6) var(--space-8);
+  border-radius: var(--radius-xl);
+  flex: 1;
+  min-width: 0;
+  transition: all 0.4s var(--ease-premium);
+}
+
+.metric-block:hover {
+  background: rgba(244, 187, 146, 0.08);
+  border-color: rgba(244, 187, 146, 0.25);
+  transform: translateY(-8px);
 }
 
 .metric-label {
-  font-family: var(--font-body);
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--color-muted);
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  color: var(--color-primary);
+  opacity: 0.7;
 }
 
 .metric-value {
-  font-family: var(--font-display);
-  font-size: 1.3rem;
-  color: var(--color-primary);
-  font-weight: 400;
+  font-size: 1.6rem;
+  letter-spacing: -0.02em;
 }
 
-.stars { font-size: 1rem; color: var(--color-secondary); }
-
-.rating-count {
-  font-family: var(--font-body);
-  font-size: 0.75rem;
-  color: var(--color-muted);
-  font-weight: 400;
-}
-
-/* Description */
+/* ── The Sensory Description ── */
 .fragrance-description {
-  font-family: var(--font-display);
-  font-style: italic;
-  font-size: 1.05rem;
-  line-height: 1.8;
-  color: var(--color-on-surface-var);
-  margin: 0;
+  font-size: 1.45rem;
+  line-height: 1.6;
+  max-width: 720px;
+  color: #d1ccca;
+  opacity: 0.95;
+  font-weight: 300;
+  margin-bottom: var(--space-12);
 }
 
-/* Action buttons */
-.action-buttons-detail {
-  display: flex;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-}
-
-.btn-primary-detail {
-  flex: 1;
-  min-width: 180px;
-  padding: var(--space-4) var(--space-6);
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-container));
-  color: var(--color-on-primary);
-  border: none;
-  border-radius: var(--radius-full);
-  font-family: var(--font-body);
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: all 0.25s;
-  box-shadow: 0 4px 16px rgba(244, 187, 146, 0.2);
-}
-
-.btn-primary-detail:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(244, 187, 146, 0.35);
-}
-
-.btn-secondary-detail {
-  flex: 1;
-  min-width: 180px;
-  padding: var(--space-4) var(--space-6);
-  background: transparent;
-  color: var(--color-primary);
-  border: 1px solid rgba(244, 187, 146, 0.3);
-  border-radius: var(--radius-full);
-  font-family: var(--font-body);
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: all 0.25s;
-  backdrop-filter: blur(8px);
-}
-
-.btn-secondary-detail:hover {
-  background: rgba(244, 187, 146, 0.08);
-  border-color: rgba(244, 187, 146, 0.5);
-  transform: translateY(-2px);
-}
-
-/* ── Note Pyramid ── */
+/* ── The Note Constellation (Replaces Pyramid) ── */
+/* ── The Sensory Genome (Architectural Reveal) ── */
 .note-pyramid-section {
-  padding: var(--space-10) 0;
-  margin-bottom: var(--space-8);
-}
-
-.section-title {
-  font-family: var(--font-display);
-  font-style: italic;
-  font-size: clamp(1.8rem, 4vw, 2.5rem);
-  font-weight: 400;
-  color: var(--color-on-surface);
-  margin: 0 0 var(--space-8) 0;
+  background: transparent;
+  backdrop-filter: none;
+  border: none;
+  padding: var(--space-8) 0;
+  margin: var(--space-20) 0;
+  text-align: center;
 }
 
 .pyramid-container {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  max-width: 700px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  position: relative;
+  margin-top: var(--space-12);
 }
+
+/* Vertical DNA Strands */
+.pyramid-container::before,
+.pyramid-container::after {
+  content: '';
+  position: absolute;
+  top: 10%;
+  bottom: 10%;
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, rgba(244, 187, 146, 0.1), transparent);
+  pointer-events: none;
+}
+
+.pyramid-container::before { left: 33.33%; }
+.pyramid-container::after { left: 66.66%; }
 
 .pyramid-level {
-  border-radius: var(--radius-xl);
-  padding: var(--space-5) var(--space-6);
-  display: flex;
-  align-items: center;
-  gap: var(--space-6);
-  transition: all 0.2s;
-  border: 1px solid;
-}
-
-.pyramid-level:hover { transform: translateX(6px); }
-
-/* Top notes — amber */
-.top-level {
-  background: rgba(244, 187, 146, 0.08);
-  border-color: rgba(244, 187, 146, 0.15);
-}
-
-/* Middle notes — rose */
-.middle-level {
-  background: rgba(228, 130, 149, 0.07);
-  border-color: rgba(228, 130, 149, 0.15);
-}
-
-/* Base notes — teal */
-.base-level {
-  background: rgba(100, 190, 185, 0.06);
-  border-color: rgba(100, 190, 185, 0.12);
-}
-
-.level-label {
-  font-family: var(--font-body);
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  min-width: 80px;
-  flex-shrink: 0;
-}
-
-.top-level .level-label    { color: var(--note-top-text); }
-.middle-level .level-label { color: var(--note-heart-text); }
-.base-level .level-label   { color: var(--note-base-text); }
-
-.notes-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.note-item {
-  padding: 0.3rem 0.8rem;
-  border-radius: var(--radius-full);
-  font-family: var(--font-body);
-  font-size: 0.8rem;
-  font-weight: 500;
-  border: 1px solid;
-}
-
-.note-item.top {
-  background: var(--note-top-bg);
-  border-color: var(--note-top-border);
-  color: var(--note-top-text);
-}
-
-.note-item.middle {
-  background: var(--note-heart-bg);
-  border-color: var(--note-heart-border);
-  color: var(--note-heart-text);
-}
-
-.note-item.base {
-  background: var(--note-base-bg);
-  border-color: var(--note-base-border);
-  color: var(--note-base-text);
-}
-
-/* ── Details Section ── */
-.details-section {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: var(--space-5);
-  margin-bottom: var(--space-10);
-}
-
-.detail-card {
-  background: rgba(35, 31, 28, 0.6);
-  border: 1px solid rgba(244, 187, 146, 0.06);
-  border-radius: var(--radius-xl);
-  padding: var(--space-6);
-  backdrop-filter: blur(12px);
-  transition: border-color 0.2s;
-}
-
-.detail-card:hover { border-color: rgba(244, 187, 146, 0.14); }
-
-.detail-card h3 {
-  font-family: var(--font-display);
-  font-style: italic;
-  font-size: 1.1rem;
-  color: var(--color-on-surface);
-  margin: 0 0 var(--space-4) 0;
-  font-weight: 400;
-}
-
-.detail-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.detail-list li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.85rem;
-  padding-bottom: var(--space-3);
-  border-bottom: 1px solid rgba(244, 187, 146, 0.05);
-}
-
-.detail-list li:last-child { border-bottom: none; padding-bottom: 0; }
-
-.detail-list .label,
-.detail-card > .card-content { color: var(--color-muted); font-family: var(--font-body); font-size: 0.85rem; line-height: 1.6; }
-
-.detail-list .value { color: var(--color-on-surface); font-weight: 600; font-family: var(--font-body); }
-
-.occasion-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.tag {
-  padding: 0.3rem 0.75rem;
-  background: rgba(93, 69, 20, 0.3);
-  border: 1px solid rgba(228, 194, 133, 0.2);
-  border-radius: var(--radius-full);
-  color: var(--color-secondary);
-  font-family: var(--font-body);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-}
-
-/* ── Reviews ── */
-.reviews-section { margin-bottom: var(--space-10); }
-
-.reviews-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: var(--space-5);
-}
-
-.review-card {
-  background: rgba(35, 31, 28, 0.6);
-  border: 1px solid rgba(244, 187, 146, 0.06);
-  border-radius: var(--radius-xl);
-  padding: var(--space-6);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  transition: border-color 0.2s;
-}
-
-.review-card:hover { border-color: rgba(244, 187, 146, 0.14); }
-
-.review-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.reviewer-avatar {
-  font-size: 1.6rem;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(139, 94, 60, 0.2);
-  border-radius: 50%;
-  flex-shrink: 0;
-  border: 1px solid rgba(244, 187, 146, 0.1);
-}
-
-.reviewer-info { display: flex; flex-direction: column; gap: 2px; }
-
-.reviewer-name {
-  font-family: var(--font-body);
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--color-on-surface);
-  margin: 0;
-}
-
-.review-rating { font-size: 0.85rem; color: var(--color-secondary); }
-
-.review-text {
-  font-family: var(--font-display);
-  font-style: italic;
-  font-size: 0.95rem;
-  line-height: 1.7;
-  color: var(--color-on-surface-var);
-  margin: 0;
-}
-
-.review-date {
-  font-family: var(--font-body);
-  font-size: 0.72rem;
-  color: var(--color-muted);
-}
-
-/* ── Footer Actions ── */
-.detail-footer {
-  display: flex;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-  justify-content: center;
-  padding-top: var(--space-8);
-  border-top: 1px solid rgba(244, 187, 146, 0.06);
-}
-
-.footer-btn-primary {
-  padding: var(--space-4) var(--space-10);
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-container));
-  color: var(--color-on-primary);
-  border: none;
-  border-radius: var(--radius-full);
-  font-family: var(--font-body);
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: all 0.25s;
-  box-shadow: 0 4px 16px rgba(244, 187, 146, 0.2);
-}
-
-.footer-btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(244, 187, 146, 0.35);
-}
-
-.footer-btn-secondary {
-  padding: var(--space-4) var(--space-10);
-  background: transparent;
-  color: var(--color-primary);
-  border: 1px solid rgba(244, 187, 146, 0.25);
-  border-radius: var(--radius-full);
-  font-family: var(--font-body);
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: all 0.25s;
-}
-
-.footer-btn-secondary:hover {
-  background: rgba(244, 187, 146, 0.07);
-  border-color: rgba(244, 187, 146, 0.45);
-  transform: translateY(-2px);
-}
-
-/* ── Responsive ── */
-@media (max-width: 768px) {
-  .fragrance-detail-page { padding: var(--space-6) var(--space-4) var(--space-12); }
-
-  .detail-header {
-    grid-template-columns: 1fr;
-    gap: var(--space-6);
-  }
-
-  .fragrance-image-large { aspect-ratio: 16/9; }
-  .fragrance-metrics { gap: var(--space-3); }
-  .action-buttons-detail { flex-direction: column; }
-  .detail-footer { flex-direction: column; }
-  .footer-btn-primary,
-  .footer-btn-secondary { width: 100%; text-align: center; }
-}
-
-/* ── Bottle Showcase (replaces emoji placeholder) ── */
-.bottle-showcase {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  min-height: 320px;
-  border-radius: var(--radius-xl);
-  background: rgba(22, 19, 16, 0.4);
-  border: 1px solid rgba(244,187,146,0.08);
-  overflow: hidden;
-}
-
-.bottle-glow {
-  position: absolute;
-  width: 220px;
-  height: 220px;
-  border-radius: 50%;
-  filter: blur(60px);
-  opacity: 0.25;
-  bottom: -40px;
-  left: 50%;
-  transform: translateX(-50%);
-  animation: float 5s ease-in-out infinite;
-}
-
-.bottle-3d {
-  width: 90px;
-  height: 200px;
-  border-radius: 12px 12px 6px 6px;
-  position: relative;
-  z-index: 2;
-  animation: float 6s ease-in-out infinite;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(0,0,0,0.3);
-  overflow: hidden;
-}
-
-.bottle-body {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-.bottle-neck {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 24px;
-  height: 40px;
-  background: inherit;
-  filter: brightness(1.3);
-  border-radius: 4px 4px 0 0;
-}
-
-.bottle-cap {
-  position: absolute;
-  top: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 28px;
-  height: 14px;
-  background: linear-gradient(135deg, #c9a86c, #f0d090);
-  border-radius: 3px;
-  z-index: 3;
-}
-
-.bottle-liquid {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 75%;
-  background: inherit;
-  opacity: 0.8;
-  border-radius: 0 0 6px 6px;
-}
-
-.bottle-shine {
-  position: absolute;
-  top: 30px;
-  left: 10px;
-  width: 12px;
-  height: 60px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.25), transparent);
-  border-radius: 6px;
-  transform: rotate(-10deg);
-}
-
-.bottle-shadow {
-  width: 90px;
-  height: 12px;
-  background: rgba(0,0,0,0.5);
-  border-radius: 50%;
-  filter: blur(8px);
-  margin-top: 8px;
-  position: relative;
-  z-index: 1;
-}
-
-/* ── Detail error ── */
-.detail-error {
-  min-height: 100dvh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-base);
-  text-align: center;
   padding: var(--space-8);
+  transition: transform 0.6s var(--ease-premium);
 }
 
-.detail-error .error-inner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-5);
-  max-width: 480px;
-}
-
-.detail-error h2 {
-  font-family: var(--font-display);
-  font-style: italic;
-  font-size: 2rem;
-  color: var(--color-on-surface);
-  margin: 0;
-}
-
-.detail-error p {
-  font-family: var(--font-body);
-  color: var(--color-muted);
-  margin: 0;
-}
-
-.detail-error code {
-  font-family: monospace;
-  background: rgba(244,187,146,0.1);
-  padding: 2px 8px;
-  border-radius: 4px;
-  color: var(--color-primary);
-}
-
-/* ── Extras ── */
-.detail-family-badge {
-  display: inline-block;
-  padding: 3px 12px;
-  background: rgba(139,94,60,0.15);
-  border: 1px solid rgba(244,187,146,0.2);
-  border-radius: var(--radius-full);
-  font-family: var(--font-body);
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--color-secondary);
-  margin-bottom: 4px;
-}
-
-.fragrance-price {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-style: italic;
-  color: var(--color-primary);
-  margin: 0;
-}
-
-.match-pct {
-  font-size: 1.8rem !important;
-  background: linear-gradient(135deg, #f4bb92, #e4c285);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-family: var(--font-display) !important;
-}
-
-.reviewer-role {
-  font-size: 0.72rem;
-  color: var(--color-muted);
-  font-weight: 400;
-  margin-left: 6px;
+.pyramid-level:hover {
+  transform: translateY(-8px);
 }
 
 .level-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 90px;
-  flex-shrink: 0;
+  margin-bottom: var(--space-8);
+  text-align: center;
+}
+
+.level-label {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-style: italic;
+  letter-spacing: normal;
+  color: var(--color-on-surface);
+  margin-bottom: var(--space-1);
 }
 
 .level-desc {
-  font-family: var(--font-body);
   font-size: 0.6rem;
-  color: var(--color-muted);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.2em;
+  color: var(--color-primary);
+  opacity: 0.6;
+  text-transform: uppercase;
+  font-weight: 700;
 }
 
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.note-item {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-radius: var(--radius-lg);
+  padding: var(--space-2) var(--space-4) !important;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 300;
+  color: var(--color-on-surface-var);
+  width: auto;
+  min-width: 120px;
+  text-align: center;
+  transition: all 0.4s var(--ease-premium) !important;
+}
+
+.note-item:hover {
+  background: rgba(244, 187, 146, 0.08) !important;
+  border-color: rgba(244, 187, 146, 0.2) !important;
+  color: var(--color-primary);
+  transform: scale(1.05);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+
+.note-item::before {
+  display: none; /* Remove bullet points for cleaner grid look */
+}
+
+/* ── Review Cards (Frosted) ── */
+.review-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  padding: var(--space-8);
+  border-radius: var(--radius-2xl);
+}
+
+.review-text {
+  font-size: 1.15rem;
+  font-weight: 300;
+}
+
+/* ── Interactions ── */
+.button-glow-effect {
+  position: relative;
+}
+
+.button-glow-effect::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(135deg, var(--color-primary), transparent);
+  border-radius: inherit;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.button-glow-effect:hover::after { opacity: 1; }
+
+/* ── Responsive Refinement ── */
+@media (max-width: 1024px) {
+  .detail-header {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  
+  .fragrance-image-section { order: -1; }
+  
+  .fragrance-description { margin: 0 auto var(--space-10); }
+  
+  .fragrance-metrics { justify-content: center; }
+  
+  .detail-container::after { display: none; }
+}
+
+@media (max-width: 768px) {
+  .detail-container { padding: var(--space-8) var(--space-4); }
+  .fragrance-detail-title { font-size: 3.5rem; }
+}

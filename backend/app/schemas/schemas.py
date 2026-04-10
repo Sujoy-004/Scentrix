@@ -120,16 +120,6 @@ class FragranceBase(BaseModel):
     description: str
 
 
-class FragranceDetail(FragranceBase):
-    """Full fragrance detail with notes and accords."""
-
-    top_notes: list[FragranceNote] = []
-    middle_notes: list[FragranceNote] = []
-    base_notes: list[FragranceNote] = []
-    accords: list[FragranceAccord] = []
-    similarity_score: Optional[float] = None  # To user profile if authenticated
-
-
 class FragranceSearchResult(BaseModel):
     """Fragrance search result."""
 
@@ -145,6 +135,17 @@ class FragranceSearchResult(BaseModel):
     rating: Optional[float] = None
     review_count: Optional[float] = None
     reason: Optional[str] = None
+
+
+class FragranceDetail(FragranceBase):
+    """Full fragrance detail with notes and accords."""
+
+    top_notes: list[FragranceNote] = []
+    middle_notes: list[FragranceNote] = []
+    base_notes: list[FragranceNote] = []
+    accords: list[FragranceAccord] = []
+    neighbors: Optional[list[FragranceSearchResult]] = None
+    similarity_score: Optional[float] = None  # To user profile if authenticated
 
 
 class FragranceCatalogItem(BaseModel):

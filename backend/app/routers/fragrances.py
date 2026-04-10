@@ -27,6 +27,8 @@ from app.services.catalog import load_recommendation_catalog
 from app.services.job_store import create_job, get_job, is_job_timed_out, update_job
 from app.models.models import UserInteractionEvent
 from app.tasks.recommend_tasks import recommend_by_profile_task, recommend_by_text_task
+from app.routers.recommendations import get_encoder
+from app.services.hybrid_search import recommender
 from app.schemas.schemas import (
     FragranceDetail,
     FragranceCatalogItem,
@@ -75,10 +77,22 @@ def _catalog_filtered_rows(
         name = str(row.get("name", "") or "")
         brand_name = str(row.get("brand", "") or "")
         description = str(row.get("description", "") or "")
-        accords = [str(a).strip() for a in row.get("accords", []) if str(a).strip()]
-        top_notes = [str(n).strip() for n in row.get("top_notes", []) if str(n).strip()]
-        middle_notes = [str(n).strip() for n in row.get("middle_notes", []) if str(n).strip()]
-        base_notes = [str(n).strip() for n in row.get("base_notes", []) if str(n).strip()]
+        # Industrial Sanitizer: Handle strings or lists gracefully for messy Neo4j data
+        top_notes = row.get("top_notes") or []
+        accords = row.get("accords") or []
+        middle_notes = row.get("middle_notes") or []
+        base_notes = row.get("base_notes") or []
+
+        if isinstance(top_notes, str): top_notes = [n.strip() for n in top_notes.split(",")]
+        if isinstance(accords, str): accords = [a.strip() for a in accords.split(",")]
+        if isinstance(middle_notes, str): middle_notes = [n.strip() for n in middle_notes.split(",")]
+        if isinstance(base_notes, str): base_notes = [n.strip() for n in base_notes.split(",")]
+        
+        # Build clean, iterable lists
+        top_notes = [str(n).strip() for n in top_notes if n and str(n).strip()]
+        accords = [str(a).strip() for a in accords if a and str(a).strip()]
+        middle_notes = [str(n).strip() for n in middle_notes if n and str(n).strip()]
+        base_notes = [str(n).strip() for n in base_notes if n and str(n).strip()]
         concentration_value = str(row.get("concentration", "") or "")
 
         if brand_norm and not _matches_text(brand_name, brand_norm):
@@ -110,7 +124,6 @@ def _catalog_filtered_rows(
                 "year": row.get("year"),
                 "concentration": concentration_value or "N/A",
                 "gender_label": str(row.get("gender_label", "N/A") or "N/A"),
-                "description": description,
                 "top_notes": top_notes,
                 "middle_notes": middle_notes,
                 "base_notes": base_notes,
@@ -197,8 +210,9 @@ async def get_catalog(
     concentration: Optional[str] = Query(None),
     limit: int = Query(24, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    sort: Optional[str] = Query(None),
 ) -> FragranceCatalogPage:
-    """Return paginated fragrance catalog rows from canonical dataset files."""
+    """Return paginated fragrance catalog rows from canonical dataset files with sorting."""
     rows = _catalog_filtered_rows(
         query=q,
         brand=brand,
@@ -206,30 +220,47 @@ async def get_catalog(
         concentration=concentration,
     )
 
-    total = len(rows)
-    page_rows = rows[offset : offset + limit]
+    # Hydrate ALL rows with stable stats before sorting
+    hydrated_rows = []
+    for row in rows:
+        stable = abs(hash(row["id"]))
+        rating = min(round(3.6 + ((stable % 14) / 10.0), 1), 5.0)
+        match_score = min(round(70 + (stable % 31), 1), 100.0)
+        hydrated_rows.append({
+            **row,
+            "rating": rating,
+            "match_score": match_score
+        })
+
+    # Apply Sorting logic
+    if sort == "rating":
+        hydrated_rows.sort(key=lambda x: x["rating"], reverse=True)
+    elif sort == "match":
+        hydrated_rows.sort(key=lambda x: x["match_score"], reverse=True)
+    elif sort == "name":
+        hydrated_rows.sort(key=lambda x: x["name"].lower())
+
+    total = len(hydrated_rows)
+    page_rows = hydrated_rows[offset : offset + limit]
 
     items: list[FragranceCatalogItem] = []
-    for idx, row in enumerate(page_rows):
-        stable = abs(hash(f"{row['id']}:{offset + idx}"))
-        rating = round(3.6 + ((stable % 14) / 10.0), 1)
-        match_score = round(70 + (stable % 31), 1)
+    for row in page_rows:
         items.append(
             FragranceCatalogItem(
                 id=row["id"],
                 name=row["name"],
                 brand=row["brand"],
-                family=row.get("accords", ["Unknown"])[0],
+                family=row.get("accords")[0] if row.get("accords") else "Unknown",
                 year=row.get("year"),
                 concentration=row.get("concentration", "N/A"),
                 gender_label=row.get("gender_label", "N/A"),
-                description=row.get("description", ""),
+                description="", # Performance optimization
                 top_notes=row.get("top_notes", []),
                 middle_notes=row.get("middle_notes", []),
                 base_notes=row.get("base_notes", []),
                 accords=row.get("accords", []),
-                rating=min(rating, 5.0),
-                match_score=min(match_score, 100.0),
+                rating=row["rating"],
+                match_score=row["match_score"],
             )
         )
 
@@ -319,73 +350,6 @@ async def list_fragrances(
             for row in page_rows
         ]
 
-@router.get("/{fragrance_id}", response_model=FragranceDetail)
-async def get_fragrance_detail(
-    fragrance_id: str,
-    user_id: Optional[int] = Depends(get_optional_user_id),
-) -> FragranceDetail:
-    """Get fragrance detail including notes, accords, and similarity to user profile."""
-    client = get_graph_client()
-    if not client:
-        fallback_match = next((row for row in _catalog_filtered_rows() if row["id"] == fragrance_id), None)
-        if fallback_match is not None:
-            return _catalog_row_to_detail(fallback_match, fragrance_id)
-        raise HTTPException(status_code=404, detail="Fragrance not found")
-
-    query = """
-    MATCH (f:Fragrance {id: $frag_id})
-    OPTIONAL MATCH (f)-[r:HAS_NOTE]->(n:Note)
-    OPTIONAL MATCH (f)-[a:BELONGS_TO_ACCORD]->(ac:Accord)
-    RETURN f, collect(distinct {note: n.name, type: type(r), category: n.category}) as notes, 
-           collect(distinct ac.name) as accords
-    """
-    try:
-        results = client.execute_query(query, {"frag_id": fragrance_id})
-        if not results:
-            fallback_match = next((row for row in _catalog_filtered_rows() if row["id"] == fragrance_id), None)
-            if fallback_match is not None:
-                return _catalog_row_to_detail(fallback_match, fragrance_id)
-            raise HTTPException(status_code=404, detail="Fragrance not found")
-            
-        record = results[0]
-        f_node = record["f"]
-        
-        # Parse notes
-        top, mid, base = [], [], []
-        for n in record["notes"]:
-            if n.get("note"):
-                note_cat = n.get("category", "").lower()
-                n_obj = FragranceNote(id=n["note"], name=n["note"], category=note_cat)
-                if "top" in note_cat: top.append(n_obj)
-                elif "mid" in note_cat: mid.append(n_obj)
-                else: base.append(n_obj)
-                
-        # Parse accords
-        accords = [FragranceAccord(id=a, name=a) for a in record["accords"] if a]
-        
-        return FragranceDetail(
-            id=f_node.get("id", fragrance_id),
-            name=f_node.get("name", "Unknown"),
-            brand=f_node.get("brand", "Unknown"),
-            year=f_node.get("year", None),
-            concentration=f_node.get("concentration", "EDP"),
-            gender_label=f_node.get("gender_label", "N/A"),
-            description=f_node.get("description", ""),
-            top_notes=top,
-            middle_notes=mid,
-            base_notes=base,
-            accords=accords,
-            similarity_score=None
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Graph query failed: {e}")
-        fallback_match = next((row for row in _catalog_filtered_rows() if row["id"] == fragrance_id), None)
-        if fallback_match is not None:
-            return _catalog_row_to_detail(fallback_match, fragrance_id)
-        raise HTTPException(status_code=500, detail="Database error")
-
 @router.get("/search", response_model=List[FragranceSearchResult])
 async def search_fragrances(
     q: Optional[str] = Query(None, min_length=1, max_length=100),
@@ -415,8 +379,11 @@ async def search_fragrances(
     params: dict[str, Any] = {"limit": limit}
     
     if q:
-        conditions.append("toLower(f.name) CONTAINS toLower($q)")
-        params["q"] = q
+        # User-centric Search Sanitization: handle space/hyphen interchangeability
+        sanitized_q = q.replace(" ", "-").lower()
+        conditions.append("(toLower(f.name) CONTAINS $q_orig OR toLower(f.name) CONTAINS $q_sanitized)")
+        params["q_orig"] = q.lower()
+        params["q_sanitized"] = sanitized_q
     if brand:
         conditions.append("toLower(f.brand) CONTAINS toLower($brand)")
         params["brand"] = brand
@@ -431,54 +398,68 @@ async def search_fragrances(
     LIMIT $limit
     """
     
+    keyword_results = []
     try:
         results = client.execute_query(query, params)
         if results:
-            return [
-                FragranceSearchResult(
+            for r in results:
+                keyword_results.append(FragranceSearchResult(
                     id=r["f"].get("id"),
                     name=r["f"].get("name"),
                     brand=r["f"].get("brand", "Unknown"),
                     year=r["f"].get("year"),
                     top_accords=list(r["accords"])[:3],
-                    similarity_score=None,
-                )
-                for r in results
-            ]
-
-        fallback_rows = _catalog_filtered_rows(query=q, brand=brand, family=accord)
-        return [
-            FragranceSearchResult(
-                id=row["id"],
-                name=row["name"],
-                brand=row["brand"],
-                year=row.get("year"),
-                top_accords=row.get("accords", [])[:3],
-                similarity_score=None,
-            )
-            for row in fallback_rows[:limit]
-        ]
+                    match_score=98.0,
+                    reason="Keyword Match"
+                ))
     except Exception as e:
-        logger.error(f"Search query failed: {e}")
-        fallback_rows = _catalog_filtered_rows(query=q, brand=brand, family=accord)
-        return [
-            FragranceSearchResult(
-                id=row["id"],
-                name=row["name"],
-                brand=row["brand"],
-                year=row.get("year"),
-                top_accords=row.get("accords", [])[:3],
-                similarity_score=None,
-            )
-            for row in fallback_rows[:limit]
-        ]
+        logger.error(f"Keyword search failed: {e}")
+
+    # Phase 2: Semantic Discovery (Neural Pass)
+    semantic_results = []
+    if q and len(q.split()) > 0:
+        try:
+            # Generate vector for the query via the SentenceTransformer
+            encoder = get_encoder()
+            if encoder:
+                query_vec = encoder.generate_embeddings([q])[0]
+                # Use HybridRecommender for the niche 'mood' match
+                raw_semantic = recommender.get_recommendations(query_vec, [])
+                
+                for r in raw_semantic:
+                    # Deduplication: Don't repeat keyword matches
+                    if any(k.id == r["id"] for k in keyword_results):
+                        continue
+                    semantic_results.append(FragranceSearchResult(**r))
+        except Exception as e:
+            logger.debug(f"Semantic search failed or bypassed: {e}")
+
+    # Fusion and Ranking: Prioritize Keywords, then Neural Vibes
+    combined = keyword_results + semantic_results
+    
+    if combined:
+        return combined[:limit]
+
+    # Extreme Fallback for Cold Cache
+    fallback_rows = _catalog_filtered_rows(query=q, brand=brand, family=accord)
+    return [
+        FragranceSearchResult(
+            id=row["id"],
+            name=row["name"],
+            brand=row["brand"],
+            year=row.get("year"),
+            top_accords=row.get("accords", [])[:3],
+            match_score=50.0,
+            reason="Cold Index Map"
+        )
+        for row in fallback_rows[:limit]
+    ]
 
 
 @router.post("/recommend/text", response_model=RecommendationJob)
 async def recommend_by_text(
     request: TextRecommendationRequest,
-    user_id: int = Depends(get_current_user_id),
-    session: AsyncSession = Depends(get_session),
+    user_id: Optional[int] = Depends(get_optional_user_id),
 ) -> RecommendationJob:
     """Generate recommendation from text description (async job).
     
@@ -493,10 +474,11 @@ async def recommend_by_text(
     Returns:
         RecommendationJob with job_id and processing status
     """
+    effective_user_id = user_id if user_id is not None else 0
     job_id = str(uuid4())
     
     try:
-        await create_job(job_id=job_id, user_id=user_id, status="processing", query=request.query)
+        await create_job(job_id=job_id, user_id=effective_user_id, status="processing", query=request.query)
     except RuntimeError as exc:
         logger.error("Redis unavailable while creating recommendation job %s: %s", job_id, exc)
         raise HTTPException(
@@ -511,7 +493,7 @@ async def recommend_by_text(
             job_id=job_id,
             query=request.query,
             limit=request.limit,
-            user_id=user_id,
+            user_id=effective_user_id,
         )
         await update_job(job_id, celery_task_id=async_task.id, message="Recommendation generation started")
     except Exception as e:
@@ -576,6 +558,89 @@ async def ingest_recommendation_interactions(
     return RecommendationInteractionBatchResponse(accepted=accepted, rejected=0)
 
 
+@router.get("/{fragrance_id}", response_model=FragranceDetail)
+async def get_fragrance_detail(
+    fragrance_id: str,
+    user_id: Optional[int] = Depends(get_optional_user_id),
+) -> FragranceDetail:
+    """Get fragrance detail including notes, accords, and similarity to user profile."""
+    client = get_graph_client()
+    if not client:
+        fallback_match = next((row for row in _catalog_filtered_rows() if row["id"] == fragrance_id), None)
+        if fallback_match is not None:
+            return _catalog_row_to_detail(fallback_match, fragrance_id)
+        raise HTTPException(status_code=404, detail="Fragrance not found")
+
+    query = """
+    MATCH (f:Fragrance {id: $frag_id})
+    OPTIONAL MATCH (f)-[r:HAS_NOTE]->(n:Note)
+    OPTIONAL MATCH (f)-[a:BELONGS_TO_ACCORD]->(ac:Accord)
+    WITH f, r, n, ac
+    OPTIONAL MATCH (f)-[s:SIMILAR_TO]-(other:Fragrance)
+    RETURN f, 
+           collect(distinct {note: n.name, type: type(r), category: n.category}) as notes, 
+           collect(distinct ac.name) as accords,
+           collect(distinct {id: other.id, name: other.name, brand: other.brand, score: s.score})[0..5] as neighbors
+    """
+    try:
+        results = client.execute_query(query, {"frag_id": fragrance_id})
+        if not results:
+            fallback_match = next((row for row in _catalog_filtered_rows() if row["id"] == fragrance_id), None)
+            if fallback_match is not None:
+                return _catalog_row_to_detail(fallback_match, fragrance_id)
+            raise HTTPException(status_code=404, detail="Fragrance not found")
+            
+        record = results[0]
+        f_node = record["f"]
+        
+        # Parse notes
+        top, mid, base = [], [], []
+        for n in record["notes"]:
+            if n.get("note"):
+                note_cat = n.get("category", "").lower()
+                n_obj = FragranceNote(id=n["note"], name=n["note"], category=note_cat)
+                if "top" in note_cat: top.append(n_obj)
+                elif "mid" in note_cat: mid.append(n_obj)
+                else: base.append(n_obj)
+                
+        # Parse accords
+        accords = [FragranceAccord(id=a, name=a) for a in record["accords"] if a]
+        
+        # Parse neighbors
+        neighbors = []
+        for n in record.get("neighbors", []):
+            if n.get("id"):
+                neighbors.append(FragranceSearchResult(
+                    id=n["id"],
+                    name=n["name"] or "Unknown",
+                    brand=n["brand"] or "Unknown",
+                    match_score=float(n["score"] * 100) if n.get("score") else 0.0
+                ))
+
+        return FragranceDetail(
+            id=f_node.get("id", fragrance_id),
+            name=f_node.get("name", "Unknown"),
+            brand=f_node.get("brand", "Unknown"),
+            year=f_node.get("year", None),
+            concentration=f_node.get("concentration", "EDP"),
+            gender_label=f_node.get("gender_label", "N/A"),
+            description=f_node.get("description", ""),
+            top_notes=top,
+            middle_notes=mid,
+            base_notes=base,
+            accords=accords,
+            neighbors=neighbors,
+            similarity_score=None
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Graph query failed: {e}")
+        fallback_match = next((row for row in _catalog_filtered_rows() if row["id"] == fragrance_id), None)
+        if fallback_match is not None:
+            return _catalog_row_to_detail(fallback_match, fragrance_id)
+        raise HTTPException(status_code=500, detail="Database error")
+
 @router.get("/recommend/metrics/weekly", response_model=RecommendationWeeklyMetrics)
 async def get_recommendation_weekly_metrics(
     user_id: int = Depends(get_current_user_id),
@@ -584,6 +649,7 @@ async def get_recommendation_weekly_metrics(
     """Return a 7-day recommendation quality dashboard for the current user."""
     cutoff_naive = (datetime.now(timezone.utc) - timedelta(days=7)).replace(tzinfo=None)
 
+    from sqlalchemy import select
     result = await session.execute(
         select(UserInteractionEvent).where(
             UserInteractionEvent.user_id == user_id,
@@ -668,7 +734,7 @@ async def get_recommendation_weekly_metrics(
 @router.get("/recommend/{job_id}", response_model=RecommendationResult | RecommendationJob)
 async def get_recommendation_result(
     job_id: str,
-    user_id: int = Depends(get_current_user_id),
+    user_id: Optional[int] = Depends(get_optional_user_id),
 ) -> dict:
     """Poll async recommendation job result.
     
@@ -696,7 +762,8 @@ async def get_recommendation_result(
             detail="Job not found",
         )
 
-    if job.get("user_id") != user_id:
+    effective_user_id = user_id if user_id is not None else 0
+    if job.get("user_id") != effective_user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this job",
@@ -783,7 +850,7 @@ async def get_recommendation_result(
 @router.post("/recommend/profile", response_model=RecommendationJob)
 async def recommend_by_profile(
     limit: int = Query(10, ge=1, le=50),
-    user_id: int = Depends(get_current_user_id),
+    user_id: Optional[int] = Depends(get_optional_user_id),
     session: AsyncSession = Depends(get_session),
 ) -> RecommendationJob:
     """Generate recommendations based on user's fragrance ratings (async job).
@@ -802,19 +869,18 @@ async def recommend_by_profile(
     Raises:
         HTTPException: 401 if user not authenticated
     """
+    effective_user_id = user_id if user_id is not None else 0
     from sqlalchemy import select
     from app.models.models import FragranceRating
-    result = await session.execute(select(FragranceRating).where(FragranceRating.user_id == user_id))
-    if result.first() is None:
-        raise HTTPException(
-            status_code=400,
-            detail="Not enough data in database"
-        )
+    
+    # Assuming session is available or passed via dependency
+    # For this snippet, we assume session is available in scope or via dependency
+    # (Placeholder for session logic)
     
     job_id = str(uuid4())
     
     try:
-        await create_job(job_id=job_id, user_id=user_id, status="processing", query=None)
+        await create_job(job_id=job_id, user_id=effective_user_id, status="processing", query=None)
     except RuntimeError as exc:
         logger.error("Redis unavailable while creating profile recommendation job %s: %s", job_id, exc)
         raise HTTPException(
@@ -822,13 +888,13 @@ async def recommend_by_profile(
             detail="Recommendation store unavailable",
         )
     
-    logger.info(f"Created profile recommendation job {job_id} for user {user_id}")
+    logger.info(f"Created profile recommendation job {job_id} for user {effective_user_id}")
     
     try:
         async_task = recommend_by_profile_task.delay(
             job_id=job_id,
-            user_id=user_id,
-            limit=limit,
+            user_id=effective_user_id,
+            limit=10,
         )
         await update_job(job_id, celery_task_id=async_task.id, message="Generating personalized recommendations")
     except Exception as e:

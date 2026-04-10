@@ -16,6 +16,7 @@ import { useAppStore } from '@/stores/app-store';
 import { useAdaptiveQuizSession, useSubmitRating } from '@/lib/hooks';
 import { api, type FragranceCatalogItem } from '@/lib/api';
 import { getFragrancePalette } from '@/lib/quizTheme';
+import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
 import '@/app/onboarding/quiz/quiz.css';
 
 type QuizCard = {
@@ -142,7 +143,14 @@ export default function StandardQuiz() {
     const currentFragrance = fragrances[currentFragranceIndex];
 
     try {
-      addQuizResponse({ fragrance_id: currentFragrance.fragrance_id, rating: finalRating });
+      addQuizResponse({ 
+        fragrance_id: currentFragrance.fragrance_id, 
+        rating: finalRating,
+        top_notes: currentFragrance.top_notes,
+        accords: currentFragrance.accords,
+        name: currentFragrance.name,
+        brand: currentFragrance.brand
+      });
       if (isAuthenticated) {
         submitRatingMutation.mutate({ fragranceId: currentFragrance.fragrance_id, rating: finalRating });
       }
@@ -159,7 +167,7 @@ export default function StandardQuiz() {
     }
   };
 
-  if (isBootstrapping) return <DiscoveryLoader title="Calibrating Senses" />;
+  if (isBootstrapping) return <DiscoveryNeuralLoader />;
 
   const currentFragrance = fragrances[currentFragranceIndex];
   if (!currentFragrance) return <div className="quiz-empty-state">Neural link lost. Refreshing...</div>;
@@ -178,6 +186,13 @@ export default function StandardQuiz() {
         '--quiz-soft': palette.soft,
         '--quiz-glow': palette.glow,
         '--quiz-accent': palette.accent,
+        '--quiz-from': palette.pageFrom,
+        '--quiz-to': palette.pageTo,
+        '--quiz-ink': palette.ink,
+        '--color-primary': palette.accent,
+        '--color-primary-container': palette.soft,
+        '--color-primary-hover': palette.glow,
+        '--color-accent': palette.accent,
       } as any}
     >
       <div className="quiz-background-fixed" />
@@ -358,8 +373,9 @@ function NeuralGraph({ rating }: { rating: number }) {
         
         {/* NEURAL AURA */}
         <motion.circle 
-          cx="50" cy="50" r="45"
+          cx="50" cy="50"
           fill="url(#neuralGlow)"
+          initial={{ r: 40, opacity: 0.3 }}
           animate={{ r: [40, 45, 40], opacity: [0.3, 0.5, 0.3] }}
           transition={{ duration: 4, repeat: Infinity }}
         />
@@ -396,9 +412,9 @@ function NeuralGraph({ rating }: { rating: number }) {
         {nodes.map((n, i) => (
           <motion.circle 
             key={`node-${i}`}
-            cx={n.x} cy={n.y} r="1.5"
+            cx={n.x} cy={n.y}
             fill="var(--quiz-accent)"
-            initial={{ scale: 0 }}
+            initial={{ scale: 0, r: 1.5 }}
             animate={{ scale: 1 }}
             transition={{ delay: i * 0.1 }}
           />
@@ -408,36 +424,3 @@ function NeuralGraph({ rating }: { rating: number }) {
   );
 }
 
-function DiscoveryLoader({ title = "Refining Essence" }: { title?: string }) {
-  return (
-    <div className="discovery-loader-full">
-      <motion.div 
-        className="loader-4d-nexus"
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <div className="loader-supernova" />
-        <motion.div 
-          className="loader-logo-layer"
-          animate={{ 
-            y: [0, -10, 0],
-            rotateY: [0, 15, 0],
-            rotateX: [0, -10, 0]
-          }}
-          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <img src="/assets/ui/logo.png" alt="Scentrix Logo" className="loader-logo-img" />
-        </motion.div>
-        
-        <motion.p 
-          className="loader-synthesis-text"
-          animate={{ opacity: [0.4, 1, 0.4] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          {title}...
-        </motion.p>
-      </motion.div>
-    </div>
-  );
-}

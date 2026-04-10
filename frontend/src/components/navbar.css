@@ -122,6 +122,49 @@
   box-shadow: 0 4px 20px rgba(244, 187, 146, 0.2);
 }
 
+/* ── Nav Search Portal ── */
+.nav-search-portal {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-full);
+  padding: 0.4rem 1rem;
+  transition: all 0.3s var(--ease-premium);
+  margin-left: 0.5rem;
+}
+
+.nav-search-portal:focus-within {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--color-primary-container);
+  box-shadow: 0 0 15px rgba(244, 187, 146, 0.15);
+}
+
+.nav-search-icon {
+  color: var(--color-primary-container);
+  opacity: 0.7;
+}
+
+.nav-search-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f6ede6;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  width: 140px;
+  transition: width 0.4s var(--ease-premium);
+}
+
+.nav-search-input:focus {
+  width: 220px;
+}
+
+.nav-search-input::placeholder {
+  color: rgba(246, 237, 230, 0.4);
+}
+
 /* ── Profile Dropdown ── */
 .profile-dropdown-wrap {
   position: relative;

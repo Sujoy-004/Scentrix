@@ -60,7 +60,7 @@ export function SocialProof() {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          viewport={{ once: false }}
           className="social-proof-header text-center mb-24"
         >
           <h2 className="text-3xl font-display italic text-white">Loved by the Collection</h2>
@@ -70,7 +70,7 @@ export function SocialProof() {
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
+          viewport={{ once: false, margin: "-100px" }}
           className="stats-grid-elite"
         >
           {stats.map((stat, idx) => (
@@ -90,7 +90,7 @@ export function SocialProof() {
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
+          viewport={{ once: false, margin: "-100px" }}
           className="testimonials-grid-elite"
         >
           {testimonials.map((t, idx) => (

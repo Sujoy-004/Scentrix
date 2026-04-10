@@ -11,19 +11,37 @@ export interface FragrancePalette {
 }
 
 export function getFragrancePalette(item: any): FragrancePalette {
-  const family = typeof item === 'string' ? item : (item?.family || 'Default');
+  let family = typeof item === 'string' ? item : (item?.family || 'Default');
   
+  // High-Fidelity Heuristic: Deep Scan Accords & Notes for 'Vibe'
+  const searchSpace = [
+    ...(item?.accords || []),
+    ...(item?.top_notes || []),
+    item?.name || ''
+  ].map(s => String(s).toLowerCase());
+
+  if (searchSpace.some(s => s.includes('smoky') || s.includes('incense') || s.includes('smoke'))) family = 'Smoky';
+  else if (searchSpace.some(s => s.includes('leather') || s.includes('suede'))) family = 'Leather';
+  else if (searchSpace.some(s => s.includes('fresh') || s.includes('aquatic') || s.includes('water') || s.includes('marine'))) family = 'Fresh';
+  else if (searchSpace.some(s => s.includes('citrus') || s.includes('lemon') || s.includes('zest') || s.includes('lime'))) family = 'Citrus';
+  else if (searchSpace.some(s => s.includes('floral') || s.includes('rose') || s.includes('bloom') || s.includes('jasmine') || s.includes('iris'))) family = 'Floral';
+  else if (searchSpace.some(s => s.includes('wood') || s.includes('oud') || s.includes('cedar') || s.includes('sandalwood'))) family = 'Woody';
+  else if (searchSpace.some(s => s.includes('spicy') || s.includes('pepper') || s.includes('cardamom') || s.includes('cinnamon'))) family = 'Spicy';
+  else if (searchSpace.some(s => s.includes('green') || s.includes('grass') || s.includes('leaf') || s.includes('herbal'))) family = 'Green';
+  else if (searchSpace.some(s => s.includes('aromatic') || s.includes('lavender') || s.includes('sage') || s.includes('mint'))) family = 'Aromatic';
+  else if (searchSpace.some(s => s.includes('amber') || s.includes('warm') || s.includes('vanilla') || s.includes('tonka'))) family = 'Amber';
+
   const palettes: Record<string, FragrancePalette> = {
     Woody: {
-      soft: 'rgba(60, 42, 33, 0.03)',
-      softSecondary: 'rgba(60, 42, 33, 0.08)',
-      border: 'rgba(160, 120, 90, 0.2)',
-      glow: 'rgba(160, 120, 90, 0.15)',
-      accent: '#8B5E3C',
-      pageFrom: '#FDFCFB',
-      pageTo: '#F5F2F0',
-      beam: 'hsla(30, 20%, 80%, 0.1)',
-      ink: '#2A1A12'
+      soft: 'rgba(93, 64, 55, 0.05)',
+      softSecondary: 'rgba(93, 64, 55, 0.1)',
+      border: 'rgba(121, 85, 72, 0.3)',
+      glow: 'rgba(93, 64, 55, 0.2)',
+      accent: '#8D6E63',
+      pageFrom: '#12100E',
+      pageTo: '#080707',
+      beam: 'hsla(20, 15%, 70%, 0.1)',
+      ink: '#EFEBE9'
     },
     Fresh: {
       soft: 'rgba(215, 235, 245, 0.3)',
@@ -193,13 +211,13 @@ export function getFragrancePalette(item: any): FragrancePalette {
     Smoky: {
       soft: 'rgba(54, 69, 79, 0.05)',
       softSecondary: 'rgba(54, 69, 79, 0.1)',
-      border: 'rgba(54, 69, 79, 0.3)',
+      border: 'rgba(100, 100, 100, 0.3)',
       glow: 'rgba(54, 69, 79, 0.2)',
-      accent: '#36454F',
-      pageFrom: '#F6F7F8',
-      pageTo: '#E8EAED',
+      accent: '#9E9E9E',
+      pageFrom: '#1A1B1C',
+      pageTo: '#0A0A0A',
       beam: 'hsla(210, 10%, 75%, 0.15)',
-      ink: '#1A2126'
+      ink: '#E0E0E0'
     },
     Spicy: {
       soft: 'rgba(178, 34, 34, 0.04)',
@@ -220,10 +238,10 @@ export function getFragrancePalette(item: any): FragrancePalette {
     border: 'rgba(200, 121, 65, 0.2)',
     glow: 'rgba(200, 121, 65, 0.15)',
     accent: '#A66336',
-    pageFrom: '#FDFCFB',
-    pageTo: '#F8F5F2',
+    pageFrom: '#0C0B0A',
+    pageTo: '#050505',
     beam: 'hsla(25, 20%, 80%, 0.1)',
-    ink: '#331D0E'
+    ink: '#FDFCFB'
   };
 
   return palettes[family] || defaultPalette;

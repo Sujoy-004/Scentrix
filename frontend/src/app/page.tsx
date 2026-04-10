@@ -5,14 +5,13 @@ import { HowItWorks } from '@/components/HowItWorks';
 import { FragranceFamilies } from '@/components/FragranceFamilies';
 import { SocialProof } from '@/components/SocialProof';
 import { FinalCTA } from '@/components/FinalCTA';
-import { ScrollSequence } from '@/components/ScrollSequence';
+import { VideoScrubber } from '@/components/VideoScrubber';
 
 export default function Home() {
   return (
     <>
-      <ScrollSequence 
-        frameCount={400} 
-        basePath="/assets/all_extracted"
+      <VideoScrubber 
+        videoPath="/assets/top_hero.mp4"
         isFixed={true}
       />
 

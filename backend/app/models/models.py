@@ -27,8 +27,10 @@ class User(Base):
     __allow_unmapped__ = True
 
     id: int = mapped_column(Integer, primary_key=True, index=True)
-    email: str = mapped_column(String(255), unique=True, index=True, nullable=False)
+    encrypted_email: str = mapped_column(Text, unique=True, nullable=False)
+    email_hash: str = mapped_column(String(64), unique=True, index=True, nullable=False)
     hashed_password: str = mapped_column(String(255), nullable=False)
+    role: str = mapped_column(String(20), default="user", nullable=False)
     is_active: bool = mapped_column(Boolean, default=True, index=True)
     created_at: datetime = mapped_column(DateTime, default=utc_now, nullable=False)
     updated_at: datetime = mapped_column(

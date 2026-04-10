@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import Providers from "@/components/Providers";
 import StringTuneManager from "@/components/StringTuneManager";
 import CookieBanner from "@/components/CookieBanner";
+import PageTransition from "@/components/PageTransition";
 
 const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
@@ -32,6 +33,9 @@ export const metadata: Metadata = {
     description: "AI-powered fragrance discovery. Find your signature scent.",
     type: "website",
   },
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
@@ -42,14 +46,16 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${cormorant.variable} ${inter.variable} h-full`}
+      className={`${cormorant.variable} ${inter.variable}`}
     >
-      <body className="min-h-full flex flex-col antialiased">
+      <body className="antialiased">
         <StringTuneManager />
         <Providers>
           <Navbar />
           <main className="flex-1" style={{ paddingTop: "64px" }}>
-            {children}
+            <PageTransition>
+              {children}
+            </PageTransition>
           </main>
           <CookieBanner />
         </Providers>

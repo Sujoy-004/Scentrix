@@ -14,7 +14,7 @@ from pinecone import Pinecone, ServerlessSpec
 logger = logging.getLogger(__name__)
 
 class GraphSAGEModel(torch.nn.Module):
-    def __init__(self, in_channels: int, hidden_channels: int = 128, out_channels: int = 128):
+    def __init__(self, in_channels: int, hidden_channels: int = 128, out_channels: int = 384):
         super(GraphSAGEModel, self).__init__()
         self.conv1 = SAGEConv(in_channels, hidden_channels)
         self.conv2 = SAGEConv(hidden_channels, out_channels)
@@ -27,7 +27,7 @@ class GraphSAGEModel(torch.nn.Module):
         return x
 
 class GraphEmbedder:
-    def __init__(self, dim: int = 128):
+    def __init__(self, dim: int = 384):
         self.dim = dim
         pinecone_api_key = os.environ.get("PINECONE_API_KEY")
         if pinecone_api_key and pinecone_api_key != "your_pinecone_api_key_here":
@@ -340,8 +340,10 @@ class GraphEmbedder:
         logger.info("GraphSAGE embeddings uploaded.")
 
 if __name__ == "__main__":
+    from dotenv import load_dotenv
+    load_dotenv()
     logging.basicConfig(level=logging.INFO)
-    seed_path = Path(__file__).parent.parent / "data" / "seed_fragrances.json"
+    seed_path = Path(__file__).parent.parent / "data" / "fra_elite_24k.json"
     if seed_path.exists():
         with open(seed_path, "r", encoding="utf-8") as f:
             fragrances = json.load(f)

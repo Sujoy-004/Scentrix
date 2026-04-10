@@ -42,38 +42,37 @@ class TextEncoder:
                 metric="cosine",
                 spec=ServerlessSpec(cloud="aws", region="us-east-1")
             )
-        self.index = self.pc.Index(self.index_name)
+        self.index = self.pc.Index(self.index_name, pool_threads=30)
 
     def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
         """Encode texts into vectors."""
         logger.info(f"Encoding {len(texts)} texts...")
-        embeddings = self.model.encode(texts, show_progress_bar=True)
+        embeddings = self.model.encode(texts, show_progress_bar=False)
         return embeddings.tolist()
 
-    def process_and_upload(self, fragrances: List[Dict[str, Any]], batch_size: int = 100):
+    def process_and_upload(self, fragrances: List[Dict[str, Any]], batch_size: int = 500):
         """Generate embeddings for fragrance descriptions and upload to Pinecone."""
         if not self.pc:
             logger.warning("Pinecone client not initialized. Skipping upload.")
             return
 
-        logger.info(f"Processing and uploading {len(fragrances)} fragrances...")
+        logger.info(f"Processing and parallel-uploading {len(fragrances)} fragrances...")
         
         texts_to_encode = []
-        vectors_to_upsert = []
-        
         for frag in fragrances:
-            # Combine relevant text fields for better embeddings
             text_features = [
                 frag.get("name", ""),
                 frag.get("brand", ""),
                 frag.get("description", ""),
-                " ".join(frag.get("top_notes", [])),
-                " ".join(frag.get("middle_notes", [])),
-                " ".join(frag.get("base_notes", []))
+                " ".join(frag.get("top_notes", []) or []),
+                " ".join(frag.get("middle_notes", []) or []),
+                " ".join(frag.get("base_notes", []) or [])
             ]
             combined_text = " ".join(filter(None, text_features))
-            texts_to_encode.append((frag["id"], combined_text, frag))
+            fid = frag.get("id") or str(frag.get("name", "unk"))
+            texts_to_encode.append((fid, combined_text, frag))
 
+        async_results = []
         for i in range(0, len(texts_to_encode), batch_size):
             batch = texts_to_encode[i:i + batch_size]
             ids = [item[0] for item in batch]
@@ -81,9 +80,9 @@ class TextEncoder:
             metadata_list = [item[2] for item in batch]
             
             embeddings = self.generate_embeddings(texts)
+            vectors_to_upsert = []
             
             for frag_id, emb, meta in zip(ids, embeddings, metadata_list):
-                # Clean metadata for Pinecone (can only contain str, num, bool, list of str)
                 cleaned_meta = {
                     "name": str(meta.get("name", "")),
                     "brand": str(meta.get("brand", "")),
@@ -95,9 +94,14 @@ class TextEncoder:
                     "metadata": cleaned_meta
                 })
             
-            self.index.upsert(vectors=vectors_to_upsert)
-            logger.info(f"Upserted batch of {len(vectors_to_upsert)} vectors.")
-            vectors_to_upsert = []
+            # Use async upsert via pool_threads
+            logger.info(f"Queueing parallel upsert: batch {i//batch_size + 1}...")
+            res = self.index.upsert(vectors=vectors_to_upsert, async_req=True)
+            async_results.append(res)
+            
+        # Wait for all async requests to complete
+        [r.get() for r in async_results]
+        logger.info(f"Parallel upload of {len(fragrances)} vectors complete.")
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

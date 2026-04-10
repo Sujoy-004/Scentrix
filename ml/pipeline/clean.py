@@ -79,6 +79,39 @@ class FragranceDataCleaner:
         "hay": "Hay",
     }
 
+    # Normalized accord/family name mappings (canonicalizing for the 19 Elite Families)
+    ACCORD_NAME_MAPPINGS = {
+        "oriental": "Amber-Oriental",
+        "amber": "Amber-Oriental",
+        "vanilla": "Gourmand",
+        "sweet": "Gourmand",
+        "honey": "Gourmand",
+        "white floral": "White-Floral",
+        "yellow floral": "Floral",
+        "rose": "Rose",
+        "musk": "Musky",
+        "musky": "Musky",
+        "mossy": "Earthy-Mossy",
+        "earthy": "Earthy-Mossy",
+        "marine": "Marine-Aquatic",
+        "aquatic": "Marine-Aquatic",
+        "ozonic": "Marine-Aquatic",
+        "water": "Marine-Aquatic",
+        "leather": "Leather",
+        "leathery": "Leather",
+        "woody": "Woody",
+        "aromatic": "Aromatic",
+        "fresh": "Fresh",
+        "citrus": "Citrus",
+        "fruity": "Fruity",
+        "spicy": "Spicy",
+        "floral": "Floral",
+        "powdery": "Powdery",
+        "smoky": "Smoky",
+        "green": "Green",
+        "animalic": "Animalic",
+    }
+
     # Valid note categories
     VALID_CATEGORIES = {"top", "middle", "base"}
 
@@ -248,7 +281,7 @@ class FragranceDataCleaner:
         return normalized[:5]  # Max 5 notes per category
 
     def _validate_accords(self, accords: list[str]) -> list[str]:
-        """Validate and normalize accordrs.
+        """Validate and normalize accords.
 
         Args:
             accords: Raw accord list
@@ -262,9 +295,11 @@ class FragranceDataCleaner:
         valid = []
         for accord in accords:
             if isinstance(accord, str):
-                accord = accord.strip()
-                if accord and accord not in valid:
-                    valid.append(accord)
+                accord_lower = accord.strip().lower()
+                # Check for canonical mappings
+                canonical = self.ACCORD_NAME_MAPPINGS.get(accord_lower, accord.strip())
+                if canonical and canonical not in valid:
+                    valid.append(canonical)
 
         return valid[:5]  # Max 5 accords
 

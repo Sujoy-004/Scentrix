@@ -126,9 +126,13 @@ class FragranceGraphIngestor:
             for position, note_name in enumerate(notes):
                 self._ingest_note(frag_id, note_name, category, position)
 
-        # Step 4: Create/update Accords and relationships
-        for accord_name in frag.get("accords", []):
-            self._ingest_accord(frag_id, accord_name)
+        # Step 4: Create/update Accords and relationships with Neural Weighting
+        accords = frag.get("accords", [])
+        for idx, accord_name in enumerate(accords):
+            # Apply Neural Decay: Primary accords are more dominant than secondary ones
+            # Rank 0 = 1.0, Rank 1 = 0.8, Rank 2 = 0.6, Rank 3+ = 0.4
+            weight = max(0.4, 1.0 - (idx * 0.2))
+            self._ingest_accord(frag_id, accord_name, weight)
 
         # Step 5: Link Fragrance to Brand
         brand_link_cypher = """
@@ -190,12 +194,13 @@ class FragranceGraphIngestor:
         except Exception as e:
             logger.warning(f"Note ingestion warning for {note_name}: {e}")
 
-    def _ingest_accord(self, frag_id: str, accord_name: str) -> None:
+    def _ingest_accord(self, frag_id: str, accord_name: str, weight: float = 1.0) -> None:
         """Ingest accord and create relationship.
 
         Args:
             frag_id: Fragrance ID
             accord_name: Accord display name
+            weight: The neural weight (dominance) of this family (0.0 to 1.0)
         """
         accord_id = accord_name.lower().replace(" ", "_")
 
@@ -206,7 +211,7 @@ class FragranceGraphIngestor:
         MATCH (f:Fragrance {id: toLower($frag_id)})
         MERGE (f)-[r:BELONGS_TO_ACCORD]->(a)
         SET r.certainty = 1.0,
-            r.weight = 1.0
+            r.weight = $weight
         RETURN a, r
         """
         try:
@@ -216,6 +221,7 @@ class FragranceGraphIngestor:
                     "accord_id": accord_id,
                     "accord_name": accord_name,
                     "frag_id": frag_id,
+                    "weight": weight,
                 }
             )
             self.stats["accords_created"] += 1

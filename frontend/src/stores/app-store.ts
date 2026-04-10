@@ -3,7 +3,11 @@ import { create } from 'zustand';
 export interface QuizResponse {
   fragrance_id: string;
   rating: number;
-  notes?: string;
+  top_notes?: string[];
+  accords?: string[];
+  description?: string;
+  name?: string;
+  brand?: string;
 }
 
 export interface UserPreferences {

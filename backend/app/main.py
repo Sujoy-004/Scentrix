@@ -29,6 +29,20 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Initializing Scentrix API...")
     await init_db()
+    
+    # Neural Warm-up (Background hydration of Semantic Brain)
+    try:
+        from app.routers.recommendations import warmup_neural_engine
+        import asyncio
+        logger.info("Neural Engine: Waking up the Semantic Brain in background...")
+        
+        # Fire-and-forget background warmup to keep API responsive
+        asyncio.create_task(asyncio.to_thread(warmup_neural_engine))
+        logger.info("Neural Engine: Background hydration task dispatched.")
+            
+    except Exception as e:
+        logger.error(f"Neural Engine: Startup Warm-up dispatch failed: {str(e)}")
+
     logger.info(f"Database initialized: {settings.database_url}")
     logger.info("Scentrix API started successfully")
     
@@ -55,7 +69,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
+        "http://localhost:3001",
         "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
         "http://localhost",
     ],
     allow_credentials=True,

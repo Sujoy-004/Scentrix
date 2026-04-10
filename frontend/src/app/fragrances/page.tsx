@@ -1,9 +1,14 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, useScroll, useSpring } from 'framer-motion';
 import { api, type FragranceCatalogItem } from '@/lib/api';
+import { getFamilyAsset } from '@/lib/family-mapping';
+import { VideoScrubber } from '@/components/VideoScrubber';
+import { ScentrixLogo } from '@/components/ScentrixLogo';
+import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
+import { AnimatePresence } from 'framer-motion';
 import './fragrances.css';
 
 const FAMILIES = [
@@ -28,7 +33,9 @@ const PER_PAGE = 20;
 
 export default function FragrancesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const gridRef = useRef<HTMLDivElement>(null);
+  const initialQuery = searchParams.get('q') || '';
   
   const [items, setItems] = useState<FragranceCatalogItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -36,7 +43,11 @@ export default function FragrancesPage() {
   
   const [sortBy, setSortBy] = useState<'rating' | 'name' | 'match'>('rating');
   const [filterFamily, setFilterFamily] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
+
+  useEffect(() => {
+    setSearchQuery(searchParams.get('q') || '');
+  }, [searchParams]);
   const [page, setPage] = useState(1);
   const [jumpPage, setJumpPage] = useState('');
 
@@ -47,7 +58,8 @@ export default function FragrancesPage() {
         const offset = (page - 1) * PER_PAGE;
         const result = await api.getFragranceCatalog(PER_PAGE, offset, {
           q: searchQuery || undefined,
-          family: filterFamily || undefined
+          family: filterFamily || undefined,
+          sort: sortBy || undefined
         });
         
         setItems(result?.items || []);
@@ -63,11 +75,11 @@ export default function FragrancesPage() {
     
     const timer = setTimeout(load, searchQuery ? 300 : 0);
     return () => clearTimeout(timer);
-  }, [page, filterFamily, searchQuery]);
+  }, [page, filterFamily, searchQuery, sortBy]);
 
   useEffect(() => {
     setPage(1);
-  }, [filterFamily, searchQuery]);
+  }, [filterFamily, searchQuery, sortBy]);
 
   useEffect(() => {
     if (!gridRef.current || isLoading) return;
@@ -80,7 +92,7 @@ export default function FragrancesPage() {
   if (isLoading && items.length === 0) {
     return (
       <div className="browse-page">
-        <DiscoveryLoader />
+        <DiscoveryNeuralLoader />
       </div>
     );
   }
@@ -89,38 +101,21 @@ export default function FragrancesPage() {
 
   return (
     <div className="browse-page">
+      <VideoScrubber 
+        videoPath="/assets/top_hero.mp4"
+        isFixed={true}
+      />
       <FamilyBackground family={filterFamily || 'all'} />
       
-      <div className="browse-header">
-        <div className="browse-header-inner container">
-          <div>
-            <p className="browse-eyebrow">✦ Collection</p>
-            <h1 className="browse-title">
-              Explore <span className="text-gradient-amber">Fragrances</span>
-            </h1>
-          </div>
-          <div className="browse-search-wrap">
-            <span className="search-icon" aria-hidden="true">⌕</span>
-            <input
-              id="fragrance-search"
-              className="browse-search"
-              type="search"
-              placeholder='Try "smoky vanilla" or "bergamot"…'
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label="Search fragrances"
-            />
-          </div>
-        </div>
-      </div>
 
-      <div className="browse-layout container">
-        <aside className="browse-sidebar" aria-label="Filters">
+      {/* ── Floating Atmospheric Filter Nexus ── */}
+      <div className="browse-layout">
+        <div className="browse-sidebar" aria-label="Aetheric Filters">
           <div className="sidebar-section">
-            <p className="sidebar-label">Olfactive Families</p>
+            <h2 className="sidebar-label">Olfactive DNA Strands</h2>
             <div className="family-button-grid">
               <FamilyWideBtn 
-                name="All Families" 
+                name="All Fragments" 
                 slug="all" 
                 active={filterFamily === ''} 
                 onClick={() => setFilterFamily('')} 
@@ -136,40 +131,49 @@ export default function FragrancesPage() {
               ))}
             </div>
           </div>
+          
           <div className="sidebar-section">
-            <p className="sidebar-label">Sort Preferences</p>
-            <div className="sort-btn-group">
+            <div className="sort-btn-group" style={{ flexDirection: 'row', overflowX: 'auto', gap: '8px' }}>
               {(['rating', 'match', 'name'] as const).map((s) => (
-                <button key={s} className={`sort-btn ${sortBy === s ? 'active' : ''}`} onClick={() => setSortBy(s)}>
-                  {s === 'rating' ? '★ Highest Rated' : s === 'match' ? '⚡ Best Match' : 'A–Z Name'}
+                <button 
+                  key={s} 
+                  className={`sort-btn ${sortBy === s ? 'active' : ''}`} 
+                  onClick={() => setSortBy(s)}
+                  style={{ borderRadius: '40px', padding: '10px 24px', border: '1px solid rgba(255,255,255,0.08)' }}
+                >
+                  {s === 'rating' ? '★ Pure Rating' : s === 'match' ? '⚡ Genetic Match' : 'A–Z Sequence'}
                 </button>
               ))}
             </div>
           </div>
-        </aside>
+        </div>
 
+        {/* ── Cinematic Main Content ── */}
         <main className="browse-main">
-          <div className="browse-toolbar">
-            <span className="result-count">
-              Showing <strong>{items.length}</strong> of {total.toLocaleString()}
-            </span>
-            <div className="toolbar-sort-mobile">
-              <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="sort-select-mobile" aria-label="Sort fragrances">
-                <option value="rating">Highest Rated</option>
-                <option value="match">Best Match</option>
-                <option value="name">A–Z Name</option>
-              </select>
-            </div>
-          </div>
+          <header className="discovery-header">
+            <h1 className="display-lg text-gradient-amber">The Olfactive Archive</h1>
+          </header>
 
-          {items.length === 0 && !isLoading ? (
+
+
+          {isLoading ? (
+            <div style={{ padding: '60px 0', minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+               <DiscoveryNeuralLoader title="Sequencing olfactory graph..." />
+            </div>
+          ) : items.length === 0 ? (
             <div className="empty-state">
-              <p style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontStyle: 'italic', color: 'var(--color-on-surface-var)' }}>No fragrances found</p>
-              <p style={{ color: 'var(--color-muted)', marginTop: '8px' }}>Refine your filters to discover more of the collection</p>
-              <button className="btn btn-outline" style={{ marginTop: '24px' }} onClick={() => { setFilterFamily(''); setSearchQuery(''); }}>Clear All</button>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '3rem', fontStyle: 'italic', fontWeight: 300 }}>Empty Strand</h2>
+              <p style={{ color: 'var(--color-muted)', marginTop: '12px', fontSize: '1rem' }}>No molecular signatures found in this spectrum.</p>
+              <button 
+                className="btn-secondary-detail" 
+                style={{ marginTop: '32px' }} 
+                onClick={() => { setFilterFamily(''); setSearchQuery(''); }}
+              >
+                Reset Inversion
+              </button>
             </div>
           ) : (
-            <div className={`fragrances-grid ${isLoading ? 'opacity-50' : ''}`} ref={gridRef}>
+            <div className="fragrances-grid" ref={gridRef}>
               {items.map((frag, idx) => (
                 <FragCard 
                   key={frag.id} 
@@ -262,84 +266,77 @@ export default function FragrancesPage() {
 }
 
 function FamilyBackground({ family }: { family: string }) {
+  const asset = getFamilyAsset(family || 'all');
+  
+  if (asset.error) {
+    return (
+      <div className="family-discovery-bg flex items-center justify-center bg-black/80">
+        <span className="text-[10px] tracking-widest text-[#f4bb92]/40 italic uppercase">{asset.error}</span>
+      </div>
+    );
+  }
+
   return (
     <div className="family-discovery-bg">
       <img 
-        src={`/assets/family/${family}.png`} 
+        src={asset.src!} 
         alt={family} 
         className="family-discovery-img"
       />
       <div className="family-discovery-dimmer" />
+      
+      {/* ── Holographic Parallax: Triple-Vapor Scentscape ── */}
+      <div className="spatial-vapor-nexus">
+        <div className="vapor-cloud vapor-layer-1" />
+        <div className="vapor-cloud vapor-layer-2" />
+        {/* Layer 3 culled for composite performance */}
+      </div>
     </div>
   );
 }
 
-function DiscoveryLoader() {
-  return (
-    <div className="discovery-loader-full">
-      <motion.div 
-        className="loader-4d-nexus"
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <div className="loader-supernova" />
-        <motion.div 
-          className="loader-logo-layer"
-          animate={{ 
-            y: [0, -10, 0],
-            rotateY: [0, 15, 0],
-            rotateX: [0, -10, 0]
-          }}
-          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <img src="/assets/ui/logo.png" alt="Scentrix Logo" className="loader-logo-img" />
-        </motion.div>
-        
-        <motion.p 
-          className="loader-synthesis-text"
-          animate={{ opacity: [0.4, 1, 0.4] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          Neural Synthesis in Progress...
-        </motion.p>
-      </motion.div>
-    </div>
-  );
-}
 
 function FamilyWideBtn({ name, slug, active, onClick }: { name: string; slug: string; active: boolean; onClick: () => void }) {
+  const asset = getFamilyAsset(slug);
+  
   return (
     <button
       className={`family-btn-wide ${active ? 'active' : ''}`}
       onClick={onClick}
     >
-      <img 
-        src={`/assets/family/${slug}.png`} 
-        alt={name} 
-        className="btn-bg-img" 
-        loading="lazy"
-      />
-      <div className="btn-overlay" />
-      <span className="btn-label">{name}</span>
+      <div className="btn-structure-pillar">
+        <div className="btn-image-container">
+          {asset.error ? (
+            <div className="btn-error-placeholder">
+              <span className="error-text">{asset.error}</span>
+            </div>
+          ) : (
+            <img 
+              src={asset.src!} 
+              alt={name} 
+              className="btn-bg-img" 
+              loading="lazy"
+            />
+          )}
+          <div className="btn-overlay-glass" />
+        </div>
+        <div className="btn-shimmer-effect" />
+        <span className="btn-label-elite">{name}</span>
+      </div>
     </button>
   );
 }
 
 function BottleVisual({ id, color }: { id: string; color?: string }) {
-  const finalColor = color || BOTTLE_COLORS[id] || BOTTLE_COLORS[parseInt(id) % 8 || 1];
+  const finalColor = color || BOTTLE_COLORS[id] || BOTTLE_COLORS[parseInt(id) % 8 || 1] || 'linear-gradient(135deg, #f4bb92, #e4c285)';
   return (
-    <div className="card-bottle-visual">
-      <div className="bottle-glow" style={{ background: finalColor }} />
-      <div className="bottle-3d" style={{ background: finalColor }}>
-        <div className="bottle-body">
-          <div className="bottle-neck" />
-          <div className="bottle-cap" />
-          <div className="bottle-liquid" />
-          <div className="bottle-shine" />
-        </div>
+    <div className="dna-core-molecule">
+      <div className="dna-orbit dna-orbit-1" style={{ borderColor: color }} />
+      <div className="dna-orbit dna-orbit-2" style={{ borderColor: color }} />
+      <div className="dna-core-sphere" style={{ background: finalColor }}>
+        <div className="dna-glint" />
       </div>
-      <div className="bottle-shadow" />
+      <div className="dna-label-tag">FRAGRANCE DNA</div>
     </div>
   );
 }
@@ -351,7 +348,11 @@ function FragCard({ frag, index, onClick }: { frag: any; index: number; onClick:
   const topNotes = frag.top_notes?.slice(0, 3) || [];
   const midNotes = frag.middle_notes?.slice(0, 2) || [];
   const baseNotes = frag.base_notes?.slice(0, 2) || [];
-  const accords = frag.accords?.slice(0, 2) || [];
+  const accords = frag.accords?.slice(0, 2) || frag.top_accords?.slice(0, 2) || [];
+
+  const familyLookup = frag.family || (frag.accords && frag.accords[0]) || (frag.top_accords && frag.top_accords[0]) || 'all';
+  const familyAsset = getFamilyAsset(familyLookup);
+  const fallbackSrc = familyAsset.error ? '/assets/family/all.png' : familyAsset.src;
 
   const updateCursorVars = (x: number, y: number) => {
     const card = cardRef.current;
@@ -404,16 +405,25 @@ function FragCard({ frag, index, onClick }: { frag: any; index: number; onClick:
     >
       <div className="frag-list-image">
         <div className="glass-pillar" />
-        <div className="bottle-visual-wrapper">
+        <div className="bottle-visual-wrapper" style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}>
           {frag.image_url ? (
             <img 
               src={frag.image_url} 
               alt={frag.name} 
               className="frag-card-img" 
-              onError={(e) => (e.currentTarget.style.display = 'none')}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(e) => {
+                 (e.currentTarget as HTMLImageElement).src = fallbackSrc || '/assets/family/all.png';
+              }}
             />
           ) : (
-            <BottleVisual id={frag.id} />
+            <img 
+              src={fallbackSrc || '/assets/family/all.png'} 
+              alt={frag.name} 
+              className="frag-card-img fallback-family-img" 
+              style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'saturate(0.9) brightness(0.8)' }}
+              loading="lazy"
+            />
           )}
         </div>
         <div className="match-badge" aria-label={`${frag.match_score}% match`}>⚡ {frag.match_score}%</div>

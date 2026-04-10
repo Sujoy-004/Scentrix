@@ -10,23 +10,20 @@
 
 :root {
   /* ── Surface Hierarchy ── */
-  --surface-base:           transparent;
+  --surface-base:           #080707;
   --surface-low:            rgba(0, 0, 0, 0.35);  
   --surface-mid:            rgba(0, 0, 0, 0.55);  
   --surface-high:           rgba(0, 0, 0, 0.75); 
   --surface-highest:        rgba(0, 0, 0, 0.9); 
-  --surface-lowest:         transparent;
+  --surface-lowest:         #000000;
   --surface-dim:            rgba(0, 0, 0, 0.65);
 
-  /* ── Brand Colors ── */
-  --color-primary:          #f4bb92;  /* Warm amber glow */
-  --color-primary-container:#8b5e3c;  /* Deep amber */
-  --color-primary-hover:    #ffdcc5;  /* Light amber on hover */
-  --color-secondary:        #e4c285;  /* Gold */
-  --color-secondary-container:#5d4514; /* Deep gold */
-  --color-tertiary:         #e9c349;  /* Yellow gold accent */
-  --color-tertiary-container:#cca730;
-  --color-accent-orange:    #FF6B35;  /* Saffron orange pop */
+  /* ── Brand Colors — Dynamic Synesthetic Overrides ── */
+  --color-primary:          var(--quiz-accent, #f4bb92);  /* Injected during Quiz/Catalog */
+  --color-primary-container:var(--quiz-soft, #8b5e3c);
+  --color-primary-hover:    var(--quiz-glow, #ffdcc5);
+  --color-secondary:        var(--quiz-glow, #e4c285);
+  --color-accent-orange:    var(--quiz-accent, #FF6B35);
 
   /* ── Text Colors ── */
   --color-on-surface:       #ffffff;  /* Ultra White */
@@ -1034,7 +1031,7 @@ body.is-scrolling .scroll-reveal {
 }
 
 .cinematic-sequence-section {
-  background: #161310;
+  background: transparent !important;
   color: #fff;
   overflow: visible;
 }
@@ -1121,7 +1118,8 @@ body.is-scrolling .scroll-reveal {
 }
 
 /* REMOVAL OF BLACK BLOC TO EXPOSE ANIMATION */
-.social-proof {
+.social-proof, .how-it-works, .fragrance-families, .final-cta {
   background: transparent !important;
   background-image: none !important;
+  background-color: transparent !important;
 }

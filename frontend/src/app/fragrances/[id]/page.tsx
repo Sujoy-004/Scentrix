@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAppStore } from '@/stores/app-store';
+import { VideoScrubber } from '@/components/VideoScrubber';
 import './fragrance-detail.css';
 
 type FragranceNotePayload = { name?: string } | string;
@@ -36,6 +37,33 @@ function normalizeNotes(notes: FragranceNotePayload[] | undefined, fallback: str
     .map((note) => (typeof note === 'string' ? note : note?.name || ''))
     .filter((note): note is string => !!note);
   return values.length > 0 ? values : fallback;
+}
+
+const BOTTLE_COLORS: Record<string, string> = {
+  '1': 'linear-gradient(135deg, #6b3a1f, #c87941)',
+  '2': 'linear-gradient(135deg, #b8860b, #ffe08a)',
+  '3': 'linear-gradient(135deg, #1a4a1a, #4caf50)',
+  '4': 'linear-gradient(135deg, #4a3728, #8b6347)',
+  '5': 'linear-gradient(135deg, #8b1a4a, #e91e8c)',
+  '6': 'linear-gradient(135deg, #1a3a5c, #4a90d9)',
+  '7': 'linear-gradient(135deg, #8b4513, #ff8c00)',
+  '8': 'linear-gradient(135deg, #1a2a3a, #4a6fa5)',
+  'all': 'linear-gradient(135deg, #c9a86c, #f0d090)',
+};
+
+function BottleVisual({ id, color }: { id: string; color?: string }) {
+  const finalColor = color || BOTTLE_COLORS[id] || BOTTLE_COLORS[parseInt(id) % 8 || 1] || 'linear-gradient(135deg, #f4bb92, #e4c285)';
+  return (
+    <div className="dna-core-visual-detail">
+      <div className="dna-core-pulse-aura-detail" style={{ background: finalColor }} />
+      <div className="dna-core-glass-detail" style={{ background: finalColor }}>
+        <div className="dna-liquid-glow-detail" />
+        <div className="dna-rim-highlight-detail" />
+        <div className="dna-center-particle-detail" />
+      </div>
+      <div className="dna-label-tag-detail">ELITE FRAGMENT DNA</div>
+    </div>
+  );
 }
 
 export default function FragranceDetailPage() {
@@ -134,72 +162,66 @@ export default function FragranceDetailPage() {
     base: normalizeNotes(fragrance.base_notes, ['Sandalwood', 'Musk']),
   };
 
-  const bottleColors: Record<string, string> = {
-    '1': 'linear-gradient(135deg,#6b3a1f,#c87941)',
-    '2': 'linear-gradient(135deg,#b8860b,#ffe08a)',
-    '3': 'linear-gradient(135deg,#1a4a1a,#4caf50)',
-    '4': 'linear-gradient(135deg,#4a3728,#8b6347)',
-    '5': 'linear-gradient(135deg,#8b1a4a,#e91e8c)',
-    '6': 'linear-gradient(135deg,#1a3a5c,#4a90d9)',
-    '7': 'linear-gradient(135deg,#8b4513,#ff8c00)',
-    '8': 'linear-gradient(135deg,#1a2a3a,#4a6fa5)',
+  const mainAccord = fragrance.accords?.[0] || 'Unknown';
+  const accordColors: Record<string, string> = {
+    'Woody': 'rgba(74, 55, 40, 0.2)',
+    'Floral': 'rgba(139, 26, 74, 0.15)',
+    'Citrus': 'rgba(244, 187, 146, 0.18)',
+    'Aquatic': 'rgba(26, 58, 92, 0.15)',
+    'Spicy': 'rgba(107, 26, 26, 0.15)',
+    'Gourmand': 'rgba(139, 69, 19, 0.15)',
+    'Green': 'rgba(26, 74, 26, 0.15)',
+    'Musky': 'rgba(74, 74, 74, 0.15)',
+    'Unknown': 'rgba(244, 187, 146, 0.15)',
   };
 
+  const auraColor = typeof mainAccord === 'string' ? (accordColors[mainAccord] || accordColors['Unknown']) : accordColors['Unknown'];
+
   return (
-    <div className="fragrance-detail-page">
+    <div className="fragrance-detail-page" style={{ '--aura-color-1': auraColor } as any}>
+      <VideoScrubber 
+        videoPath="/assets/top_hero.mp4"
+        isFixed={true}
+      />
+      
       <div className="detail-container" ref={sectionRef}>
 
-        {/* Back */}
+        {/* Cinematic Back Action */}
         <button className="back-button" onClick={() => router.back()}>
-          ← Back
+          ← The Archive
         </button>
 
-        {/* Hero Header */}
+        {/* Fragmented Hero Section */}
         <div className="detail-header">
-          {/* Bottle Visual */}
+          {/* Aetheric Visual Core */}
           <div className="fragrance-image-section">
             <div className="bottle-showcase">
-              <div className="bottle-glow" style={{ background: bottleColors[id] || bottleColors['1'] }} />
-              <div className="bottle-3d" style={{ background: bottleColors[id] || bottleColors['1'] }}>
-                <div className="bottle-body">
-                  <div className="bottle-neck" />
-                  <div className="bottle-cap" />
-                  <div className="bottle-liquid" />
-                  <div className="bottle-shine" />
-                </div>
-              </div>
+              {fragrance.image_url ? (
+                <img 
+                  src={fragrance.image_url} 
+                  alt={fragrance.name} 
+                  className="detail-bottle-img" 
+                  onError={(e) => (e.currentTarget.style.display = 'none')}
+                />
+              ) : (
+                <BottleVisual id={fragrance.id} />
+              )}
               <div className="bottle-shadow" />
             </div>
-            <button
-              className="wishlist-btn-large"
-              onClick={() => addToWishlist(fragrance.id || id)}
-            >
-              ♡ Save to Collection
-            </button>
           </div>
 
-          {/* Info */}
+          {/* Genetic Specifications */}
           <div className="fragrance-info-section">
             <div className="fragrance-header-info">
-              <span className="detail-family-badge">{fragrance.concentration || fragrance.family || 'Eau de Parfum'}</span>
+              <span className="detail-family-badge">{fragrance.concentration || fragrance.family || 'Neural Essence'}</span>
               <h1 className="fragrance-detail-title">{fragrance.name}</h1>
               <p className="fragrance-detail-brand">{fragrance.brand}</p>
-              {fragrance.year && <p className="fragrance-year">Est. {fragrance.year}</p>}
-              {fragrance.price && (
-                <p className="fragrance-price">${fragrance.price}</p>
-              )}
+              {fragrance.year && <p className="fragrance-year">Origin Year: {fragrance.year}</p>}
             </div>
 
             <div className="fragrance-metrics">
               <div className="metric-block">
-                <span className="metric-label">Rating</span>
-                <div className="metric-value">
-                  <span className="stars">{'⭐'.repeat(Math.floor(fragrance.rating || 4))}</span>
-                  <span className="rating-count">({fragrance.review_count || 342})</span>
-                </div>
-              </div>
-              <div className="metric-block">
-                <span className="metric-label">Match</span>
+                <span className="metric-label">Neural Resonance</span>
                 <div className="metric-value match-pct">
                   {typeof fragrance.similarity_score === 'number'
                     ? Math.round(fragrance.similarity_score * 100)
@@ -207,52 +229,55 @@ export default function FragranceDetailPage() {
                 </div>
               </div>
               <div className="metric-block">
-                <span className="metric-label">Longevity</span>
-                <div className="metric-value">{fragrance.longevity || '8–10 hrs'}</div>
+                <span className="metric-label">Longevity Trace</span>
+                <div className="metric-value">{fragrance.longevity || '8–12 hrs'}</div>
+              </div>
+              <div className="metric-block">
+                <span className="metric-label">Market Status</span>
+                <div className="metric-value">
+                  <span className="stars">{'★'.repeat(Math.floor(fragrance.rating || 4))}</span>
+                </div>
               </div>
             </div>
 
             <p className="fragrance-description">
-              {fragrance.description || 'A sophisticated fragrance with a complex blend of notes that unfolds beautifully on the skin over time.'}
+              "{fragrance.description || 'A sophisticated molecular blend with a complex DNA signature that unfolds beautifully on the skin over time.'}"
             </p>
 
             <div className="action-buttons-detail">
               <button
-                className="btn-primary-detail"
-                string="magnetic"
-                string-radius="400"
-                string-strength="0.08"
+                className="btn-primary-detail button-glow-effect"
                 onClick={() => { addToWishlist(fragrance.id || id); }}
               >
-                Add to Collection
+                Inscribe into Collection
               </button>
               <button
                 className="btn-secondary-detail"
                 onClick={() => router.push('/recommendations')}
               >
-                See Similar →
+                Genetic Neighbors →
               </button>
             </div>
           </div>
         </div>
 
-        {/* Note Pyramid */}
+        {/* The Sensory Constellation */}
         <div className="note-pyramid-section">
-          <h2 className="section-title">Fragrance Pyramid</h2>
+          <h2 className="section-title">The Sensory Genome</h2>
           <div className="pyramid-container">
             {[
-              { key: 'top', label: 'Top Notes', notes: notePyramid.top, cls: 'top-level', desc: 'First impression · 0–30 min' },
-              { key: 'middle', label: 'Heart Notes', notes: notePyramid.middle, cls: 'middle-level', desc: 'Character · 30 min–4 hrs' },
-              { key: 'base', label: 'Base Notes', notes: notePyramid.base, cls: 'base-level', desc: 'Memory · 4–12 hrs' },
-            ].map(({ key, label, notes, cls, desc }) => (
-              <div key={key} className={`pyramid-level ${cls}`}>
+              { key: 'top', label: 'The Immediate Pulse', notes: notePyramid.top, desc: 'Top Notes · 0–20 min' },
+              { key: 'middle', label: 'The Persistent Heart', notes: notePyramid.middle, desc: 'Soul · 20 min–3 hrs' },
+              { key: 'base', label: 'The Lasting Echo', notes: notePyramid.base, desc: 'Base · 4–12 hrs' },
+            ].map(({ key, label, notes, desc }) => (
+              <div key={key} className={`pyramid-level ${key}-level`}>
                 <div className="level-info">
                   <div className="level-label">{label}</div>
                   <div className="level-desc">{desc}</div>
                 </div>
                 <div className="notes-list">
                   {notes.map((note: string, idx: number) => (
-                    <div key={idx} className={`note-item ${key}`}>{note}</div>
+                    <div key={idx} className="note-item">{note}</div>
                   ))}
                 </div>
               </div>
@@ -260,46 +285,40 @@ export default function FragranceDetailPage() {
           </div>
         </div>
 
-        {/* Profile Details */}
+        {/* DNA Details */}
         <div className="details-section">
           <div className="detail-card">
-            <h3>Fragrance Profile</h3>
+            <h3>Molecular Properties</h3>
             <ul className="detail-list">
-              <li><span className="label">Type:</span><span className="value">{fragrance.fragrance_type || 'Eau de Parfum'}</span></li>
-              <li><span className="label">Concentration:</span><span className="value">{fragrance.concentration || '15–20%'}</span></li>
-              <li><span className="label">Sillage:</span><span className="value">{fragrance.sillage || 'Moderate'}</span></li>
-              <li><span className="label">Release Year:</span><span className="value">{fragrance.year || 'Classic'}</span></li>
+              <li><span className="label">Structure:</span><span className="value">{fragrance.fragrance_type || 'Molecular Perfume'}</span></li>
+              <li><span className="label">Density:</span><span className="value">{fragrance.concentration || 'Hybrid Essence'}</span></li>
+              <li><span className="label">Aura (Sillage):</span><span className="value">{fragrance.sillage || 'Enveloping'}</span></li>
             </ul>
           </div>
           <div className="detail-card">
-            <h3>Recommended For</h3>
-            <p className="card-content">{fragrance.recommendation || 'A versatile, timeless signature. Perfect for everyday wear and special occasions alike.'}</p>
-          </div>
-          <div className="detail-card">
-            <h3>Occasions</h3>
+            <h3>Environment Scan</h3>
             <div className="occasion-tags">
-              {['Daily Wear', 'Evening', 'Special Events', 'Date Night'].map(o => (
+              {['Twilight Wear', 'Noir Events', 'Intimate Study', 'Gilded Evenings'].map(o => (
                 <span key={o} className="tag">{o}</span>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Reviews */}
+        {/* Global Feedback Echoes */}
         <div className="reviews-section">
-          <h2 className="section-title">Community Reviews</h2>
+          <h2 className="section-title">Enthusiast Feedback</h2>
           <div className="reviews-grid">
             {[
-              { name: 'Elena R.', role: 'Collector', stars: 5, text: 'Absolutely stunning. The opening is fresh and bright, and it develops beautifully over the course of the day.', time: '2 days ago' },
-              { name: 'Marcus C.', role: 'Enthusiast', stars: 5, text: 'Saved me from so many blind purchases. The AI nailed my preference for woody, sophisticated blends.', time: '1 week ago' },
-              { name: 'Sophie N.', role: 'Perfume Lover', stars: 4, text: 'Long lasting and incredibly versatile. Gets compliments constantly. A true signature scent.', time: '2 weeks ago' },
+              { name: 'Elena R.', stars: 5, text: 'A cinematic masterpiece. The opening is fresh, but the dry down is pure silent luxury.', time: '2 days ago' },
+              { name: 'Marcus C.', stars: 5, text: 'The AI nailed the woody resonance. This is my new signature pulse.', time: '1 week ago' },
             ].map((r, idx) => (
               <div key={idx} className="review-card">
                 <div className="review-header">
-                  <span className="reviewer-avatar">👤</span>
+                  <span className="reviewer-avatar">S</span>
                   <div className="reviewer-info">
-                    <p className="reviewer-name">{r.name} <span className="reviewer-role">{r.role}</span></p>
-                    <span className="review-rating">{'⭐'.repeat(r.stars)}</span>
+                    <p className="reviewer-name">{r.name}</p>
+                    <span className="review-rating">{'★'.repeat(r.stars)}</span>
                   </div>
                   <span className="review-date">{r.time}</span>
                 </div>
@@ -309,13 +328,13 @@ export default function FragranceDetailPage() {
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Interaction Core */}
         <div className="detail-footer">
           <button className="footer-btn-primary" onClick={() => router.push('/recommendations')}>
-            Get Recommendations
+            Analyze My Profile
           </button>
           <button className="footer-btn-secondary" onClick={() => router.push('/fragrances')}>
-            Explore All
+            Browse Library
           </button>
         </div>
       </div>

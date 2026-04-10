@@ -3,6 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { getFamilyAsset } from '@/lib/family-mapping';
 import '@/styles/fragrance-families.css';
 
 const containerVariants = {
@@ -56,18 +57,17 @@ export function FragranceFamilies() {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          viewport={{ once: false }}
           className="text-center mb-24"
         >
           <h2 className="section-title italic mb-6">Discovery Families</h2>
-          <p className="section-subtitle mx-auto">Explore 10 structural foundations of the elite curator's library</p>
         </motion.div>
 
         <motion.div 
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
+          viewport={{ once: false, margin: "-100px" }}
           className="families-grid"
         >
           {families.slice(0, 10).map((family) => (
@@ -78,12 +78,24 @@ export function FragranceFamilies() {
               onClick={() => router.push(`/fragrances?family=${family.slug}`)}
             >
               <div className="family-image-container">
-                <img 
-                  src={`/assets/family/${family.slug}.png`} 
-                  alt={family.name} 
-                  className="family-image"
-                  loading="lazy"
-                />
+                {(() => {
+                  const asset = getFamilyAsset(family.slug);
+                  if (asset.error) {
+                    return (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                        <span className="text-[10px] text-[#f4bb92]/50 italic">{asset.error}</span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <img 
+                      src={asset.src!} 
+                      alt={family.name} 
+                      className="family-image"
+                      loading="lazy"
+                    />
+                  );
+                })()}
                 <div className="family-overlay" />
               </div>
               
@@ -105,7 +117,7 @@ export function FragranceFamilies() {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          viewport={{ once: false }}
           className="flex justify-center mt-32"
         >
           <motion.button

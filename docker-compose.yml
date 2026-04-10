@@ -74,6 +74,7 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev_secret_key_change_in_production}
       SENTRY_DSN: ${SENTRY_DSN:-}
       SCENTSCAPE_REPO_ROOT: ${SCENTSCAPE_REPO_ROOT:-/app}
+      RUNNING_IN_DOCKER: "true"
       PYTHONPATH: /app
     depends_on:
       postgres:
@@ -87,9 +88,10 @@ services:
       - ./backend:/app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 10s
-      timeout: 5s
+      interval: 30s
+      timeout: 10s
       retries: 5
+      start_period: 180s
     networks:
       - scentscape
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
@@ -111,6 +113,7 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev_secret_key_change_in_production}
       SENTRY_DSN: ${SENTRY_DSN:-}
       SCENTSCAPE_REPO_ROOT: ${SCENTSCAPE_REPO_ROOT:-/app}
+      RUNNING_IN_DOCKER: "true"
       PYTHONPATH: /app
     depends_on:
       postgres:

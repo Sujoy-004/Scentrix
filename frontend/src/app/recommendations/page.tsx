@@ -28,6 +28,14 @@ const containerVariants = {
   }
 };
 
+interface FragranceRecommendation {
+  id: string;
+  name: string;
+  brand: string;
+  match_score?: number;
+  top_notes?: string[];
+}
+
 const cardVariants = {
   hidden: { opacity: 0, y: 30, scale: 0.95 },
   visible: { 
@@ -40,7 +48,7 @@ const cardVariants = {
 
 export default function RecommendationsPage() {
   const router = useRouter();
-  const { data: recommendations, isLoading, error } = useRecommendations();
+  const { data: recommendations, isLoading, error } = useRecommendations() as { data: FragranceRecommendation[] | undefined, isLoading: boolean, error: any };
   const { addToWishlist } = useAppStore();
   const [mounted, setMounted] = useState(false);
 
@@ -94,6 +102,9 @@ export default function RecommendationsPage() {
   }
 
   const topMatches = recommendations.slice(0, 10);
+  const avgFidelity = topMatches.length > 0 
+    ? Math.round(topMatches.reduce((acc, curr) => acc + (curr.match_score || 0), 0) / topMatches.length)
+    : 0;
 
   return (
     <div className="recommendations-page">
@@ -122,7 +133,7 @@ export default function RecommendationsPage() {
             <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700 }}>Matches</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '2rem', fontFamily: 'var(--font-display)', color: '#f4bb92' }}>98%</div>
+            <div style={{ fontSize: '2rem', fontFamily: 'var(--font-display)', color: '#f4bb92' }}>{avgFidelity}%</div>
             <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700 }}>Fidelity</div>
           </div>
         </motion.div>
@@ -160,7 +171,7 @@ export default function RecommendationsPage() {
               <div className="match-score-elite">
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', padding: '0 0.25rem' }}>
                   <span style={{ fontSize: '0.6rem', fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>Neural Match</span>
-                  <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#f4bb92' }}>{fragrance.match_score || 85}%</span>
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#f4bb92' }}>{fragrance.match_score}%</span>
                 </div>
                 <div className="score-track-elite">
                   <motion.div 

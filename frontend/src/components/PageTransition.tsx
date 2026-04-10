@@ -1,40 +1,57 @@
 'use client';
 
-import { motion, HTMLMotionProps } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { usePathname } from 'next/navigation';
-import React, { ReactNode } from 'react';
+import React from 'react';
 
-interface PageTransitionProps extends HTMLMotionProps<'div'> {
-  children: ReactNode;
-}
-
-const variants = {
-  hidden: { opacity: 0, y: 10 },
-  enter: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -10 },
+const variants: Variants = {
+  hidden: { 
+    opacity: 0, 
+    y: 10,
+    filter: 'blur(10px)',
+  },
+  enter: { 
+    opacity: 1, 
+    y: 0,
+    filter: 'blur(0px)',
+    transition: { 
+      duration: 0.8, 
+      ease: [0.22, 1, 0.36, 1] 
+    }
+  },
+  exit: { 
+    opacity: 0, 
+    y: -10,
+    filter: 'blur(5px)',
+    transition: { 
+      duration: 0.5, 
+      ease: [0.22, 1, 0.36, 1] 
+    }
+  },
 };
 
-export default function PageTransition({ children, ...props }: PageTransitionProps) {
+export default function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const isHome = pathname === '/';
+
+  // Home Page Bypass: Restoring original cinematic scrubbing without global interference
+  if (isHome) {
+    return <div className="home-content-nexus">{children}</div>;
+  }
 
   return (
-    <motion.div
-      key={pathname}
-      initial="hidden"
-      animate="enter"
-      exit="exit"
-      variants={variants}
-      transition={{ 
-        type: 'spring', 
-        stiffness: 100, 
-        damping: 20,
-        mass: 1,
-        duration: 0.6 
-      }}
-      className="w-full h-full flex flex-col"
-      {...props}
-    >
-      {children}
-    </motion.div>
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={pathname}
+        variants={variants}
+        initial="hidden"
+        animate="enter"
+        exit="exit"
+        className="page-transition-wrapper"
+        style={{ width: '100%' }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
   );
 }

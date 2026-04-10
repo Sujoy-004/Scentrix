@@ -56,7 +56,7 @@ export function HowItWorks() {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          viewport={{ once: false }}
           className="text-center mb-32"
         >
           <h2 className="section-title italic mb-4">Architectural Process</h2>
@@ -67,7 +67,7 @@ export function HowItWorks() {
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
+          viewport={{ once: false, margin: "-100px" }}
           className="steps-grid grid grid-cols-1 md:grid-cols-3 gap-10"
         >
           {steps.map((step) => (

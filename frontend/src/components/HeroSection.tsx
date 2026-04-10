@@ -45,7 +45,7 @@ export function HeroSection() {
         variants={containerVariants}
         initial="hidden"
         whileInView="visible"
-        viewport={{ once: true }}
+        viewport={{ once: false }}
       >
         <div className="hero-content text-center max-w-4xl mx-auto">
           {/* Eyebrow */}
