@@ -8,6 +8,7 @@ const publicRoutes = [
   '/auth/forgot-password',
   '/fragrances',
   '/families',
+  '/recommendations',
   '/terms',
   '/privacy',
 ];
@@ -15,9 +16,9 @@ const publicRoutes = [
 // Define routes that require authentication
 const protectedRoutes = [
   '/profile',
-  '/recommendations',
   '/user',
 ];
+
 
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;

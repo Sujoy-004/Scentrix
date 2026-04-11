@@ -27,11 +27,13 @@ class User(Base):
     __allow_unmapped__ = True
 
     id: int = mapped_column(Integer, primary_key=True, index=True)
+    full_name: Optional[str] = mapped_column(String(100), nullable=True)
     encrypted_email: str = mapped_column(Text, unique=True, nullable=False)
     email_hash: str = mapped_column(String(64), unique=True, index=True, nullable=False)
     hashed_password: str = mapped_column(String(255), nullable=False)
     role: str = mapped_column(String(20), default="user", nullable=False)
     is_active: bool = mapped_column(Boolean, default=True, index=True)
+
     created_at: datetime = mapped_column(DateTime, default=utc_now, nullable=False)
     updated_at: datetime = mapped_column(
         DateTime,
@@ -58,9 +60,10 @@ class User(Base):
 
 
 class FragranceRating(Base):
-    """User's rating of a fragrance across 5 dimensions.
+    """User's rating of a fragrance.
 
-    Stores perceptual ratings (sweetness, woodiness, etc.) and overall satisfaction.
+    Stores a simple quiz_rating (1-10 from the neural discovery quiz) and
+    optionally the 5 perceptual dimensions for advanced analytics.
     """
 
     __tablename__ = "fragrance_ratings"
@@ -70,15 +73,16 @@ class FragranceRating(Base):
     user_id: int = mapped_column(Integer, nullable=False, index=True)
     fragrance_neo4j_id: str = mapped_column(String(100), nullable=False, index=True)
 
-    # Five perceptual dimensions (0-5 scale)
-    rating_sweetness: float = mapped_column(Float, nullable=False)
-    rating_woodiness: float = mapped_column(Float, nullable=False)
-    rating_longevity: float = mapped_column(Float, nullable=False)
-    rating_projection: float = mapped_column(Float, nullable=False)
-    rating_freshness: float = mapped_column(Float, nullable=False)
+    # Simple quiz rating (1-10 scale) — set by the Discovery Protocol
+    quiz_rating: Optional[float] = mapped_column(Float, nullable=True)
 
-    # Overall satisfaction (0-5 scale)
-    overall_satisfaction: float = mapped_column(Float, nullable=False)
+    # Five perceptual dimensions (0-5 scale) — legacy/advanced analytics
+    rating_sweetness: Optional[float] = mapped_column(Float, nullable=True)
+    rating_woodiness: Optional[float] = mapped_column(Float, nullable=True)
+    rating_longevity: Optional[float] = mapped_column(Float, nullable=True)
+    rating_projection: Optional[float] = mapped_column(Float, nullable=True)
+    rating_freshness: Optional[float] = mapped_column(Float, nullable=True)
+    overall_satisfaction: Optional[float] = mapped_column(Float, nullable=True)
 
     # Metadata
     created_at: datetime = mapped_column(DateTime, default=utc_now, nullable=False)
@@ -93,7 +97,7 @@ class FragranceRating(Base):
         return (
             f"<FragranceRating(user_id={self.user_id}, "
             f"fragrance={self.fragrance_neo4j_id}, "
-            f"satisfaction={self.overall_satisfaction})>"
+            f"quiz_rating={self.quiz_rating})>"
         )
 
 

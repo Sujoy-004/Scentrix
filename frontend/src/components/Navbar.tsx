@@ -129,13 +129,17 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <MagneticLink href="/onboarding/quiz" onClick={() => router.push('/onboarding/quiz')}>
-                The Quiz
+              <MagneticLink href="/recommendations" isActive={pathname === '/recommendations'} onClick={() => router.push('/recommendations')}>
+                Discovery
+              </MagneticLink>
+              <MagneticLink href="/onboarding/quiz" isActive={pathname === '/onboarding/quiz'} onClick={() => router.push('/onboarding/quiz')}>
+                Quiz
               </MagneticLink>
               <ProfileDropdown handleLogout={handleLogout} />
             </>
           )}
         </div>
+
 
         {/* Hamburger Toggle */}
         <motion.button
@@ -176,9 +180,11 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
+                  <MobileNavLink icon={<Sparkles size={18} />} label="Discovery" onClick={() => { router.push('/recommendations'); setIsOpen(false); }} variants={itemVariants} />
                   <MobileNavLink icon={<Sparkles size={18} />} label="Personalized Quiz" onClick={() => { router.push('/onboarding/quiz'); setIsOpen(false); }} variants={itemVariants} />
                   <MobileNavLink icon={<Heart size={18} />} label="Wishlist" onClick={() => { router.push('/profile/wishlist'); setIsOpen(false); }} variants={itemVariants} />
                   <MobileNavLink icon={<Settings size={18} />} label="Account" onClick={() => { router.push('/profile'); setIsOpen(false); }} variants={itemVariants} />
+
                   <button className="mobile-logout" onClick={handleLogout}>
                     <LogOut size={18} /> Sign Out
                   </button>

@@ -9,7 +9,8 @@ import {
   ArrowRight, 
   RotateCcw, 
   ShieldCheck,
-  Star
+  LogIn,
+  UserPlus,
 } from 'lucide-react';
 import { useRecommendations } from '@/lib/hooks';
 import { useAppStore } from '@/stores/app-store';
@@ -49,20 +50,112 @@ const cardVariants = {
 export default function RecommendationsPage() {
   const router = useRouter();
   const { data: recommendations, isLoading, error } = useRecommendations() as { data: FragranceRecommendation[] | undefined, isLoading: boolean, error: any };
-  const { addToWishlist } = useAppStore();
+  const { addToWishlist, isAuthenticated, quizResponses } = useAppStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // SSR guard — avoid hydration mismatch on localStorage-backed state
   if (!mounted) return null;
 
+  // ── GATE 1: Guest with no quiz data → send them to the quiz ─────────────
+  if (!isAuthenticated && quizResponses.length === 0) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050505' }}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-card"
+          style={{ padding: '3rem', textAlign: 'center', maxWidth: '30rem', border: '1px solid rgba(244,187,146,0.1)', borderRadius: '1.5rem', background: 'rgba(255,255,255,0.03)' }}
+        >
+          <Sparkles style={{ margin: '0 auto 1.5rem', color: 'rgba(244,187,146,0.5)' }} size={48} />
+          <h2 style={{ fontSize: '1.5rem', fontFamily: 'var(--font-display)', fontStyle: 'italic', color: '#fff', marginBottom: '1rem' }}>
+            Begin Your Discovery
+          </h2>
+          <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '2rem', lineHeight: '1.6' }}>
+            Take the Discovery Protocol to calibrate your neural scent profile.
+          </p>
+          <button className="btn btn-primary" onClick={() => router.push('/onboarding/quiz')}>
+            Enter Protocol <ArrowRight size={18} />
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // ── GATE 2: Guest with quiz data → show Login/Sign Up gate ──────────────
+  if (!isAuthenticated && quizResponses.length > 0) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050505', padding: '2rem' }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+          style={{ textAlign: 'center', maxWidth: '34rem' }}
+        >
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+            style={{ width: '5rem', height: '5rem', border: '1px solid rgba(244,187,146,0.3)', borderRadius: '50%', margin: '0 auto 2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Sparkles size={28} style={{ color: '#f4bb92' }} />
+          </motion.div>
+
+          <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.25em', textTransform: 'uppercase', color: 'rgba(244,187,146,0.7)', marginBottom: '1rem' }}>
+            Neural Calibration Complete
+          </div>
+          <h1 style={{ fontSize: '2rem', fontFamily: 'var(--font-display)', fontStyle: 'italic', color: '#fff', marginBottom: '0.75rem', lineHeight: 1.2 }}>
+            Your Aromatic Profile is Ready
+          </h1>
+          <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '2.5rem' }}>
+            You rated <strong style={{ color: '#f4bb92' }}>{quizResponses.length}</strong> fragrances.
+            Sign in or create a free account to unlock your personalized discovery landscape.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: '18rem', margin: '0 auto' }}>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => router.push('/auth/register')}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.85rem 2rem', background: 'linear-gradient(135deg, rgba(244,187,146,0.9), rgba(196,113,0,0.8))', border: 'none', borderRadius: '100px', color: '#0a0806', fontWeight: 700, fontSize: '0.8rem', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}
+            >
+              <UserPlus size={16} /> Create Free Account
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => router.push('/auth/login')}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.85rem 2rem', background: 'transparent', border: '1px solid rgba(244,187,146,0.3)', borderRadius: '100px', color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: '0.8rem', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}
+            >
+              <LogIn size={16} /> Sign In to Existing Account
+            </motion.button>
+
+            <button
+              onClick={() => router.push('/fragrances')}
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', marginTop: '0.5rem', textDecoration: 'underline' }}
+            >
+              Continue browsing without saving
+            </button>
+          </div>
+
+          <p style={{ marginTop: '2rem', fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            <ShieldCheck size={10} style={{ display: 'inline', marginRight: '0.3rem', color: '#f4bb92' }} />
+            Your quiz data stays local until you sign up. We never share it.
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // ── Authenticated: loading state ──────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="recommendations-loading min-h-screen">
-        <motion.div 
-          animate={{ 
+        <motion.div
+          animate={{
             scale: [1, 1.2, 1],
             rotate: [0, 90, 180, 270, 360],
           }}
@@ -79,19 +172,20 @@ export default function RecommendationsPage() {
     );
   }
 
+  // ── Authenticated: error or no results ───────────────────────────────────
   if (error || !recommendations?.length) {
     return (
       <div className="recommendations-error-screen" style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="glass-card"
           style={{ padding: '3rem', textAlign: 'center', maxWidth: '30rem' }}
         >
           <RotateCcw style={{ margin: '0 auto 1.5rem', color: 'rgba(244,187,146,0.5)' }} size={48} />
-          <h2 style={{ fontSize: '1.5rem', fontFamily: 'var(--font-display)', fontStyle: 'italic', color: '#fff', marginBottom: '1rem' }}>Discovery Required</h2>
+          <h2 style={{ fontSize: '1.5rem', fontFamily: 'var(--font-display)', fontStyle: 'italic', color: '#fff', marginBottom: '1rem' }}>Neural Sync Required</h2>
           <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '2rem', lineHeight: '1.6' }}>
-            We haven't calibrated your profile yet. Complete the Discovery Protocol to generate your personalized scent landscape.
+            We couldn&apos;t load your recommendations. Please try the Discovery Protocol again.
           </p>
           <button className="btn btn-primary" onClick={() => router.push('/onboarding/quiz')}>
             Enter Protocol <ArrowRight size={18} />
@@ -102,6 +196,7 @@ export default function RecommendationsPage() {
   }
 
   const topMatches = recommendations.slice(0, 10);
+
   const avgFidelity = topMatches.length > 0 
     ? Math.round(topMatches.reduce((acc, curr) => acc + (curr.match_score || 0), 0) / topMatches.length)
     : 0;

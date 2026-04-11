@@ -4,6 +4,7 @@ Provides user registration, login, token refresh, and logout functionality.
 """
 
 import logging
+import hashlib
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, status, Depends
@@ -15,6 +16,7 @@ from app.auth.auth import (
     create_access_token,
     create_refresh_token,
 )
+from app.auth.encryption import vault
 from app.auth.dependencies import get_current_user_id
 from app.database import get_session
 from app.models.models import User, RefreshToken
@@ -37,25 +39,20 @@ def _utc_now_naive() -> datetime:
     return datetime.utcnow()
 
 
+def _hash_email(email: str) -> str:
+    return hashlib.sha256(email.lower().strip().encode()).hexdigest()
+
+
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     user_data: UserRegister,
     session: AsyncSession = Depends(get_session),
 ) -> dict:
-    """Register a new user account.
+    """Register a new user account."""
+    email_hash = _hash_email(user_data.email)
     
-    Args:
-        user_data: Email, password, opt_in_training flag
-        session: Database session
-        
-    Returns:
-        Access token, refresh token, and expiration info
-        
-    Raises:
-        HTTPException: 409 if email already exists
-    """
     # Check if user already exists
-    stmt = select(User).where(User.email == user_data.email)
+    stmt = select(User).where(User.email_hash == email_hash)
     result = await session.execute(stmt)
     existing_user = result.scalar_one_or_none()
     
@@ -69,7 +66,9 @@ async def register(
     # Create new user
     hashed_password = hash_password(user_data.password)
     new_user = User(
-        email=user_data.email,
+        email_hash=email_hash,
+        encrypted_email=vault.encrypt(user_data.email.lower().strip()),
+        full_name=user_data.full_name,
         hashed_password=hashed_password,
         is_active=True,
         opt_in_training=user_data.opt_in_training,
@@ -98,7 +97,7 @@ async def register(
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
-        "expires_in": 30 * 60,  # 30 minutes in seconds
+        "expires_in": 30 * 60,
     }
 
 
@@ -107,20 +106,11 @@ async def login(
     credentials: UserLogin,
     session: AsyncSession = Depends(get_session),
 ) -> dict:
-    """Login with email and password.
+    """Login with email and password."""
+    email_hash = _hash_email(credentials.email)
     
-    Args:
-        credentials: Email and password
-        session: Database session
-        
-    Returns:
-        Access token, refresh token, and expiration info
-        
-    Raises:
-        HTTPException: 401 if credentials invalid
-    """
-    # Find user by email
-    stmt = select(User).where(User.email == credentials.email)
+    # Find user by email_hash
+    stmt = select(User).where(User.email_hash == email_hash)
     result = await session.execute(stmt)
     user = result.scalar_one_or_none()
     
@@ -157,7 +147,7 @@ async def login(
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
-        "expires_in": 30 * 60,  # 30 minutes in seconds
+        "expires_in": 30 * 60,
     }
 
 
@@ -166,18 +156,7 @@ async def refresh_token(
     request: RefreshTokenRequest,
     session: AsyncSession = Depends(get_session),
 ) -> dict:
-    """Refresh access token using a valid refresh token.
-    
-    Args:
-        request: Refresh token
-        session: Database session
-        
-    Returns:
-        New access token, same refresh token, expiration info
-        
-    Raises:
-        HTTPException: 401 if refresh token invalid or expired
-    """
+    """Refresh access token using a valid refresh token."""
     # Verify refresh token exists and is not revoked
     stmt = select(RefreshToken).where(
         RefreshToken.token == request.refresh_token,
@@ -213,15 +192,7 @@ async def logout(
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
 ) -> dict:
-    """Logout by revoking all refresh tokens for this user.
-    
-    Args:
-        user_id: Current user ID
-        session: Database session
-        
-    Returns:
-        Success message
-    """
+    """Logout by revoking all refresh tokens for this user."""
     # Revoke all active refresh tokens for this user
     stmt = select(RefreshToken).where(
         RefreshToken.user_id == user_id,
@@ -240,22 +211,12 @@ async def logout(
 
 
 @router.get("/me", response_model=UserProfile)
+
 async def get_current_user(
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
 ) -> UserProfile:
-    """Get current authenticated user's profile.
-    
-    Args:
-        user_id: Current user ID
-        session: Database session
-        
-    Returns:
-        User profile
-        
-    Raises:
-        HTTPException: 404 if user not found (should not happen if token valid)
-    """
+    """Get current authenticated user's profile."""
     stmt = select(User).where(User.id == user_id)
     result = await session.execute(stmt)
     user = result.scalar_one_or_none()
@@ -266,7 +227,18 @@ async def get_current_user(
             detail="User not found",
         )
     
-    return UserProfile.model_validate(user)
+    # Decrypt email for profile response
+    email = vault.decrypt(user.encrypted_email)
+    
+    return UserProfile(
+        id=user.id,
+        email=email,
+        full_name=user.full_name,
+        is_active=user.is_active,
+        created_at=user.created_at,
+        opt_in_training=user.opt_in_training
+    )
+
 
 
 

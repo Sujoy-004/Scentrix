@@ -10,19 +10,21 @@ export default function QuizPage() {
   const { isAuthenticated } = useAppStore();
   const [isMounted, setIsMounted] = useState(false);
 
-  // Prevent hydration mismatch
+  // Forced Neural Sync: Triggering Next.js route re-registration
   useEffect(() => {
     setIsMounted(true);
+    console.log('Scentrix Personality Engine: Neural Link Established.');
   }, []);
 
   if (!isMounted) {
-    return <div className="quiz-loading">Loading...</div>;
+    return (
+      <div className="discovery-loader">
+        <div className="loader-minimal-status">
+          <span className="status-label">Initializing Neural Core...</span>
+        </div>
+      </div>
+    );
   }
 
-  // Show flashcard format for authenticated users, standard for others
-  if (isAuthenticated) {
-    return <FlashcardQuiz />;
-  }
-
-  return <StandardQuiz />;
+  return isAuthenticated ? <FlashcardQuiz /> : <StandardQuiz />;
 }

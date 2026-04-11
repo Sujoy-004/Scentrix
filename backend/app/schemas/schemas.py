@@ -15,8 +15,10 @@ class UserRegister(BaseModel):
     """Register new user."""
 
     email: EmailStr
-    password: str = Field(..., min_length=8, max_length=100)
+    password: str = Field(..., min_length=6, max_length=100)
+    full_name: Optional[str] = None
     opt_in_training: bool = False
+
 
 
 class UserLogin(BaseModel):
@@ -51,11 +53,13 @@ class UserProfile(BaseModel):
 
     id: int
     email: str
+    full_name: Optional[str]
     is_active: bool
     created_at: datetime
     opt_in_training: bool
 
     model_config = ConfigDict(from_attributes=True)
+
 
 
 # ============================================================================

@@ -60,20 +60,13 @@ async def get_current_user_id(
 async def get_optional_user_id(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> Optional[int]:
-    """Dependency: Optionally extract user ID from Bearer token.
-    
-    Returns None if no token provided. Raises 401 if token invalid.
-    
-    Args:
-        credentials: Optional HTTP Bearer token
-        
-    Returns:
-        User ID or None if no token provided
-        
-    Raises:
-        HTTPException: 401 if token is invalid (but provided)
-    """
+    """Dependency: Optionally extract user ID from Bearer token."""
     if not credentials:
         return None
     
-    return await get_current_user_id(credentials)
+    try:
+        return await get_current_user_id(credentials)
+    except HTTPException:
+        # Ignore invalid/expired tokens for optional auth
+        return None
+

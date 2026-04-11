@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 export interface QuizResponse {
   fragrance_id: string;
@@ -48,6 +49,21 @@ export interface AdaptiveQuizState {
   stopReason: string | null;
 }
 
+const DEFAULT_ADAPTIVE_QUIZ: AdaptiveQuizState = {
+  sessionId: null,
+  phase: 'idle',
+  confidenceScore: null,
+  confidenceBand: null,
+  minCoreQuestions: 8,
+  maxTotalQuestions: 16,
+  extensionTarget: 0,
+  extensionUsed: 0,
+  questionQueue: [],
+  answeredCount: 0,
+  answeredCoreCount: 0,
+  stopReason: null,
+};
+
 interface AppState {
   // Quiz
   quizId: string | null;
@@ -87,7 +103,7 @@ interface AppState {
   setRecommendations: (recs: any[]) => void;
 
   // Wishlist
-  wishlist: string[]; // fragrance IDs
+  wishlist: string[];
   addToWishlist: (fragrance_id: string) => void;
   removeFromWishlist: (fragrance_id: string) => void;
 
@@ -102,183 +118,164 @@ interface AppState {
   logout: () => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
-  // Seed auth state from storage for refresh-safe route guards.
-  authToken: typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null,
-  isAuthenticated:
-    typeof window !== 'undefined' ? !!localStorage.getItem('auth_token') : false,
-
-  // Default state
-  quizId: null,
-  quizResponses: [],
-  currentQuizStep: 0,
-  userId: null,
-  userPreferences: {
-    gender_neutral: true,
-    preferred_families: [],
-    intensity_level: 'medium',
-    longevity_preference: 'long',
-  },
-  recommendations: [],
-  wishlist: [],
-  selectedFamily: null,
-  adaptiveQuiz: {
-    sessionId: null,
-    phase: 'idle',
-    confidenceScore: null,
-    confidenceBand: null,
-    minCoreQuestions: 8,
-    maxTotalQuestions: 16,
-    extensionTarget: 0,
-    extensionUsed: 0,
-    questionQueue: [],
-    answeredCount: 0,
-    answeredCoreCount: 0,
-    stopReason: null,
-  },
-
-  // Quiz actions
-  setQuizId: (id) => set({ quizId: id }),
-  addQuizResponse: (response) =>
-    set((state) => ({
-      quizResponses: [...state.quizResponses, response],
-    })),
-  clearQuizResponses: () => set({ quizResponses: [] }),
-  setCurrentQuizStep: (step) => set({ currentQuizStep: step }),
-
-  // Adaptive quiz actions
-  initializeAdaptiveQuiz: ({ sessionId, seedQuestions, rules }) =>
-    set(() => ({
-      adaptiveQuiz: {
-        sessionId,
-        phase: 'core',
-        confidenceScore: null,
-        confidenceBand: null,
-        minCoreQuestions: rules.min_core_questions,
-        maxTotalQuestions: rules.max_total_questions,
-        extensionTarget: 0,
-        extensionUsed: 0,
-        questionQueue: seedQuestions,
-        answeredCount: 0,
-        answeredCoreCount: 0,
-        stopReason: null,
-      },
-    })),
-  appendAdaptiveQuestions: (questions) =>
-    set((state) => ({
-      adaptiveQuiz: {
-        ...state.adaptiveQuiz,
-        questionQueue: [...state.adaptiveQuiz.questionQueue, ...questions],
-        phase: questions.length > 0 ? 'extension' : state.adaptiveQuiz.phase,
-      },
-    })),
-  markAdaptiveAnswer: (isCorePhase) =>
-    set((state) => ({
-      adaptiveQuiz: {
-        ...state.adaptiveQuiz,
-        answeredCount: state.adaptiveQuiz.answeredCount + 1,
-        answeredCoreCount: isCorePhase
-          ? state.adaptiveQuiz.answeredCoreCount + 1
-          : state.adaptiveQuiz.answeredCoreCount,
-        extensionUsed: isCorePhase
-          ? state.adaptiveQuiz.extensionUsed
-          : state.adaptiveQuiz.extensionUsed + 1,
-      },
-    })),
-  setAdaptivePhase: (phase) =>
-    set((state) => ({
-      adaptiveQuiz: {
-        ...state.adaptiveQuiz,
-        phase,
-      },
-    })),
-  setAdaptiveConfidence: ({ confidenceScore, confidenceBand, extensionTarget, stopReason }) =>
-    set((state) => ({
-      adaptiveQuiz: {
-        ...state.adaptiveQuiz,
-        confidenceScore,
-        confidenceBand,
-        extensionTarget,
-        stopReason,
-      },
-    })),
-  resetAdaptiveQuiz: () =>
-    set(() => ({
-      adaptiveQuiz: {
-        sessionId: null,
-        phase: 'idle',
-        confidenceScore: null,
-        confidenceBand: null,
-        minCoreQuestions: 8,
-        maxTotalQuestions: 16,
-        extensionTarget: 0,
-        extensionUsed: 0,
-        questionQueue: [],
-        answeredCount: 0,
-        answeredCoreCount: 0,
-        stopReason: null,
-      },
-    })),
-
-  // User actions
-  setUserId: (id) => set({ userId: id }),
-  updateUserPreferences: (prefs) =>
-    set((state) => ({
-      userPreferences: { ...state.userPreferences, ...prefs },
-    })),
-
-  // Recommendation actions
-  setRecommendations: (recs) => set({ recommendations: recs }),
-
-  // Wishlist actions
-  addToWishlist: (fragrance_id) =>
-    set((state) => ({
-      wishlist: [...state.wishlist, fragrance_id],
-    })),
-  removeFromWishlist: (fragrance_id) =>
-    set((state) => ({
-      wishlist: state.wishlist.filter((id) => id !== fragrance_id),
-    })),
-
-  // Filter actions
-  setSelectedFamily: (family) => set({ selectedFamily: family }),
-
-  // Auth actions
-  setAuthToken: (token) => {
-    localStorage.setItem('auth_token', token);
-    if (typeof document !== 'undefined') {
-      document.cookie = `auth_token=${token}; path=/; SameSite=Lax`;
-    }
-    set({ authToken: token, isAuthenticated: true });
-  },
-  logout: () => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user_id');
-    if (typeof document !== 'undefined') {
-      document.cookie = 'auth_token=; Max-Age=0; path=/; SameSite=Lax';
-    }
-    set({
+export const useAppStore = create<AppState>()(
+  persist(
+    (set) => ({
+      // ── State defaults ────────────────────────────────────────────────
       authToken: null,
       isAuthenticated: false,
-      userId: null,
       quizId: null,
       quizResponses: [],
+      currentQuizStep: 0,
+      userId: null,
+      userPreferences: {
+        gender_neutral: true,
+        preferred_families: [],
+        intensity_level: 'medium',
+        longevity_preference: 'long',
+      },
       recommendations: [],
       wishlist: [],
-      adaptiveQuiz: {
-        sessionId: null,
-        phase: 'idle',
-        confidenceScore: null,
-        confidenceBand: null,
-        minCoreQuestions: 8,
-        maxTotalQuestions: 16,
-        extensionTarget: 0,
-        extensionUsed: 0,
-        questionQueue: [],
-        answeredCount: 0,
-        answeredCoreCount: 0,
-        stopReason: null,
+      selectedFamily: null,
+      adaptiveQuiz: DEFAULT_ADAPTIVE_QUIZ,
+
+      // ── Quiz actions ──────────────────────────────────────────────────
+      setQuizId: (id) => set({ quizId: id }),
+      addQuizResponse: (response) =>
+        set((state) => ({
+          quizResponses: [...state.quizResponses, response],
+        })),
+      clearQuizResponses: () => set({ quizResponses: [] }),
+      setCurrentQuizStep: (step) => set({ currentQuizStep: step }),
+
+      // ── Adaptive quiz actions ─────────────────────────────────────────
+      initializeAdaptiveQuiz: ({ sessionId, seedQuestions, rules }) =>
+        set(() => ({
+          adaptiveQuiz: {
+            sessionId,
+            phase: 'core',
+            confidenceScore: null,
+            confidenceBand: null,
+            minCoreQuestions: rules.min_core_questions,
+            maxTotalQuestions: rules.max_total_questions,
+            extensionTarget: 0,
+            extensionUsed: 0,
+            questionQueue: seedQuestions,
+            answeredCount: 0,
+            answeredCoreCount: 0,
+            stopReason: null,
+          },
+        })),
+      appendAdaptiveQuestions: (questions) =>
+        set((state) => ({
+          adaptiveQuiz: {
+            ...state.adaptiveQuiz,
+            questionQueue: [...state.adaptiveQuiz.questionQueue, ...questions],
+            phase: questions.length > 0 ? 'extension' : state.adaptiveQuiz.phase,
+          },
+        })),
+      markAdaptiveAnswer: (isCorePhase) =>
+        set((state) => ({
+          adaptiveQuiz: {
+            ...state.adaptiveQuiz,
+            answeredCount: state.adaptiveQuiz.answeredCount + 1,
+            answeredCoreCount: isCorePhase
+              ? state.adaptiveQuiz.answeredCoreCount + 1
+              : state.adaptiveQuiz.answeredCoreCount,
+            extensionUsed: isCorePhase
+              ? state.adaptiveQuiz.extensionUsed
+              : state.adaptiveQuiz.extensionUsed + 1,
+          },
+        })),
+      setAdaptivePhase: (phase) =>
+        set((state) => ({
+          adaptiveQuiz: { ...state.adaptiveQuiz, phase },
+        })),
+      setAdaptiveConfidence: ({ confidenceScore, confidenceBand, extensionTarget, stopReason }) =>
+        set((state) => ({
+          adaptiveQuiz: {
+            ...state.adaptiveQuiz,
+            confidenceScore,
+            confidenceBand,
+            extensionTarget,
+            stopReason,
+          },
+        })),
+      resetAdaptiveQuiz: () => set({ adaptiveQuiz: DEFAULT_ADAPTIVE_QUIZ }),
+
+      // ── User actions ──────────────────────────────────────────────────
+      setUserId: (id) => set({ userId: id }),
+      updateUserPreferences: (prefs) =>
+        set((state) => ({
+          userPreferences: { ...state.userPreferences, ...prefs },
+        })),
+
+      // ── Recommendation actions ────────────────────────────────────────
+      setRecommendations: (recs) => set({ recommendations: recs }),
+
+      // ── Wishlist actions ──────────────────────────────────────────────
+      addToWishlist: (fragrance_id) =>
+        set((state) => ({
+          wishlist: state.wishlist.includes(fragrance_id)
+            ? state.wishlist
+            : [...state.wishlist, fragrance_id],
+        })),
+      removeFromWishlist: (fragrance_id) =>
+        set((state) => ({
+          wishlist: state.wishlist.filter((id) => id !== fragrance_id),
+        })),
+
+      // ── Filter actions ────────────────────────────────────────────────
+      setSelectedFamily: (family) => set({ selectedFamily: family }),
+
+      // ── Auth actions ──────────────────────────────────────────────────
+      setAuthToken: (token) => {
+        // Also set cookie so Next.js middleware can read it server-side
+        if (typeof document !== 'undefined') {
+          document.cookie = `auth_token=${token}; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}`;
+        }
+        set({ authToken: token, isAuthenticated: true });
       },
-    });
-  },
-}));
+      logout: () => {
+        if (typeof document !== 'undefined') {
+          document.cookie = 'auth_token=; Max-Age=0; path=/; SameSite=Lax';
+        }
+        set({
+          authToken: null,
+          isAuthenticated: false,
+          userId: null,
+          quizId: null,
+          quizResponses: [],
+          recommendations: [],
+          wishlist: [],
+          adaptiveQuiz: DEFAULT_ADAPTIVE_QUIZ,
+        });
+      },
+    }),
+    {
+      name: 'scentrix-app-state',
+      storage: createJSONStorage(() => {
+        // SSR-safe: return a no-op storage during server-side rendering
+        if (typeof window === 'undefined') {
+          return {
+            getItem: () => null,
+            setItem: () => {},
+            removeItem: () => {},
+          };
+        }
+        return localStorage;
+      }),
+      // Only persist the fields we actually need across refreshes.
+      // Never persist `adaptiveQuiz.questionQueue` (too large) or `recommendations`.
+      partialize: (state) => ({
+        authToken: state.authToken,
+        isAuthenticated: state.isAuthenticated,
+        userId: state.userId,
+        quizResponses: state.quizResponses,
+        quizId: state.quizId,
+        userPreferences: state.userPreferences,
+        wishlist: state.wishlist,
+      }),
+    }
+  )
+);

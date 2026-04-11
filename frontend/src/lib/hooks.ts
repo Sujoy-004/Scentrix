@@ -13,30 +13,34 @@ export function useLogin() {
 
 export function useRegister() {
   return useMutation({
-    mutationFn: async ({ email, password }: any) => {
-      const { data } = await api.post('/auth/register', { email, password });
+    mutationFn: async ({ email, password, full_name }: { email: string; password: string; full_name?: string }) => {
+      const { data } = await api.post('/auth/register', { email, password, full_name });
       return data;
     },
   });
 }
 
+
 export function useRecommendations() {
   const { isAuthenticated, quizResponses } = useAppStore();
 
   return useQuery({
-    queryKey: ['recommendations', isAuthenticated, quizResponses.length],
+    queryKey: ['recommendations', isAuthenticated],
     queryFn: async () => {
-      if (isAuthenticated) {
-        const { data } = await api.get('/recommendations/for-me');
-        return Array.isArray(data) ? data : [];
-      } else {
-        // GUEST MODE: Use local store responses (quizResponses) to generate recommendations
-        if (quizResponses.length === 0) return [];
-        return api.getGuestRecommendations(quizResponses);
-      }
+      // Guests: do NOT fetch — the page will show the auth gate instead.
+      if (!isAuthenticated) return null;
+
+      // Authenticated: fetch from personalized endpoint.
+      return api.getPersonalizedRecommendations();
+    },
+    enabled: isAuthenticated, // only run for logged-in users
+    retry: (failureCount, error: any) => {
+      if (error?.response?.status >= 400 && error?.response?.status < 500) return false;
+      return failureCount < 2;
     },
   });
 }
+
 
 export function useUserProfile() {
   return useQuery({
