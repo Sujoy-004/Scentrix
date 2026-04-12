@@ -3,18 +3,56 @@ import { api } from './api';
 import { useAppStore } from '@/stores/app-store';
 
 export function useLogin() {
+  const { quizResponses, setAuthToken } = useAppStore();
   return useMutation({
     mutationFn: async ({ email, password }: any) => {
       const { data } = await api.post('/auth/login', { email, password });
+      
+      // Store token so subsequent requests (like batch-rate) are authenticated
+      if (data.access_token) {
+        localStorage.setItem('auth_token', data.access_token);
+        setAuthToken(data.access_token);
+        
+        // Sync local guest data to the fresh account
+        if (quizResponses.length > 0) {
+          try {
+            await api.batchSubmitRatings(quizResponses.map(r => ({
+              fragrance_id: r.fragrance_id,
+              rating: r.rating
+            })));
+          } catch (e) {
+            console.warn("Post-login sync failed:", e);
+          }
+        }
+      }
       return data;
     },
   });
 }
 
 export function useRegister() {
+  const { quizResponses, setAuthToken } = useAppStore();
   return useMutation({
     mutationFn: async ({ email, password, full_name }: { email: string; password: string; full_name?: string }) => {
       const { data } = await api.post('/auth/register', { email, password, full_name });
+      
+      // Store token so subsequent requests are authenticated
+      if (data.access_token) {
+        localStorage.setItem('auth_token', data.access_token);
+        setAuthToken(data.access_token);
+
+        // Sync local guest data to the fresh account
+        if (quizResponses.length > 0) {
+          try {
+            await api.batchSubmitRatings(quizResponses.map(r => ({
+              fragrance_id: r.fragrance_id,
+              rating: r.rating
+            })));
+          } catch (e) {
+            console.warn("Post-register sync failed:", e);
+          }
+        }
+      }
       return data;
     },
   });

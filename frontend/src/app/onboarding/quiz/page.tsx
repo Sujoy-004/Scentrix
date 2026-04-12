@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/stores/app-store';
+import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
 import FlashcardQuiz from '@/components/FlashcardQuiz';
 import StandardQuiz from '@/components/StandardQuiz';
 import './quiz.css';
@@ -17,13 +18,7 @@ export default function QuizPage() {
   }, []);
 
   if (!isMounted) {
-    return (
-      <div className="discovery-loader">
-        <div className="loader-minimal-status">
-          <span className="status-label">Initializing Neural Core...</span>
-        </div>
-      </div>
-    );
+    return <DiscoveryNeuralLoader title="Initializing Neural Core..." />;
   }
 
   return isAuthenticated ? <FlashcardQuiz /> : <StandardQuiz />;

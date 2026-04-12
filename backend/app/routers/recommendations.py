@@ -64,6 +64,10 @@ class GuestRecommendationRequest(BaseModel):
     ratings: List[FragranceRatingInput]
 
 
+class BatchRatingRequest(BaseModel):
+    ratings: List[FragranceRatingInput]
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _normalize_id(raw_id: str) -> str:
@@ -259,6 +263,46 @@ async def submit_fragrance_rating(
     except Exception as e:
         logger.error(f"Rating persist error for user {user_id}: {e}")
         return {"status": "error", "detail": str(e)}
+
+
+@router.post("/batch-rate", status_code=200)
+async def submit_batch_ratings(
+    request: BatchRatingRequest,
+    user_id: int = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_session),
+):
+    """
+    Persist multiple quiz ratings at once. Used during Guest -> User conversion.
+    """
+    try:
+        count = 0
+        for r in request.ratings:
+            neo4j_id = _normalize_id(r.fragrance_id)
+            # Fast update/upsert logic
+            existing = await db.execute(
+                select(DBFragranceRating).where(
+                    DBFragranceRating.user_id == user_id,
+                    DBFragranceRating.fragrance_neo4j_id == neo4j_id,
+                )
+            )
+            row = existing.scalar_one_or_none()
+            
+            if row:
+                row.quiz_rating = r.rating
+            else:
+                db.add(DBFragranceRating(
+                    user_id=user_id,
+                    fragrance_neo4j_id=neo4j_id,
+                    quiz_rating=r.rating,
+                ))
+            count += 1
+            
+        await db.commit()
+        return {"status": "saved", "count": count}
+    except Exception as e:
+        logger.error(f"Batch rating persist error for user {user_id}: {e}")
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to sync batch ratings")
 
 
 @router.post("/guest", response_model=List[FragranceRecommendation])

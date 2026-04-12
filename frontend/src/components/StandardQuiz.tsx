@@ -85,7 +85,7 @@ export default function StandardQuiz() {
     let active = true;
     const loadCatalogFallback = async () => {
       try {
-        const page = await api.getFragranceCatalog(100, 0);
+        const page = await api.getFragranceCatalog(24, 0);
         const mapped = (page?.items?.map((item: FragranceCatalogItem) => ({
           fragrance_id: item.id,
           name: item.name,
@@ -111,7 +111,8 @@ export default function StandardQuiz() {
     const bootstrapAdaptiveQuiz = async () => {
       setIsBootstrapping(true);
       resetAdaptiveQuiz();
-      clearQuizResponses(); // Full Neural Purge for clean guest recommendations
+      // Removed clearQuizResponses() to prevent data loss on unintended redirects.
+      // Resetting adaptive session only, preserving user responses.
       try {
         const response = await adaptiveSession.startSession.mutateAsync({
           seed_count: 8,

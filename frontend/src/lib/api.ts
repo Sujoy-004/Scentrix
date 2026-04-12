@@ -76,6 +76,16 @@ export const api = {
       return null;
     }
   },
+  
+  batchSubmitRatings: async (ratings: { fragrance_id: string; rating: number }[]) => {
+    try {
+      const { data } = await apiInstance.post('/recommendations/batch-rate', { ratings });
+      return data;
+    } catch (e) {
+      console.error('Batch sync failed:', e);
+      throw e;
+    }
+  },
 
   getGuestRecommendations: async (ratings: { fragrance_id: string; rating: number; top_notes?: string[]; accords?: string[]; name?: string; brand?: string }[]) => {
     const { data } = await apiInstance.post('/recommendations/guest', { ratings });

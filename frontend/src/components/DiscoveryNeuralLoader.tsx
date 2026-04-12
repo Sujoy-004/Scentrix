@@ -28,7 +28,11 @@ export function DiscoveryNeuralLoader({ title }: DiscoveryLoaderProps) {
   }, []);
 
   return (
-    <div className="discovery-loader">
+    <div className="discovery-loader" style={{
+      '--quiz-accent': '#f4bb92',
+      '--quiz-glow': 'rgba(244,187,146,0.2)',
+      '--quiz-ink': '#f4bb92',
+    } as any}>
       <div className="loader-particle-stream">
         {[...Array(8)].map((_, i) => (
           <motion.div 
@@ -51,6 +55,14 @@ export function DiscoveryNeuralLoader({ title }: DiscoveryLoaderProps) {
 
       <motion.div 
         className="loader-minimal-content"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          gap: '2.5rem'
+        }}
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 1.5, ease: "easeOut" }}

@@ -59,14 +59,14 @@ def _matches_text(value: str, query: str) -> bool:
     return query in value.lower()
 
 
-def _catalog_filtered_rows(
+def _catalog_filtered_rows_from_list(
+    rows: list[dict[str, Any]],
     *,
     query: Optional[str] = None,
     brand: Optional[str] = None,
     family: Optional[str] = None,
     concentration: Optional[str] = None,
 ) -> list[dict[str, Any]]:
-    rows = load_recommendation_catalog()
     query_norm = (query or "").strip().lower()
     brand_norm = (brand or "").strip().lower()
     family_norm = (family or "").strip().lower()
@@ -74,10 +74,10 @@ def _catalog_filtered_rows(
 
     filtered: list[dict[str, Any]] = []
     for row in rows:
+        # existing filter logic ... (copying from original)
         name = str(row.get("name", "") or "")
         brand_name = str(row.get("brand", "") or "")
         description = str(row.get("description", "") or "")
-        # Industrial Sanitizer: Handle strings or lists gracefully for messy Neo4j data
         top_notes = row.get("top_notes") or []
         accords = row.get("accords") or []
         middle_notes = row.get("middle_notes") or []
@@ -88,7 +88,6 @@ def _catalog_filtered_rows(
         if isinstance(middle_notes, str): middle_notes = [n.strip() for n in middle_notes.split(",")]
         if isinstance(base_notes, str): base_notes = [n.strip() for n in base_notes.split(",")]
         
-        # Build clean, iterable lists
         top_notes = [str(n).strip() for n in top_notes if n and str(n).strip()]
         accords = [str(a).strip() for a in accords if a and str(a).strip()]
         middle_notes = [str(n).strip() for n in middle_notes if n and str(n).strip()]
@@ -133,6 +132,10 @@ def _catalog_filtered_rows(
 
     filtered.sort(key=lambda item: (item["brand"].lower(), item["name"].lower(), item["id"]))
     return filtered
+
+def _catalog_filtered_rows(**kwargs) -> list[dict[str, Any]]:
+    rows = load_recommendation_catalog()
+    return _catalog_filtered_rows_from_list(rows, **kwargs)
 
 
 def _catalog_row_to_detail(row: dict[str, Any], fragrance_id: str) -> FragranceDetail:
@@ -212,8 +215,12 @@ async def get_catalog(
     offset: int = Query(0, ge=0),
     sort: Optional[str] = Query(None),
 ) -> FragranceCatalogPage:
-    """Return paginated fragrance catalog rows from canonical dataset files with sorting."""
-    rows = _catalog_filtered_rows(
+    from app.services.catalog import load_recommendation_catalog_async
+    all_rows = await load_recommendation_catalog_async()
+    
+    # Process filtering in memory (already loaded as a list)
+    rows = _catalog_filtered_rows_from_list(
+        all_rows,
         query=q,
         brand=brand,
         family=family,

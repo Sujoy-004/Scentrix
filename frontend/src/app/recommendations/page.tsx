@@ -172,24 +172,51 @@ export default function RecommendationsPage() {
     );
   }
 
-  // ── Authenticated: error or no results ───────────────────────────────────
+  // ── Authenticated: error or no results (Cold Start Handling) ─────────────────
   if (error || !recommendations?.length) {
+    // If they have quiz data but the backend returned nothing, it's likely a sync delay
+    const isColdStart = quizResponses.length > 0;
+
     return (
-      <div className="recommendations-error-screen" style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
+      <div className="recommendations-error-screen" style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050505' }}>
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           className="glass-card"
-          style={{ padding: '3rem', textAlign: 'center', maxWidth: '30rem' }}
+          style={{ padding: '3.5rem', textAlign: 'center', maxWidth: '34rem', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(244,187,146,0.1)', borderRadius: '2rem' }}
         >
-          <RotateCcw style={{ margin: '0 auto 1.5rem', color: 'rgba(244,187,146,0.5)' }} size={48} />
-          <h2 style={{ fontSize: '1.5rem', fontFamily: 'var(--font-display)', fontStyle: 'italic', color: '#fff', marginBottom: '1rem' }}>Neural Sync Required</h2>
-          <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '2rem', lineHeight: '1.6' }}>
-            We couldn&apos;t load your recommendations. Please try the Discovery Protocol again.
+          <div style={{ width: '4rem', height: '4rem', border: '1px solid rgba(244,187,146,0.2)', borderRadius: '50%', margin: '0 auto 2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <RotateCcw style={{ color: '#f4bb92', opacity: 0.6 }} size={32} />
+          </div>
+          
+          <h2 style={{ fontSize: '1.75rem', fontFamily: 'var(--font-display)', fontStyle: 'italic', color: '#fff', marginBottom: '1rem', letterSpacing: '-0.02em' }}>
+            {isColdStart ? "Neural Synthesis in Progress" : "Neural Sync Required"}
+          </h2>
+          
+          <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '2.5rem', lineHeight: '1.7', fontSize: '0.95rem' }}>
+            {isColdStart 
+              ? "Your profile is being mapped across our 24,000 scents. This usually takes a moment on your first visit." 
+              : "We couldn't detect your olfactory signature. Please complete the Discovery Protocol to begin."}
           </p>
-          <button className="btn btn-primary" onClick={() => router.push('/onboarding/quiz')}>
-            Enter Protocol <ArrowRight size={18} />
-          </button>
+          
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+            {isColdStart && (
+              <button 
+                className="btn btn-outline" 
+                onClick={() => window.location.reload()}
+                style={{ borderRadius: '100px', padding: '0.75rem 2rem', fontSize: '0.8rem', letterSpacing: '0.1em' }}
+              >
+                Verify Sync
+              </button>
+            )}
+            <button 
+              className="btn btn-primary" 
+              onClick={() => router.push('/onboarding/quiz')}
+              style={{ borderRadius: '100px', padding: '0.75rem 2.5rem', fontSize: '0.8rem', letterSpacing: '0.1em' }}
+            >
+              {isColdStart ? "Recalibrate" : "Enter Protocol"} <ArrowRight size={18} />
+            </button>
+          </div>
         </motion.div>
       </div>
     );

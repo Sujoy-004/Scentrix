@@ -73,9 +73,11 @@ def _load_from_neo4j() -> List[Dict[str, Any]]:
     finally:
         driver.close()
 
-def load_recommendation_catalog() -> List[Dict[str, Any]]:
+import asyncio
+
+def load_recommendation_catalog(force_reload: bool = False) -> List[Dict[str, Any]]:
     global _catalog_cache
-    if _catalog_cache:
+    if _catalog_cache and not force_reload:
         return _catalog_cache
         
     neo4j_rows = _load_from_neo4j()
@@ -84,6 +86,13 @@ def load_recommendation_catalog() -> List[Dict[str, Any]]:
         _catalog_cache = neo4j_rows
         return _catalog_cache
         
-    # Fallback to local data if Neo4j is empty
-    # ... (impl loading from seed_fragrances.json if needed)
     return []
+
+async def load_recommendation_catalog_async(force_reload: bool = False) -> List[Dict[str, Any]]:
+    """Non-blocking version of the catalog loader."""
+    global _catalog_cache
+    if _catalog_cache and not force_reload:
+        return _catalog_cache
+    
+    # Run the synchronous Neo4j call in a separate thread to keep the event loop alive
+    return await asyncio.to_thread(load_recommendation_catalog, force_reload)

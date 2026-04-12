@@ -30,18 +30,19 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing Scentrix API...")
     await init_db()
     
-    # Neural Warm-up (Background hydration of Semantic Brain)
+    # Universal Warm-up (Hydrating Discovery Brain & Knowledge Graph)
     try:
         from app.routers.recommendations import warmup_neural_engine
+        from app.services.catalog import load_recommendation_catalog_async
         import asyncio
-        logger.info("Neural Engine: Waking up the Semantic Brain in background...")
         
-        # Fire-and-forget background warmup to keep API responsive
+        logger.info("Universal Boiler: Waking up Neural & Catalog Engines...")
         asyncio.create_task(asyncio.to_thread(warmup_neural_engine))
-        logger.info("Neural Engine: Background hydration task dispatched.")
+        asyncio.create_task(load_recommendation_catalog_async())
+        logger.info("Universal Boiler: Background hydration dispatched.")
             
     except Exception as e:
-        logger.error(f"Neural Engine: Startup Warm-up dispatch failed: {str(e)}")
+        logger.error(f"Universal Boiler: Startup Warm-up failed: {str(e)}")
 
     logger.info(f"Database initialized: {settings.database_url}")
     logger.info("Scentrix API started successfully")
