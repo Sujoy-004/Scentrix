@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
 
 import app.routers.fragrances as fragrances_router
-
 
 pytestmark = pytest.mark.asyncio
 
@@ -68,7 +67,7 @@ async def test_job_poll_owner_enforced(client: AsyncClient, monkeypatch: pytest.
             "generated_at": None,
             "error": None,
             "celery_task_id": None,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
     monkeypatch.setattr(fragrances_router, "get_job", fake_get_job)
@@ -81,9 +80,11 @@ async def test_job_poll_owner_enforced(client: AsyncClient, monkeypatch: pytest.
     assert forbidden.status_code == 403
 
 
-async def test_job_poll_completed_payload_contract(client: AsyncClient, monkeypatch: pytest.MonkeyPatch):
+async def test_job_poll_completed_payload_contract(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+):
     owner_headers, owner_id = await _register_and_login(client)
-    generated_at = datetime.now(timezone.utc).isoformat()
+    generated_at = datetime.now(UTC).isoformat()
 
     async def fake_get_job(_: str):
         return {
@@ -118,7 +119,7 @@ async def test_job_poll_completed_payload_contract(client: AsyncClient, monkeypa
 
 async def test_job_poll_timed_out_maps_to_504(client: AsyncClient, monkeypatch: pytest.MonkeyPatch):
     owner_headers, owner_id = await _register_and_login(client)
-    created_at = datetime.now(timezone.utc).isoformat()
+    created_at = datetime.now(UTC).isoformat()
 
     async def fake_get_job(_: str):
         return {

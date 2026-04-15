@@ -21,4 +21,5 @@ class DataVault:
             return encrypted_data
         return self.fernet.decrypt(encrypted_data.encode()).decode()
 
+
 vault = DataVault()

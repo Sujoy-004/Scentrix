@@ -48,7 +48,9 @@ def upgrade() -> None:
         )
 
     # Populate email_hash and encrypted_email from old email column if it exists
-    if "email" in user_cols and "email_hash" in {c["name"] for c in inspector.get_columns("users")} | {"email_hash"}:
+    if "email" in user_cols and "email_hash" in {
+        c["name"] for c in inspector.get_columns("users")
+    } | {"email_hash"}:
         # Use MD5 as a placeholder hash — real bcrypt not available in SQL.
         # The actual SHA-256 hash will be written by the app on next login.
         conn.execute(

@@ -1,5 +1,3 @@
-import pytest
-
 from app.tasks.recommend_tasks import (
     _fragrance_feature_vector,
     _rank_by_profile,
@@ -7,6 +5,7 @@ from app.tasks.recommend_tasks import (
     generate_user_embeddings_task,
     recommend_by_text_task,
 )
+
 
 def test_generate_user_embeddings_task():
     """Test Celery task for generating user embeddings (synchronous execution)"""
@@ -16,6 +15,7 @@ def test_generate_user_embeddings_task():
     assert result.result["user_id"] == 1
     assert "split" in result.result
     assert {"train", "val", "test"}.issubset(result.result["split"].keys())
+
 
 def test_recommend_by_text_task():
     """Test Celery task for text recommendations"""

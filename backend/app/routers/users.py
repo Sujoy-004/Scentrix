@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user_id
+from app.auth.encryption import vault
 from app.database import get_session
 from app.models.models import FragranceRating, SavedFragrance, User
 from app.schemas.schemas import (
@@ -32,9 +33,6 @@ router = APIRouter(prefix="/users", tags=["users"])
 def _utc_now_naive() -> datetime:
     # DB columns are TIMESTAMP WITHOUT TIME ZONE.
     return datetime.utcnow()
-
-
-from app.auth.encryption import vault
 
 
 @router.get("/profile", response_model=UserProfile)
@@ -73,11 +71,13 @@ async def get_user_profile(
         full_name=user.full_name,
         is_active=user.is_active,
         created_at=user.created_at,
-        opt_in_training=user.opt_in_training
+        opt_in_training=user.opt_in_training,
     )
 
 
-@router.post("/ratings", response_model=FragranceRatingResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/ratings", response_model=FragranceRatingResponse, status_code=status.HTTP_201_CREATED
+)
 async def submit_fragrance_rating(
     rating: FragranceRatingCreate,
     user_id: int = Depends(get_current_user_id),

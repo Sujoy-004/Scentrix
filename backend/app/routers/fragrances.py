@@ -43,13 +43,6 @@ from app.services.hybrid_search import recommender
 from app.services.job_store import create_job, get_job, is_job_timed_out, update_job
 from app.tasks.recommend_tasks import recommend_by_profile_task, recommend_by_text_task
 
-# Attempt to import neo4j local client
-try:
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
-    from ml.graph.neo4j_client import get_neo4j, init_neo4j
-except ImportError:
-    pass
-
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/fragrances", tags=["fragrances"])
 
@@ -82,10 +75,14 @@ def _catalog_filtered_rows_from_list(
         middle_notes = row.get("middle_notes") or []
         base_notes = row.get("base_notes") or []
 
-        if isinstance(top_notes, str): top_notes = [n.strip() for n in top_notes.split(",")]
-        if isinstance(accords, str): accords = [a.strip() for a in accords.split(",")]
-        if isinstance(middle_notes, str): middle_notes = [n.strip() for n in middle_notes.split(",")]
-        if isinstance(base_notes, str): base_notes = [n.strip() for n in base_notes.split(",")]
+        if isinstance(top_notes, str):
+            top_notes = [n.strip() for n in top_notes.split(",")]
+        if isinstance(accords, str):
+            accords = [a.strip() for a in accords.split(",")]
+        if isinstance(middle_notes, str):
+            middle_notes = [n.strip() for n in middle_notes.split(",")]
+        if isinstance(base_notes, str):
+            base_notes = [n.strip() for n in base_notes.split(",")]
 
         top_notes = [str(n).strip() for n in top_notes if n and str(n).strip()]
         accords = [str(a).strip() for a in accords if a and str(a).strip()]
@@ -135,7 +132,8 @@ def _catalog_filtered_rows_from_list(
     filtered.sort(key=lambda item: (item["brand"].lower(), item["name"].lower(), item["id"]))
     return filtered
 
-def _catalog_filtered_rows(**kwargs) -> list[dict[str, Any]]:
+
+def _catalog_filtered_rows(**kwargs: Any) -> list[dict[str, Any]]:
     rows = load_recommendation_catalog()
     return _catalog_filtered_rows_from_list(rows, **kwargs)
 
@@ -191,10 +189,13 @@ def _parse_context_json(raw: str | None) -> dict[str, Any]:
         return parsed
     return {}
 
+
 def get_graph_client():
     """Lazy initialize neo4j client"""
     try:
+        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
         from ml.graph.neo4j_client import get_neo4j, init_neo4j
+
         try:
             return get_neo4j()
         except RuntimeError:
@@ -202,8 +203,8 @@ def get_graph_client():
             user = os.environ.get("NEO4J_USERNAME", "neo4j")
             pwd = os.environ.get("NEO4J_PASSWORD", "password")
             return init_neo4j(uri, user, pwd)
-    except Exception as e:
-        logger.error(f"Neo4j client init failed: {e}")
+    except Exception as exc:
+        logger.error(f"Neo4j client init failed: {exc}")
         return None
 
 
@@ -218,6 +219,7 @@ async def get_catalog(
     sort: str | None = Query(None),
 ) -> FragranceCatalogPage:
     from app.services.catalog import load_recommendation_catalog_async
+
     all_rows = await load_recommendation_catalog_async()
 
     # Process filtering in memory (already loaded as a list)
@@ -239,6 +241,7 @@ async def get_catalog(
                 if family.lower() in accord:
                     return i
             return 999
+
         rows.sort(key=family_relevance)
     elif sort == "rating":
         rows.sort(key=lambda x: x.get("rating", 0.0), reverse=True)
@@ -252,16 +255,17 @@ async def get_catalog(
 
     items: list[FragranceCatalogItem] = []
     for row in page_rows:
+        accords_value = row.get("accords") or []
         items.append(
             FragranceCatalogItem(
                 id=row["id"],
                 name=row["name"],
                 brand=row["brand"],
-                family=row.get("accords")[0] if row.get("accords") else "Unknown",
+                family=accords_value[0] if accords_value else "Unknown",
                 year=row.get("year"),
                 concentration=row.get("concentration", "N/A"),
                 gender_label=row.get("gender_label", "N/A"),
-                description="", # Performance optimization
+                description="",  # Performance optimization
                 top_notes=row.get("top_notes", []),
                 middle_notes=row.get("middle_notes", []),
                 base_notes=row.get("base_notes", []),
@@ -357,6 +361,7 @@ async def list_fragrances(
             for row in page_rows
         ]
 
+
 @router.get("/search", response_model=list[FragranceSearchResult])
 async def search_fragrances(
     q: str | None = Query(None, min_length=1, max_length=100),
@@ -388,7 +393,9 @@ async def search_fragrances(
     if q:
         # User-centric Search Sanitization: handle space/hyphen interchangeability
         sanitized_q = q.replace(" ", "-").lower()
-        conditions.append("(toLower(f.name) CONTAINS $q_orig OR toLower(f.name) CONTAINS $q_sanitized)")
+        conditions.append(
+            "(toLower(f.name) CONTAINS $q_orig OR toLower(f.name) CONTAINS $q_sanitized)"
+        )
         params["q_orig"] = q.lower()
         params["q_sanitized"] = sanitized_q
     if brand:
@@ -410,15 +417,17 @@ async def search_fragrances(
         results = client.execute_query(query, params)
         if results:
             for r in results:
-                keyword_results.append(FragranceSearchResult(
-                    id=r["f"].get("id"),
-                    name=r["f"].get("name"),
-                    brand=r["f"].get("brand", "Unknown"),
-                    year=r["f"].get("year"),
-                    top_accords=list(r["accords"])[:3],
-                    match_score=98.0,
-                    reason="Keyword Match"
-                ))
+                keyword_results.append(
+                    FragranceSearchResult(
+                        id=r["f"].get("id"),
+                        name=r["f"].get("name"),
+                        brand=r["f"].get("brand", "Unknown"),
+                        year=r["f"].get("year"),
+                        top_accords=list(r["accords"])[:3],
+                        match_score=98.0,
+                        reason="Keyword Match",
+                    )
+                )
     except Exception as e:
         logger.error(f"Keyword search failed: {e}")
 
@@ -457,7 +466,7 @@ async def search_fragrances(
             year=row.get("year"),
             top_accords=row.get("accords", [])[:3],
             match_score=50.0,
-            reason="Cold Index Map"
+            reason="Cold Index Map",
         )
         for row in fallback_rows[:limit]
     ]
@@ -466,7 +475,7 @@ async def search_fragrances(
 @router.post("/recommend/text", response_model=RecommendationJob)
 async def recommend_by_text(
     request: TextRecommendationRequest,
-    user_id: int | None = Depends(get_optional_user_id),
+    user_id: int = Depends(get_current_user_id),
 ) -> RecommendationJob:
     """Generate recommendation from text description (async job).
 
@@ -481,17 +490,16 @@ async def recommend_by_text(
     Returns:
         RecommendationJob with job_id and processing status
     """
-    effective_user_id = user_id if user_id is not None else 0
     job_id = str(uuid4())
 
     try:
-        await create_job(job_id=job_id, user_id=effective_user_id, status="processing", query=request.query)
+        await create_job(job_id=job_id, user_id=user_id, status="processing", query=request.query)
     except RuntimeError as exc:
         logger.error("Redis unavailable while creating recommendation job %s: %s", job_id, exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Recommendation store unavailable",
-        )
+        ) from exc
 
     logger.info(f"Created recommendation job {job_id} for query: {request.query[:50]}")
 
@@ -500,21 +508,23 @@ async def recommend_by_text(
             job_id=job_id,
             query=request.query,
             limit=request.limit,
-            user_id=effective_user_id,
+            user_id=user_id,
         )
-        await update_job(job_id, celery_task_id=async_task.id, message="Recommendation generation started")
-    except Exception as e:
-        logger.error(f"Failed to enqueue text recommendation task for {job_id}: {e}")
+        await update_job(
+            job_id, celery_task_id=async_task.id, message="Recommendation generation started"
+        )
+    except Exception as exc:
+        logger.error(f"Failed to enqueue text recommendation task for {job_id}: {exc}")
         await update_job(
             job_id,
             status="failed",
-            error=str(e),
+            error=str(exc),
             message="Recommendation queue unavailable",
         )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Recommendation queue unavailable",
-        )
+        ) from exc
 
     return RecommendationJob(
         job_id=job_id,
@@ -546,7 +556,11 @@ async def ingest_recommendation_interactions(
             context.setdefault("availability", event.availability)
 
         interaction_value = event.interaction_value
-        if interaction_value is None and event.interaction_type == "impression" and event.match_score is not None:
+        if (
+            interaction_value is None
+            and event.interaction_type == "impression"
+            and event.match_score is not None
+        ):
             interaction_value = event.match_score
 
         session.add(
@@ -573,7 +587,9 @@ async def get_fragrance_detail(
     """Get fragrance detail including notes, accords, and similarity to user profile."""
     client = get_graph_client()
     if not client:
-        fallback_match = next((row for row in _catalog_filtered_rows() if row["id"] == fragrance_id), None)
+        fallback_match = next(
+            (row for row in _catalog_filtered_rows() if row["id"] == fragrance_id), None
+        )
         if fallback_match is not None:
             return _catalog_row_to_detail(fallback_match, fragrance_id)
         raise HTTPException(status_code=404, detail="Fragrance not found")
@@ -592,7 +608,9 @@ async def get_fragrance_detail(
     try:
         results = client.execute_query(query, {"frag_id": fragrance_id})
         if not results:
-            fallback_match = next((row for row in _catalog_filtered_rows() if row["id"] == fragrance_id), None)
+            fallback_match = next(
+                (row for row in _catalog_filtered_rows() if row["id"] == fragrance_id), None
+            )
             if fallback_match is not None:
                 return _catalog_row_to_detail(fallback_match, fragrance_id)
             raise HTTPException(status_code=404, detail="Fragrance not found")
@@ -606,9 +624,12 @@ async def get_fragrance_detail(
             if n.get("note"):
                 note_cat = n.get("category", "").lower()
                 n_obj = FragranceNote(id=n["note"], name=n["note"], category=note_cat)
-                if "top" in note_cat: top.append(n_obj)
-                elif "mid" in note_cat: mid.append(n_obj)
-                else: base.append(n_obj)
+                if "top" in note_cat:
+                    top.append(n_obj)
+                elif "mid" in note_cat:
+                    mid.append(n_obj)
+                else:
+                    base.append(n_obj)
 
         # Parse accords
         accords = [FragranceAccord(id=a, name=a) for a in record["accords"] if a]
@@ -617,12 +638,14 @@ async def get_fragrance_detail(
         neighbors = []
         for n in record.get("neighbors", []):
             if n.get("id"):
-                neighbors.append(FragranceSearchResult(
-                    id=n["id"],
-                    name=n["name"] or "Unknown",
-                    brand=n["brand"] or "Unknown",
-                    match_score=float(n["score"] * 100) if n.get("score") else 0.0
-                ))
+                neighbors.append(
+                    FragranceSearchResult(
+                        id=n["id"],
+                        name=n["name"] or "Unknown",
+                        brand=n["brand"] or "Unknown",
+                        match_score=float(n["score"] * 100) if n.get("score") else 0.0,
+                    )
+                )
 
         return FragranceDetail(
             id=f_node.get("id", fragrance_id),
@@ -637,16 +660,19 @@ async def get_fragrance_detail(
             base_notes=base,
             accords=accords,
             neighbors=neighbors,
-            similarity_score=None
+            similarity_score=None,
         )
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Graph query failed: {e}")
-        fallback_match = next((row for row in _catalog_filtered_rows() if row["id"] == fragrance_id), None)
+    except Exception as exc:
+        logger.error(f"Graph query failed: {exc}")
+        fallback_match = next(
+            (row for row in _catalog_filtered_rows() if row["id"] == fragrance_id), None
+        )
         if fallback_match is not None:
             return _catalog_row_to_detail(fallback_match, fragrance_id)
-        raise HTTPException(status_code=500, detail="Database error")
+        raise HTTPException(status_code=500, detail="Database error") from exc
+
 
 @router.get("/recommend/metrics/weekly", response_model=RecommendationWeeklyMetrics)
 async def get_recommendation_weekly_metrics(
@@ -657,6 +683,7 @@ async def get_recommendation_weekly_metrics(
     cutoff_naive = (datetime.now(UTC) - timedelta(days=7)).replace(tzinfo=None)
 
     from sqlalchemy import select
+
     result = await session.execute(
         select(UserInteractionEvent).where(
             UserInteractionEvent.user_id == user_id,
@@ -742,7 +769,7 @@ async def get_recommendation_weekly_metrics(
 async def get_recommendation_result(
     job_id: str,
     user_id: int | None = Depends(get_optional_user_id),
-) -> dict:
+) -> RecommendationResult | RecommendationJob:
     """Poll async recommendation job result.
 
     Args:
@@ -761,7 +788,7 @@ async def get_recommendation_result(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Recommendation store unavailable",
-        )
+        ) from exc
 
     if job is None:
         raise HTTPException(
@@ -811,7 +838,9 @@ async def get_recommendation_result(
                 )
                 job = await get_job(job_id) or job
             else:
-                await update_job(job_id, status="processing", message=f"Worker state: {result.state}")
+                await update_job(
+                    job_id, status="processing", message=f"Worker state: {result.state}"
+                )
                 job = await get_job(job_id) or job
 
     if job["status"] in {"processing", "queued"}:
@@ -857,7 +886,7 @@ async def get_recommendation_result(
 @router.post("/recommend/profile", response_model=RecommendationJob)
 async def recommend_by_profile(
     limit: int = Query(10, ge=1, le=50),
-    user_id: int | None = Depends(get_optional_user_id),
+    user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
 ) -> RecommendationJob:
     """Generate recommendations based on user's fragrance ratings (async job).
@@ -876,44 +905,42 @@ async def recommend_by_profile(
     Raises:
         HTTPException: 401 if user not authenticated
     """
-    effective_user_id = user_id if user_id is not None else 0
-
-    # Assuming session is available or passed via dependency
-    # For this snippet, we assume session is available in scope or via dependency
-    # (Placeholder for session logic)
-
     job_id = str(uuid4())
 
     try:
-        await create_job(job_id=job_id, user_id=effective_user_id, status="processing", query=None)
+        await create_job(job_id=job_id, user_id=user_id, status="processing", query=None)
     except RuntimeError as exc:
-        logger.error("Redis unavailable while creating profile recommendation job %s: %s", job_id, exc)
+        logger.error(
+            "Redis unavailable while creating profile recommendation job %s: %s", job_id, exc
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Recommendation store unavailable",
-        )
+        ) from exc
 
-    logger.info(f"Created profile recommendation job {job_id} for user {effective_user_id}")
+    logger.info(f"Created profile recommendation job {job_id} for user {user_id}")
 
     try:
         async_task = recommend_by_profile_task.delay(
             job_id=job_id,
-            user_id=effective_user_id,
-            limit=10,
+            user_id=user_id,
+            limit=limit,
         )
-        await update_job(job_id, celery_task_id=async_task.id, message="Generating personalized recommendations")
-    except Exception as e:
-        logger.error(f"Failed to enqueue profile recommendation task for {job_id}: {e}")
+        await update_job(
+            job_id, celery_task_id=async_task.id, message="Generating personalized recommendations"
+        )
+    except Exception as exc:
+        logger.error(f"Failed to enqueue profile recommendation task for {job_id}: {exc}")
         await update_job(
             job_id,
             status="failed",
-            error=str(e),
+            error=str(exc),
             message="Recommendation queue unavailable",
         )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Recommendation queue unavailable",
-        )
+        ) from exc
 
     return RecommendationJob(
         job_id=job_id,

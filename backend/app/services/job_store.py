@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Awaitable
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from redis.asyncio import Redis, from_url
 
@@ -30,7 +31,7 @@ async def _get_client() -> Redis:
         _redis_client = from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
 
     try:
-        await _redis_client.ping()
+        await cast(Awaitable[bool], _redis_client.ping())
     except Exception as exc:
         raise RuntimeError(f"Redis unavailable: {exc}") from exc
 
@@ -53,13 +54,13 @@ async def create_job(*, job_id: str, user_id: int, status: str, query: str | Non
         "updated_at": now,
         "generated_at": "",
     }
-    await client.hset(_job_key(job_id), mapping=payload)
-    await client.expire(_job_key(job_id), JOB_TTL_SECONDS)
+    await cast(Awaitable[Any], client.hset(_job_key(job_id), mapping=payload))
+    await cast(Awaitable[Any], client.expire(_job_key(job_id), JOB_TTL_SECONDS))
 
 
 async def get_job(job_id: str) -> dict[str, Any] | None:
     client = await _get_client()
-    raw = await client.hgetall(_job_key(job_id))
+    raw = await cast(Awaitable[dict[str, str]], client.hgetall(_job_key(job_id)))
     if not raw:
         return None
 
@@ -101,8 +102,8 @@ async def update_job(job_id: str, **updates: Any) -> None:
 
     serialized["updated_at"] = datetime.now(UTC).isoformat()
 
-    await client.hset(_job_key(job_id), mapping=serialized)
-    await client.expire(_job_key(job_id), JOB_TTL_SECONDS)
+    await cast(Awaitable[Any], client.hset(_job_key(job_id), mapping=serialized))
+    await cast(Awaitable[Any], client.expire(_job_key(job_id), JOB_TTL_SECONDS))
 
 
 def is_job_timed_out(created_at: str | None) -> bool:

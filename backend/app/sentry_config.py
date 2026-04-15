@@ -1,22 +1,12 @@
 """Sentry integration for error tracking and monitoring."""
 
+from __future__ import annotations
+
+from typing import Any
+
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
-
-try:
-    from sentry_sdk.integrations.sqlalchemy import SqlAlchemyIntegration
-except ImportError:
-    SqlAlchemyIntegration = None
-
-try:
-    from sentry_sdk.integrations.celery import CeleryIntegration
-except ImportError:
-    CeleryIntegration = None
-
-try:
-    from sentry_sdk.integrations.redis import RedisIntegration
-except ImportError:
-    RedisIntegration = None
+from sentry_sdk.types import Event, Hint
 
 from app.config import settings
 
@@ -31,13 +21,27 @@ def init_sentry() -> None:
     if "your_sentry_key" in dsn or "project_id" in dsn:
         return
 
-    integrations = [FastApiIntegration()]
+    integrations: list[Any] = [FastApiIntegration()]
 
-    if SqlAlchemyIntegration:
-        integrations.append(SqlAlchemyIntegration())
-    if CeleryIntegration:
+    try:
+        from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+    except ImportError:
+        pass
+    else:
+        integrations.append(SqlalchemyIntegration())
+
+    try:
+        from sentry_sdk.integrations.celery import CeleryIntegration
+    except ImportError:
+        pass
+    else:
         integrations.append(CeleryIntegration())
-    if RedisIntegration:
+
+    try:
+        from sentry_sdk.integrations.redis import RedisIntegration
+    except ImportError:
+        pass
+    else:
         integrations.append(RedisIntegration())
 
     sentry_sdk.init(
@@ -59,22 +63,22 @@ def init_sentry() -> None:
     )
 
 
-def before_send_filter(event, hint):
+def before_send_filter(event: Event, hint: Hint) -> Event | None:
     """Filter sensitive data before sending to Sentry."""
-    # Remove authorization headers
-    if "request" in event and "headers" in event["request"]:
-        headers = event["request"]["headers"]
-        sensitive_keys = ["authorization", "x-api-key", "password"]
-        for key in sensitive_keys:
-            if key in headers:
-                headers[key] = "[REDACTED]"
+    request = event.get("request")
+    if isinstance(request, dict):
+        headers = request.get("headers")
+        if isinstance(headers, dict):
+            sensitive_keys = ["authorization", "x-api-key", "password"]
+            for key in sensitive_keys:
+                if key in headers:
+                    headers[key] = "[REDACTED]"
 
-    # Remove sensitive query parameters
-    if "request" in event and "url" in event["request"]:
-        url = event["request"]["url"]
-        sensitive_params = ["password", "token", "secret", "api_key"]
-        for param in sensitive_params:
-            url = url.replace(f"{param}=", f"{param}=[REDACTED]&")
-        event["request"]["url"] = url
+        url = request.get("url")
+        if isinstance(url, str):
+            sensitive_params = ["password", "token", "secret", "api_key"]
+            for param in sensitive_params:
+                url = url.replace(f"{param}=", f"{param}=[REDACTED]&")
+            request["url"] = url
 
     return event

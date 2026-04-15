@@ -27,7 +27,6 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
-
     # Routing
     task_routes={
         "app.tasks.recommend_by_text": {"queue": "recommendations"},
@@ -35,15 +34,12 @@ celery_app.conf.update(
         "app.tasks.rebuild_embeddings": {"queue": "ml"},
         "app.tasks.generate_user_embeddings": {"queue": "ml"},
     },
-
     # Worker settings
     worker_prefetch_multiplier=1,
     worker_max_tasks_per_child=1000,
-
     # Result settings
     result_expires=86400,  # 24 hours
     result_extended=True,
-
     # Beat schedule (if using periodic tasks)
     beat_schedule={
         # Can add periodic tasks here for weekly retraining

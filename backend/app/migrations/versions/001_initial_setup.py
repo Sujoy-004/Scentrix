@@ -145,9 +145,7 @@ def downgrade() -> None:
         op.f("ix_fragrance_ratings_fragrance_neo4j_id"),
         table_name="fragrance_ratings",
     )
-    op.drop_index(
-        op.f("ix_fragrance_ratings_user_id"), table_name="fragrance_ratings"
-    )
+    op.drop_index(op.f("ix_fragrance_ratings_user_id"), table_name="fragrance_ratings")
     op.drop_table("fragrance_ratings")
     op.drop_index(op.f("ix_users_is_active"), table_name="users")
     op.drop_index(op.f("ix_users_email"), table_name="users")

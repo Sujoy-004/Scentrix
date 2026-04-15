@@ -7,7 +7,6 @@ from httpx import AsyncClient
 
 import app.routers.quiz as quiz_router
 
-
 pytestmark = pytest.mark.asyncio
 
 
@@ -151,7 +150,9 @@ async def test_quiz_start_requires_auth(client: AsyncClient):
     assert response.status_code == 401
 
 
-async def test_quiz_start_submit_and_evaluate_flow(client: AsyncClient, monkeypatch: pytest.MonkeyPatch):
+async def test_quiz_start_submit_and_evaluate_flow(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+):
     headers, user_id = await _register_and_login(client)
 
     store: dict[str, dict] = {}
@@ -206,7 +207,9 @@ async def test_quiz_start_submit_and_evaluate_flow(client: AsyncClient, monkeypa
     assert int(store[session_id]["user_id"]) == user_id
 
 
-async def test_quiz_session_ownership_enforced(client: AsyncClient, monkeypatch: pytest.MonkeyPatch):
+async def test_quiz_session_ownership_enforced(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+):
     owner_headers, owner_id = await _register_and_login(client)
     other_headers, _ = await _register_and_login(client)
 
@@ -247,7 +250,9 @@ async def test_quiz_session_ownership_enforced(client: AsyncClient, monkeypatch:
     assert allowed.status_code != 403
 
 
-async def test_quiz_next_questions_excludes_served_and_answered(client: AsyncClient, monkeypatch: pytest.MonkeyPatch):
+async def test_quiz_next_questions_excludes_served_and_answered(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+):
     headers, user_id = await _register_and_login(client)
 
     store = {

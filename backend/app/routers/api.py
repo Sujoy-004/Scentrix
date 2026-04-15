@@ -1,5 +1,7 @@
 """API router for core ScentScape endpoints."""
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter
 
 # from app.models.models import Base, engine  # Assume engine in models or main
@@ -12,14 +14,11 @@ from app.schemas.schemas import (
 
 router = APIRouter(tags=["api"])
 
-# Placeholder engine (will be created in main.py)
-# Placeholder - DB will be injected from main.py
-from datetime import UTC, datetime
 
-
-def get_db():
+def get_db() -> None:
     # Placeholder DB dependency - configure in main.py
-    pass
+    raise NotImplementedError
+
 
 @router.get("/fragrances", response_model=list[FragranceSearchResult])
 async def get_fragrances(limit: int = 10) -> list[FragranceSearchResult]:
@@ -35,18 +34,18 @@ async def get_fragrances(limit: int = 10) -> list[FragranceSearchResult]:
         for i in range(limit)
     ]
 
+
 @router.post("/recommend/text", response_model=RecommendationResult)
-async def text_recommendation(request: TextRecommendationRequest):
+async def text_recommendation(request: TextRecommendationRequest) -> RecommendationResult:
     """Text-based recommendation placeholder."""
     # TODO: Implement LLM + GNN recommendation
     return RecommendationResult(
         job_id="demo-job",
         fragrances=[FragranceSearchResult(id="f1", name="Recommended", brand="Demo")],
-        generated_at=datetime.now(UTC)
+        generated_at=datetime.now(UTC),
     )
 
+
 @router.get("/health", response_model=HealthCheck)
-async def api_health():
+async def api_health() -> HealthCheck:
     return HealthCheck(status="healthy", version="0.1.0", timestamp=datetime.now(UTC))
-
-

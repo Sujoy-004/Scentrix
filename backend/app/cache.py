@@ -8,6 +8,7 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+
 class RedisCache:
     def __init__(self, url: str):
         self._url = url
@@ -28,18 +29,19 @@ class RedisCache:
             logger.error(f"Redis get error: {e}")
         return None
 
-    async def set(self, key: str, value: Any, expire: int = 3600):
+    async def delete(self, key: str) -> None:
+        try:
+            r = await self.get_redis()
+            await r.delete(key)
+        except Exception as e:
+            logger.error(f"Redis delete error: {e}")
+
+    async def set(self, key: str, value: Any, expire: int = 3600) -> None:
         try:
             r = await self.get_redis()
             await r.set(key, json.dumps(value), ex=expire)
         except Exception as e:
             logger.error(f"Redis set error: {e}")
 
-    async def delete(self, key: str):
-        try:
-            r = await self.get_redis()
-            await r.delete(key)
-        except Exception as e:
-            logger.error(f"Redis delete error: {e}")
 
 cache = RedisCache(settings.redis_url)

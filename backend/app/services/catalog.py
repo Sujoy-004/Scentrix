@@ -1,5 +1,7 @@
+import asyncio
 import logging
 import os
+import threading
 from typing import Any
 
 from neo4j import GraphDatabase
@@ -11,13 +13,11 @@ NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USERNAME = os.getenv("NEO4J_USERNAME", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "neo4j_password")
 
-import asyncio
-import threading
-
-_catalog_cache = None
-_driver = None
+_catalog_cache: list[dict[str, Any]] | None = None
+_driver: Any | None = None
 _load_lock = threading.Lock()
 _async_load_lock = asyncio.Lock()
+
 
 def get_neo4j_client():
     global _driver
@@ -36,11 +36,13 @@ def get_neo4j_client():
         logger.error(f"Could not connect to Neo4j: {str(e)}")
         return None
 
+
 def close_neo4j_client():
     global _driver
     if _driver:
         _driver.close()
         _driver = None
+
 
 def _load_from_neo4j() -> list[dict[str, Any]]:
     driver = get_neo4j_client()
@@ -107,8 +109,6 @@ def _load_from_neo4j() -> list[dict[str, Any]]:
         logger.error(f"Error loading from Neo4j: {str(e)}")
         return []
 
-import asyncio
-
 
 def load_recommendation_catalog(force_reload: bool = False) -> list[dict[str, Any]]:
     global _catalog_cache
@@ -130,7 +130,11 @@ def load_recommendation_catalog(force_reload: bool = False) -> list[dict[str, An
             row["match_score"] = min(round(70 + (stable % 31), 1), 100.0)
 
             # Pre-compute sets for performance (Heuristic Reranking)
-            all_notes = (row.get("top_notes") or []) + (row.get("middle_notes") or []) + (row.get("base_notes") or [])
+            all_notes = (
+                (row.get("top_notes") or [])
+                + (row.get("middle_notes") or [])
+                + (row.get("base_notes") or [])
+            )
             row["_notes_set"] = {str(n).lower() for n in all_notes if n}
             row["_accords_set"] = {str(a).lower() for a in (row.get("accords") or []) if a}
 
@@ -139,6 +143,7 @@ def load_recommendation_catalog(force_reload: bool = False) -> list[dict[str, An
         return _catalog_cache
 
     return []
+
 
 async def load_recommendation_catalog_async(force_reload: bool = False) -> list[dict[str, Any]]:
     """Non-blocking version of the catalog loader."""

@@ -27,11 +27,11 @@ logging.basicConfig(
 log = logging.getLogger("ingest_24k")
 
 # ─── Config ───────────────────────────────────────────────────────────────────
-NEO4J_URI      = "bolt://neo4j:7687"
-NEO4J_USER     = os.getenv("NEO4J_USERNAME", "neo4j")
+NEO4J_URI = "bolt://neo4j:7687"
+NEO4J_USER = os.getenv("NEO4J_USERNAME", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "neo4j_password")
-DATA_FILE      = Path(os.getenv("SCENTSCAPE_REPO_ROOT", "/app")) / "ml" / "data" / "fra_elite_24k.json"
-BATCH_SIZE     = 500   # records per Cypher UNWIND call
+DATA_FILE = Path(os.getenv("SCENTSCAPE_REPO_ROOT", "/app")) / "ml" / "data" / "fra_elite_24k.json"
+BATCH_SIZE = 500  # records per Cypher UNWIND call
 
 
 # ─── Driver ───────────────────────────────────────────────────────────────────
@@ -56,6 +56,7 @@ INDEXES = [
     "CREATE INDEX fragrance_rating IF NOT EXISTS FOR (f:Fragrance) ON (f.rating_value)",
     "CREATE INDEX fragrance_brand  IF NOT EXISTS FOR (f:Fragrance) ON (f.brand_id)",
 ]
+
 
 def apply_schema(session):
     log.info("Applying schema constraints and indexes…")
@@ -100,6 +101,7 @@ DEDUP_QUERIES = [
     """,
 ]
 
+
 def deduplicate(session):
     log.info("Deduplicating existing nodes…")
     for q in DEDUP_QUERIES:
@@ -139,7 +141,7 @@ UNWIND $batch AS row
 """
 
 # Fallback without APOC — we'll detect it at runtime
-UPSERT_TOP_NOTES    = """
+UPSERT_TOP_NOTES = """
 UNWIND $batch AS row
   MATCH (frag:Fragrance {id: row.frag_id})
   MERGE (n:Note {id: row.note_id})
@@ -155,7 +157,7 @@ UNWIND $batch AS row
   MERGE (frag)-[r:HAS_MIDDLE_NOTE]->(n)
   SET r.position = row.position
 """
-UPSERT_BASE_NOTES   = """
+UPSERT_BASE_NOTES = """
 UNWIND $batch AS row
   MATCH (frag:Fragrance {id: row.frag_id})
   MERGE (n:Note {id: row.note_id})
@@ -181,7 +183,7 @@ def chunks(lst, n):
 
 def load_data(filepath: Path) -> list[dict]:
     log.info(f"Loading {filepath} …")
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         data = json.load(f)
     if not isinstance(data, list):
         data = [data]
@@ -214,14 +216,14 @@ def ingest(session, fragrances: list[dict]):
     log.info("Pass 1/4 — Fragrance + Brand nodes…")
     frag_batch = [
         {
-            "id":           f["id"],
-            "name":         f.get("name", ""),
-            "brand_id":     f.get("brand", "unknown").lower(),
-            "brand":        f.get("brand", "unknown"),
-            "year":         f.get("year"),
-            "concentration":f.get("concentration", ""),
+            "id": f["id"],
+            "name": f.get("name", ""),
+            "brand_id": f.get("brand", "unknown").lower(),
+            "brand": f.get("brand", "unknown"),
+            "year": f.get("year"),
+            "concentration": f.get("concentration", ""),
             "gender_label": f.get("gender_label", "unisex"),
-            "description":  f.get("description", ""),
+            "description": f.get("description", ""),
             "rating_value": f.get("rating_value", 0.0),
             "rating_count": f.get("rating_count", 0),
         }
@@ -232,19 +234,21 @@ def ingest(session, fragrances: list[dict]):
     # ── Notes ────────────────────────────────────────────────────────────────
     log.info("Pass 2/4 — Top/Middle/Base notes…")
     for note_type, query in [
-        ("top_notes",    UPSERT_TOP_NOTES),
+        ("top_notes", UPSERT_TOP_NOTES),
         ("middle_notes", UPSERT_MIDDLE_NOTES),
-        ("base_notes",   UPSERT_BASE_NOTES),
+        ("base_notes", UPSERT_BASE_NOTES),
     ]:
         note_batch = []
         for f in fragrances:
             for pos, note in enumerate(f.get(note_type, [])):
-                note_batch.append({
-                    "frag_id":   f["id"],
-                    "note_id":   note.lower().replace(" ", "_"),
-                    "note_name": note,
-                    "position":  pos,
-                })
+                note_batch.append(
+                    {
+                        "frag_id": f["id"],
+                        "note_id": note.lower().replace(" ", "_"),
+                        "note_name": note,
+                        "position": pos,
+                    }
+                )
         if note_batch:
             run_in_batches(session, query, note_batch, f"{note_type}")
 
@@ -254,12 +258,14 @@ def ingest(session, fragrances: list[dict]):
     for f in fragrances:
         for idx, accord in enumerate(f.get("accords", [])):
             weight = max(0.4, 1.0 - idx * 0.2)
-            accord_batch.append({
-                "frag_id":    f["id"],
-                "accord_id":  accord.lower().replace(" ", "_"),
-                "accord_name":accord,
-                "weight":     weight,
-            })
+            accord_batch.append(
+                {
+                    "frag_id": f["id"],
+                    "accord_id": accord.lower().replace(" ", "_"),
+                    "accord_name": accord,
+                    "weight": weight,
+                }
+            )
     if accord_batch:
         run_in_batches(session, UPSERT_ACCORDS, accord_batch, "accord relationships")
 

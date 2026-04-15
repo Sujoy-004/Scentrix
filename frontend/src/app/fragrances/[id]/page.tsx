@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAppStore } from '@/stores/app-store';
 import { VideoScrubber } from '@/components/VideoScrubber';
+import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
 import './fragrance-detail.css';
 
 type FragranceNotePayload = { name?: string } | string;
@@ -27,6 +28,7 @@ type FragranceDetailPayload = {
   accords?: Array<{ name?: string } | string>;
   concentration?: string;
   description?: string;
+  image_url?: string;
   year?: number | string;
   similarity_score?: number;
 };
@@ -153,20 +155,26 @@ export default function FragranceDetailPage() {
     );
   }
 
-  const palette = getFragrancePalette(fragrance);
-
   const notePyramid = {
     top: normalizeNotes(fragrance.top_notes, ['Bergamot', 'Lemon']),
     middle: normalizeNotes(fragrance.middle_notes, ['Jasmine', 'Rose']),
     base: normalizeNotes(fragrance.base_notes, ['Sandalwood', 'Musk']),
   };
 
-    'Green': 'rgba(26, 74, 26, 0.15)',
-    'Musky': 'rgba(74, 74, 74, 0.15)',
-    'Unknown': 'rgba(244, 187, 146, 0.15)',
+  const mainAccord = fragrance.family || 'Unknown';
+
+  const accordColors: Record<string, string> = {
+    Citrus: 'rgba(255, 200, 120, 0.15)',
+    Floral: 'rgba(244, 187, 146, 0.15)',
+    Woody: 'rgba(122, 84, 58, 0.15)',
+    Oriental: 'rgba(180, 120, 220, 0.15)',
+    Fresh: 'rgba(120, 200, 255, 0.15)',
+    Green: 'rgba(26, 74, 26, 0.15)',
+    Musky: 'rgba(74, 74, 74, 0.15)',
+    Unknown: 'rgba(244, 187, 146, 0.15)',
   };
 
-  const auraColor = typeof mainAccord === 'string' ? (accordColors[mainAccord] || accordColors['Unknown']) : accordColors['Unknown'];
+  const auraColor = accordColors[mainAccord] || accordColors.Unknown;
 
   return (
     <div className="fragrance-detail-page" style={{ '--aura-color-1': auraColor } as any}>

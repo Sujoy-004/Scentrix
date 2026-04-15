@@ -19,7 +19,6 @@ class UserRegister(BaseModel):
     opt_in_training: bool = False
 
 
-
 class UserLogin(BaseModel):
     """Login request."""
 
@@ -58,7 +57,6 @@ class UserProfile(BaseModel):
     opt_in_training: bool
 
     model_config = ConfigDict(from_attributes=True)
-
 
 
 # ============================================================================
@@ -232,9 +230,7 @@ class RecommendationInteractionEventCreate(BaseModel):
 class RecommendationInteractionBatchRequest(BaseModel):
     """Batch recommendation events payload."""
 
-    events: list[RecommendationInteractionEventCreate] = Field(
-        ..., min_length=1, max_length=100
-    )
+    events: list[RecommendationInteractionEventCreate] = Field(..., min_length=1, max_length=100)
 
 
 class RecommendationInteractionBatchResponse(BaseModel):

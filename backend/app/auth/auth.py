@@ -66,8 +66,7 @@ def create_access_token(user_id: int, expires_delta: timedelta | None = None) ->
         "jti": str(uuid4()),
     }
 
-    encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def create_refresh_token(user_id: int, expires_delta: timedelta | None = None) -> str:
@@ -94,8 +93,7 @@ def create_refresh_token(user_id: int, expires_delta: timedelta | None = None) -
         "jti": str(uuid4()),
     }
 
-    encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def verify_token(token: str) -> TokenPayload | None:

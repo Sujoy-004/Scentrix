@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { useRecommendations } from '@/lib/hooks';
 import { useAppStore } from '@/stores/app-store';
+import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
+import { getFragrancePalette } from '@/lib/quizTheme';
 import './recommendations.css';
 
 const springConfig = { type: 'spring' as const, stiffness: 300, damping: 30 };
@@ -343,6 +345,6 @@ export default function RecommendationsPage() {
           </p>
         </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 }

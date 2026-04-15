@@ -10,6 +10,7 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+
 class HybridRecommender:
     """Unified 'Aetheric' DNA Recommender (Text + Graph Fusion).
 
@@ -25,8 +26,7 @@ class HybridRecommender:
 
         # 2. Graph Client
         self.driver = GraphDatabase.driver(
-            settings.neo4j_uri,
-            auth=(settings.neo4j_user, settings.neo4j_password)
+            settings.neo4j_uri, auth=(settings.neo4j_user, settings.neo4j_password)
         )
 
     def _query_vector_dna(self, user_vec: list[float], limit: int = 100) -> list[dict[str, Any]]:
@@ -34,12 +34,13 @@ class HybridRecommender:
         # 1. External Production Service (Pinecone)
         if self.vector_index:
             try:
-                res = self.vector_index.query(
-                    vector=user_vec,
-                    top_k=limit,
-                    include_metadata=True
+                res: Any = self.vector_index.query(
+                    vector=user_vec, top_k=limit, include_metadata=True
                 )
-                return [{"id": m.id, "score": m.score, "metadata": m.metadata or {}} for m in res.matches]
+                return [
+                    {"id": m.id, "score": m.score, "metadata": m.metadata or {}}
+                    for m in res.matches
+                ]
             except Exception as e:
                 logger.warning(f"Pinecone query failed, attempting local fallback: {e}")
 
@@ -49,7 +50,7 @@ class HybridRecommender:
             _is_hydrating,
             load_recommendation_catalog,
         )
-        
+
         # If the engine is busy hydrating, we skip the slow local scan and return empty
         if _is_hydrating:
             logger.info("Neural Engine is hydrating; skipping local fallback.")
@@ -70,16 +71,16 @@ class HybridRecommender:
 
             for idx in top_indices:
                 item = catalog[idx]
-                candidates.append({
-                    "id": item.get("id"),
-                    "score": float(similarities[idx]),
-                    "metadata": item
-                })
+                candidates.append(
+                    {"id": item.get("id"), "score": float(similarities[idx]), "metadata": item}
+                )
             return candidates
 
         return []
 
-    def _rerank_genetic_match(self, candidate_ids: list[str], user_rated_ids: list[str]) -> dict[str, Any]:
+    def _rerank_genetic_match(
+        self, candidate_ids: list[str], user_rated_ids: list[str]
+    ) -> dict[str, Any]:
         """Phase 2: High-precision graph reranking using genetic distance."""
         if not user_rated_ids:
             return {}
@@ -100,7 +101,9 @@ class HybridRecommender:
             logger.error(f"Neo4j reranking failed: {e}")
             return {}
 
-    def get_recommendations(self, user_profile_vec: list[float], user_seed_ids: list[str]) -> list[dict[str, Any]]:
+    def get_recommendations(
+        self, user_profile_vec: list[float], user_seed_ids: list[str]
+    ) -> list[dict[str, Any]]:
         """Main entry point for 300ms Adaptive Discovery."""
         # Step 1: Candidate Selection (Vector ANN)
         try:
@@ -126,19 +129,24 @@ class HybridRecommender:
             graph_boost = min(shared_notes / 5.0, 1.0)
             hybrid_score = (c["score"] * 0.7) + (graph_boost * 0.3)
 
-            refined.append({
-                "id": c_id,
-                "name": c["metadata"].get("name", "Unknown"),
-                "brand": c["metadata"].get("brand", "Unknown"),
-                "image_url": c["metadata"].get("image_url", ""),
-                "match_score": round(hybrid_score * 100, 1),
-                "reason": f"Shared Genetic Resonance ({shared_notes} notes)" if shared_notes > 0 else "Semantic Soulbound Match"
-            })
+            refined.append(
+                {
+                    "id": c_id,
+                    "name": c["metadata"].get("name", "Unknown"),
+                    "brand": c["metadata"].get("brand", "Unknown"),
+                    "image_url": c["metadata"].get("image_url", ""),
+                    "match_score": round(hybrid_score * 100, 1),
+                    "reason": f"Shared Genetic Resonance ({shared_notes} notes)"
+                    if shared_notes > 0
+                    else "Semantic Soulbound Match",
+                }
+            )
 
         refined.sort(key=lambda x: x["match_score"], reverse=True)
         return refined[:12]
 
     def close(self):
         self.driver.close()
+
 
 recommender = HybridRecommender()

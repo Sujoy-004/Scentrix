@@ -67,9 +67,11 @@ async def register(
 
     # Create new user
     hashed_password = hash_password(user_data.password)
+    normalized_email = user_data.email.lower().strip()
     new_user = User(
+        email=normalized_email,
         email_hash=email_hash,
-        encrypted_email=vault.encrypt(user_data.email.lower().strip()),
+        encrypted_email=vault.encrypt(normalized_email),
         full_name=user_data.full_name,
         hashed_password=hashed_password,
         is_active=True,
@@ -164,7 +166,7 @@ async def refresh_token(
     # Verify refresh token exists and is not revoked
     stmt = select(RefreshToken).where(
         RefreshToken.token == request.refresh_token,
-        RefreshToken.revoked_at is None,
+        RefreshToken.revoked_at.is_(None),
         RefreshToken.expires_at > _utc_now_naive(),
     )
     result = await session.execute(stmt)
@@ -200,7 +202,7 @@ async def logout(
     # Revoke all active refresh tokens for this user
     stmt = select(RefreshToken).where(
         RefreshToken.user_id == user_id,
-        RefreshToken.revoked_at is None,
+        RefreshToken.revoked_at.is_(None),
     )
     result = await session.execute(stmt)
     tokens = result.scalars().all()
@@ -215,7 +217,6 @@ async def logout(
 
 
 @router.get("/me", response_model=UserProfile)
-
 async def get_current_user(
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
@@ -240,9 +241,5 @@ async def get_current_user(
         full_name=user.full_name,
         is_active=user.is_active,
         created_at=user.created_at,
-        opt_in_training=user.opt_in_training
+        opt_in_training=user.opt_in_training,
     )
-
-
-
-

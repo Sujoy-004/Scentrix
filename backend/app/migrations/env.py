@@ -27,9 +27,11 @@ if config.config_file_name is not None:
 # add your model's MetaData object here for 'autogenerate' support
 target_metadata = Base.metadata
 
+
 def get_url():
     # Use environment variable if running in Docker, else use config
     return os.getenv("DATABASE_URL", settings.database_url)
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -67,7 +69,7 @@ async def run_migrations_online() -> None:
     In this scenario we need to create an Engine and associate a connection with the context.
 
     """
-    configuration = config.get_section(config.config_ini_section)
+    configuration = config.get_section(config.config_ini_section) or {}
     configuration["sqlalchemy.url"] = get_url()
 
     connectable = async_engine_from_config(

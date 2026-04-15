@@ -67,9 +67,15 @@ class Settings(BaseSettings):
     ]
 
     # Pinecone Vector Search
-    pinecone_api_key: str | None = Field(default=None, validation_alias=AliasChoices("PINECONE_API_KEY"))
-    pinecone_environment: str = Field(default="us-west4-gcp", validation_alias=AliasChoices("PINECONE_ENVIRONMENT"))
-    pinecone_index_name: str = Field(default="scentscape-fragrances", validation_alias=AliasChoices("PINECONE_INDEX_NAME"))
+    pinecone_api_key: str | None = Field(
+        default=None, validation_alias=AliasChoices("PINECONE_API_KEY")
+    )
+    pinecone_environment: str = Field(
+        default="us-west4-gcp", validation_alias=AliasChoices("PINECONE_ENVIRONMENT")
+    )
+    pinecone_index_name: str = Field(
+        default="scentscape-fragrances", validation_alias=AliasChoices("PINECONE_INDEX_NAME")
+    )
 
     @field_validator("database_url", mode="before")
     @classmethod
@@ -86,5 +92,5 @@ class Settings(BaseSettings):
             return value.replace("postgresql://", "postgresql+asyncpg://", 1)
         return value
 
-settings = Settings()
 
+settings = Settings()

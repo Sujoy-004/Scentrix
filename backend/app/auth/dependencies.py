@@ -3,7 +3,6 @@
 Provides dependency injections for user authentication and authorization.
 """
 
-
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -68,4 +67,3 @@ async def get_optional_user_id(
     except HTTPException:
         # Ignore invalid/expired tokens for optional auth
         return None
-

@@ -1,5 +1,5 @@
 import asyncio
-from typing import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator, Generator
 
 import pytest
 import pytest_asyncio
@@ -19,9 +19,8 @@ engine = create_async_engine(
     poolclass=None,
 )
 
-TestingSessionLocal = sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False
-)
+TestingSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
 
 @pytest.fixture(scope="session")
 def event_loop() -> Generator:
@@ -29,6 +28,7 @@ def event_loop() -> Generator:
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
+
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def setup_test_db() -> AsyncGenerator:
@@ -40,15 +40,18 @@ async def setup_test_db() -> AsyncGenerator:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
+
 @pytest_asyncio.fixture()
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
     """Provide a database session per test cases."""
     async with TestingSessionLocal() as session:
         yield session
 
+
 @pytest_asyncio.fixture()
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Provide an HTTP client with mocked database session."""
+
     async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
         yield db_session
 

@@ -25,7 +25,16 @@ logger = logging.getLogger(__name__)
 
 FEATURE_TERMS = {
     "woody": {"woody", "wood", "cedar", "sandalwood", "vetiver", "oud", "oakmoss", "patchouli"},
-    "floral": {"floral", "rose", "jasmine", "violet", "peony", "tuberose", "neroli", "orange blossom"},
+    "floral": {
+        "floral",
+        "rose",
+        "jasmine",
+        "violet",
+        "peony",
+        "tuberose",
+        "neroli",
+        "orange blossom",
+    },
     "citrus": {"citrus", "bergamot", "lemon", "orange", "grapefruit", "mandarin", "neroli"},
     "spicy": {"spicy", "pepper", "cardamom", "ginger", "cinnamon", "clove", "nutmeg", "saffron"},
     "fresh": {"fresh", "green", "aromatic", "aldehydes", "herbal", "lavender"},
@@ -240,14 +249,10 @@ def _serialize_recommendation(
     reason: str,
 ) -> dict[str, Any]:
     top_notes = [
-        str(note).strip()
-        for note in (fragrance.get("top_notes") or [])
-        if str(note).strip()
+        str(note).strip() for note in (fragrance.get("top_notes") or []) if str(note).strip()
     ]
     accords = [
-        str(accord).strip()
-        for accord in (fragrance.get("accords") or [])
-        if str(accord).strip()
+        str(accord).strip() for accord in (fragrance.get("accords") or []) if str(accord).strip()
     ]
 
     review_count_value = fragrance.get("review_count")
@@ -279,7 +284,8 @@ def _build_user_taste_vector(
         if fragrance is None:
             continue
         vectors.append(_fragrance_feature_vector(fragrance))
-        weights.append(float(max(row.overall_satisfaction, 0.0) + 0.1))
+        satisfaction = float(row.overall_satisfaction or 0.0)
+        weights.append(float(max(satisfaction, 0.0) + 0.1))
 
     return _weighted_average(vectors, weights)
 
@@ -337,7 +343,9 @@ def _rank_by_profile(
             continue
 
         vector_score = _cosine_similarity(user_taste_vector, _fragrance_feature_vector(fragrance))
-        popularity = float(fragrance.get("review_count") or fragrance.get("popularity_score") or 0.0)
+        popularity = float(
+            fragrance.get("review_count") or fragrance.get("popularity_score") or 0.0
+        )
         popularity_score = min(popularity / 1000.0, 1.0)
         final_score = (0.9 * vector_score) + (0.1 * popularity_score)
         if final_score <= 0:
@@ -355,15 +363,35 @@ def _rank_by_profile(
 class CallbackTask(Task):
     """Task with callbacks for tracking completion."""
 
-    def on_success(self, retval, task_id, args, kwargs):
+    def on_success(
+        self,
+        retval: Any,
+        task_id: str,
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
+    ) -> None:
         """Success callback."""
         logger.info(f"Task {task_id} completed successfully")
 
-    def on_retry(self, exc, task_id, args, kwargs, einfo):
+    def on_retry(
+        self,
+        exc: Exception,
+        task_id: str,
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
+        einfo: Any,
+    ) -> None:
         """Retry callback."""
         logger.warning(f"Task {task_id} retrying due to: {exc}")
 
-    def on_failure(self, exc, task_id, args, kwargs, einfo):
+    def on_failure(
+        self,
+        exc: Exception,
+        task_id: str,
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
+        einfo: Any,
+    ) -> None:
         """Failure callback."""
         logger.error(f"Task {task_id} failed: {exc}")
 
@@ -376,12 +404,12 @@ class CallbackTask(Task):
     name="app.tasks.recommend_by_text",
 )
 def recommend_by_text_task(
-    self,
+    self: Task,
     job_id: str,
     query: str,
     limit: int = 10,
     user_id: int | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Generate text-based fragrance recommendations using lexical+profile ranking."""
     try:
         logger.info(f"[{job_id}] Starting text-based recommendation for: {query[:50]}")
@@ -407,7 +435,9 @@ def recommend_by_text_task(
             catalog_by_id = {str(item.get("id", "")): item for item in catalog}
             user_taste_vector = _build_user_taste_vector(rating_split["train"], catalog_by_id)
 
-        ranked = _rank_by_text(query=query, catalog=catalog, user_taste_vector=user_taste_vector, limit=limit)
+        ranked = _rank_by_text(
+            query=query, catalog=catalog, user_taste_vector=user_taste_vector, limit=limit
+        )
 
         logger.info(f"[{job_id}] Recommendation complete. {len(ranked)} results.")
         return {
@@ -424,7 +454,7 @@ def recommend_by_text_task(
 
     except Exception as exc:
         logger.error(f"[{job_id}] Recommendation task failed: {exc}")
-        self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc
 
 
 @celery_app.task(
@@ -435,11 +465,11 @@ def recommend_by_text_task(
     name="app.tasks.recommend_by_profile",
 )
 def recommend_by_profile_task(
-    self,
+    self: Task,
     job_id: str,
     user_id: int,
     limit: int = 10,
-) -> dict:
+) -> dict[str, Any]:
     """Generate user-profile recommendations with split-aware taste modeling."""
     try:
         logger.info(f"[{job_id}] Starting profile-based recommendation for user {user_id}")
@@ -477,7 +507,7 @@ def recommend_by_profile_task(
 
     except Exception as exc:
         logger.error(f"[{job_id}] Profile recommendation task failed: {exc}")
-        self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc
 
 
 @celery_app.task(
@@ -487,9 +517,9 @@ def recommend_by_profile_task(
     name="app.tasks.generate_user_embeddings",
 )
 def generate_user_embeddings_task(
-    self,
+    self: Task,
     user_id: int,
-) -> dict:
+) -> dict[str, Any]:
     """Generate and cache user taste vector embeddings.
 
     Called periodically for each user who has rated fragrances.
@@ -524,7 +554,7 @@ def generate_user_embeddings_task(
 
     except Exception as exc:
         logger.error(f"Embedding generation failed for user {user_id}: {exc}")
-        self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc
 
 
 @celery_app.task(
@@ -534,7 +564,7 @@ def generate_user_embeddings_task(
     default_retry_delay=120,
     name="app.tasks.rebuild_embeddings",
 )
-def rebuild_embeddings_task(self) -> dict:
+def rebuild_embeddings_task(self: Task) -> dict[str, Any]:
     """Rebuild text and graph embeddings from the current seed dataset."""
     try:
         fragrances = load_recommendation_catalog(force_reload=True)
@@ -557,4 +587,4 @@ def rebuild_embeddings_task(self) -> dict:
         }
     except Exception as exc:
         logger.error(f"Embedding rebuild task failed: {exc}")
-        self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc

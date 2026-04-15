@@ -147,12 +147,12 @@ export default function StandardQuiz() {
 
           if (evalResult.extension_required && evalResult.additional_questions_target > 0) {
             const nextBatch = await api.getNextQuizQuestions(store.adaptiveQuiz.sessionId, evalResult.additional_questions_target);
-            store.appendAdaptiveQuestions(nextBatch.questions.map(q => ({
+            store.appendAdaptiveQuestions(nextBatch.questions.map((q: any) => ({
               fragrance_id: q.fragrance_id,
               name: q.name,
               brand: q.brand,
               top_notes: q.top_notes,
-              accords: q.accords
+              accords: q.accords,
             })));
             
             setCurrentFragranceIndex(prev => prev + 1);

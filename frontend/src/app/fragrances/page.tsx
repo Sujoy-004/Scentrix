@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { motion, useScroll, useSpring } from 'framer-motion';
 import { api, type FragranceCatalogItem } from '@/lib/api';
 import { getFamilyAsset } from '@/lib/family-mapping';
@@ -33,21 +33,21 @@ const PER_PAGE = 20;
 
 export default function FragrancesPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const gridRef = useRef<HTMLDivElement>(null);
-  const initialQuery = searchParams.get('q') || '';
-  
+
   const [items, setItems] = useState<FragranceCatalogItem[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   
   const [sortBy, setSortBy] = useState<'rating' | 'name' | 'match'>('rating');
   const [filterFamily, setFilterFamily] = useState('');
-  const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    setSearchQuery(searchParams.get('q') || '');
-  }, [searchParams]);
+    const q = new URLSearchParams(window.location.search).get('q') || '';
+    setSearchQuery(q);
+  }, []);
+
   const [page, setPage] = useState(1);
   const [jumpPage, setJumpPage] = useState('');
 
@@ -56,17 +56,19 @@ export default function FragrancesPage() {
       setIsLoading(true);
       try {
         const offset = (page - 1) * PER_PAGE;
-        const result = await api.getFragranceCatalog(PER_PAGE, offset, {
+        const result = (await api.getFragranceCatalog(PER_PAGE, offset, {
           q: searchQuery || undefined,
           family: filterFamily || undefined,
-          sort: sortBy || undefined
-        });
-        
-        const rawItems = result?.items || [];
-        const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values());
-        
+          sort: sortBy || undefined,
+        })) as { items: FragranceCatalogItem[]; total: number };
+
+        const rawItems = result.items || [];
+        const uniqueItems = Array.from(
+          new Map(rawItems.map((item: FragranceCatalogItem) => [item.id, item])).values()
+        );
+
         setItems(uniqueItems);
-        setTotal(result?.total || 0);
+        setTotal(result.total || 0);
       } catch (err) {
         console.error('Failed to load catalog:', err);
         setItems([]);

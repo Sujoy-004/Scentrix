@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Awaitable
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from redis.asyncio import Redis, from_url
 
@@ -28,7 +29,7 @@ async def _get_client() -> Redis:
         _redis_client = client
 
     try:
-        await client.ping()
+        await cast(Awaitable[bool], client.ping())
     except Exception as exc:
         raise RuntimeError(f"Redis unavailable: {exc}") from exc
 
@@ -41,13 +42,16 @@ def quiz_expiry_utc() -> datetime:
 
 async def create_quiz_session(*, session_id: str, payload: dict[str, Any]) -> None:
     client = await _get_client()
-    await client.set(_quiz_key(session_id), json.dumps(payload, ensure_ascii=False))
-    await client.expire(_quiz_key(session_id), QUIZ_TTL_SECONDS)
+    await cast(
+        Awaitable[Any],
+        client.set(_quiz_key(session_id), json.dumps(payload, ensure_ascii=False)),
+    )
+    await cast(Awaitable[Any], client.expire(_quiz_key(session_id), QUIZ_TTL_SECONDS))
 
 
 async def get_quiz_session(session_id: str) -> dict[str, Any] | None:
     client = await _get_client()
-    raw = await client.get(_quiz_key(session_id))
+    raw = await cast(Awaitable[str | None], client.get(_quiz_key(session_id)))
     if not raw:
         return None
 
@@ -64,5 +68,8 @@ async def get_quiz_session(session_id: str) -> dict[str, Any] | None:
 
 async def save_quiz_session(*, session_id: str, payload: dict[str, Any]) -> None:
     client = await _get_client()
-    await client.set(_quiz_key(session_id), json.dumps(payload, ensure_ascii=False))
-    await client.expire(_quiz_key(session_id), QUIZ_TTL_SECONDS)
+    await cast(
+        Awaitable[Any],
+        client.set(_quiz_key(session_id), json.dumps(payload, ensure_ascii=False)),
+    )
+    await cast(Awaitable[Any], client.expire(_quiz_key(session_id), QUIZ_TTL_SECONDS))
