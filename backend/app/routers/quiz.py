@@ -12,12 +12,13 @@ from datetime import UTC, datetime
 from statistics import pstdev
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user_id, get_optional_user_id
 from app.database import get_session
+from app.limiter import limiter
 from app.models.models import FragranceRating
 from app.schemas.schemas import (
     QuizConfidenceComponents,
@@ -51,11 +52,11 @@ DEFAULT_MAX_TOTAL = 16
 def _question_from_row(row: dict) -> QuizQuestion:
     raw_notes = row.get("top_notes") or []
     raw_accords = row.get("accords") or []
-    
+
     # Industrial Sanitizer: Handle strings or lists gracefully
     if isinstance(raw_notes, str): raw_notes = [n.strip() for n in raw_notes.split(",")]
     if isinstance(raw_accords, str): raw_accords = [a.strip() for a in raw_accords.split(",")]
-    
+
     return QuizQuestion(
         fragrance_id=str(row.get("id", "")),
         name=str(row.get("name", "Unknown")),
@@ -88,43 +89,63 @@ def _select_seed_questions(rows: list[dict], count: int) -> list[dict]:
     if not rows:
         return []
 
-    # RANDOMIZE first to break any alphabetical brand bias (e.g. Aqua di Parma appearing first)
+    # Olfactive Kingdoms: The 8 pillars of perfumery
+    KINGDOMS = {
+        "citrus": ["citrus", "lemon", "bergamot", "orange", "lime", "grapefruit"],
+        "floral": ["floral", "rose", "jasmine", "white floral", "tuberose", "iris"],
+        "oriental": ["oriental", "amber", "vanilla", "spicy", "cinnamon", "balsamic"],
+        "woody": ["woody", "sandalwood", "cedar", "patchouli", "vetiver", "oud"],
+        "aromatic": ["aromatic", "lavender", "herbal", "mint", "sage", "rosemary"],
+        "chypre": ["chypre", "oakmoss", "earthy", "mossy"],
+        "leather": ["leather", "smoky", "tobacco", "animalic"],
+        "gourmand": ["gourmand", "sweet", "chocolate", "caramel", "honey", "pudding"],
+    }
+
     random.shuffle(rows)
-
     selected: list[dict] = []
-    seen_brands: set[str] = set()
-    seen_accords: set[str] = set()
+    filled_kingdoms: set[str] = set()
+    used_ids: set[str] = set()
 
-    # Strategy: Maximize Olfactory Diversity (Accords) and Brand Variation
-    for row in rows:
+    # Priority 1: Fill the Kingdoms (1 item per kingdom)
+    for kingdom_name, keywords in KINGDOMS.items():
         if len(selected) >= count:
             break
 
-        brand = str(row.get("brand", "")).strip().lower()
-        accords = {
-            str(v).strip().lower()
-            for v in (row.get("accords") or [])
-            if str(v).strip()
-        }
+        for row in rows:
+            row_id = str(row.get("id", ""))
+            if row_id in used_ids:
+                continue
 
-        # We take the fragrance if it adds a NEW Accord or a NEW Brand to the seed set
-        has_new_brand = brand and brand not in seen_brands
-        has_new_accords = accords and accords.difference(seen_accords)
+            accords = [str(a).lower() for a in (row.get("accords") or [])]
+            if any(k in accords for k in keywords):
+                selected.append(row)
+                used_ids.add(row_id)
+                filled_kingdoms.add(kingdom_name)
+                break
 
-        if has_new_brand or has_new_accords:
-            selected.append(row)
-            if brand:
-                seen_brands.add(brand)
-            seen_accords.update(accords)
-
-    # If we didn't hit the count via diversity, fill with remaining randomized items
+    # Priority 2: Fill remaining slots with Greedy Diversity (Brand/Accord variation)
     if len(selected) < count:
-        used_ids = {str(item.get("id", "")) for item in selected}
+        seen_brands: set[str] = {str(r.get("brand", "")).lower() for r in selected}
         for row in rows:
             if len(selected) >= count:
                 break
             row_id = str(row.get("id", ""))
-            if row_id and row_id not in used_ids:
+            if row_id in used_ids:
+                continue
+
+            brand = str(row.get("brand", "")).lower()
+            if brand not in seen_brands:
+                selected.append(row)
+                used_ids.add(row_id)
+                seen_brands.add(brand)
+
+    # Priority 3: Hard Fallback (Random Fill)
+    if len(selected) < count:
+        for row in rows:
+            if len(selected) >= count:
+                break
+            row_id = str(row.get("id", ""))
+            if row_id not in used_ids:
                 selected.append(row)
                 used_ids.add(row_id)
 
@@ -212,14 +233,15 @@ def _require_owned_session(session_payload: dict | None, session_id: str, user_i
 
 
 @router.post("/start", response_model=QuizSessionStartResponse)
+@limiter.limit("10/minute")
 async def start_quiz_session(
-    request: QuizSessionStartRequest,
+    quiz_data: QuizSessionStartRequest,
+    request: Request,
     user_id: Optional[int] = Depends(get_optional_user_id),
     session: AsyncSession = Depends(get_session),
 ) -> QuizSessionStartResponse:
     # Use dummy ID for guests (ensures unique quiz sessions)
-    effective_user_id = user_id if user_id is not None else 0
-    
+
     catalog = load_recommendation_catalog()
     if not catalog:
         raise HTTPException(
@@ -229,17 +251,17 @@ async def start_quiz_session(
 
     candidate_rows = [row for row in catalog if str(row.get("id", "")).strip()]
 
-    if request.filters.exclude_seen:
+    if quiz_data.filters.exclude_seen:
         seen_ids = await _load_seen_ids(user_id, session)
         filtered = [row for row in candidate_rows if str(row.get("id", "")) not in seen_ids]
         if filtered:
             candidate_rows = filtered
 
     rng = random.Random(f"quiz:{user_id}:{uuid4().hex}")
-    if len(candidate_rows) > request.candidate_pool_size:
-        candidate_rows = rng.sample(candidate_rows, request.candidate_pool_size)
+    if len(candidate_rows) > quiz_data.candidate_pool_size:
+        candidate_rows = rng.sample(candidate_rows, quiz_data.candidate_pool_size)
 
-    seed_rows = _select_seed_questions(candidate_rows, request.seed_count)
+    seed_rows = _select_seed_questions(candidate_rows, quiz_data.seed_count)
     if not seed_rows:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -249,7 +271,7 @@ async def start_quiz_session(
     session_id = f"qz_{uuid4().hex[:8]}"
     now_iso = datetime.now(UTC).isoformat()
     rules = QuizSessionRules(
-        min_core_questions=request.seed_count,
+        min_core_questions=quiz_data.seed_count,
         max_total_questions=DEFAULT_MAX_TOTAL,
         medium_extension=DEFAULT_MEDIUM_EXTENSION,
         low_extension=DEFAULT_LOW_EXTENSION,
@@ -291,31 +313,34 @@ async def start_quiz_session(
 
 
 @router.post("/{session_id}/responses", response_model=QuizSessionSubmitResponseResponse)
+@limiter.limit("30/minute")
 async def submit_quiz_response(
     session_id: str,
-    request: QuizSessionSubmitResponseRequest,
-    user_id: int = Depends(get_current_user_id),
+    quiz_data: QuizSessionSubmitResponseRequest,
+    request: Request,
+    user_id: int | None = Depends(get_optional_user_id),
 ) -> QuizSessionSubmitResponseResponse:
-    session_payload = _require_owned_session(await get_quiz_session(session_id), session_id, user_id)
+    effective_user_id = user_id if user_id is not None else 0
+    session_payload = _require_owned_session(await get_quiz_session(session_id), session_id, effective_user_id)
 
     served_ids = [str(v) for v in (session_payload.get("served_ids") or [])]
-    if request.fragrance_id not in served_ids:
-        served_ids.append(request.fragrance_id)
+    if quiz_data.fragrance_id not in served_ids:
+        served_ids.append(quiz_data.fragrance_id)
 
     responses = [item for item in (session_payload.get("responses") or []) if isinstance(item, dict)]
 
-    normalized = _normalize_rating_0_to_5(request.rating_1_to_10)
+    normalized = _normalize_rating_0_to_5(quiz_data.rating_1_to_10)
     response_payload = {
-        "fragrance_id": request.fragrance_id,
-        "rating_1_to_10": round(request.rating_1_to_10, 2),
+        "fragrance_id": quiz_data.fragrance_id,
+        "rating_1_to_10": round(quiz_data.rating_1_to_10, 2),
         "rating_0_to_5": normalized,
-        "source": request.source,
+        "source": quiz_data.source,
         "created_at": datetime.now(UTC).isoformat(),
     }
 
     replaced = False
     for index, item in enumerate(responses):
-        if str(item.get("fragrance_id", "")) == request.fragrance_id:
+        if str(item.get("fragrance_id", "")) == quiz_data.fragrance_id:
             responses[index] = response_payload
             replaced = True
             break
@@ -329,6 +354,26 @@ async def submit_quiz_response(
 
     try:
         await save_quiz_session(session_id=session_id, payload=session_payload)
+
+        # BRIDGE: Sync to permanent database for authenticated users
+        if user_id:
+            from sqlalchemy.dialects.postgresql import insert
+
+            from app.models.models import FragranceRating
+
+            # Sub-session for DB commit (atomic)
+            async with get_session() as db:
+                stmt = insert(FragranceRating).values(
+                    user_id=user_id,
+                    fragrance_neo4j_id=quiz_data.fragrance_id.replace("frag_syn_", "").replace("frag_", ""),
+                    quiz_rating=quiz_data.rating_1_to_10
+                ).on_conflict_do_update(
+                    index_elements=['user_id', 'fragrance_neo4j_id'],
+                    set_={'quiz_rating': quiz_data.rating_1_to_10}
+                )
+                await db.execute(stmt)
+                await db.commit()
+
     except RuntimeError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -342,13 +387,50 @@ async def submit_quiz_response(
     )
 
 
+@router.post("/{session_id}/finalize")
+async def finalize_quiz_session(
+    session_id: str,
+    user_id: int = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_session),
+):
+    """Bridge transient quiz session data to permanent profile table."""
+    session_payload = _require_owned_session(await get_quiz_session(session_id), session_id, user_id)
+    responses = session_payload.get("responses") or []
+
+    if not responses:
+        return {"status": "no_data"}
+
+    from sqlalchemy.dialects.postgresql import insert
+
+    from app.models.models import FragranceRating
+
+    for res in responses:
+        fid = str(res.get("fragrance_id", "")).replace("frag_syn_", "").replace("frag_", "")
+        rating = float(res.get("rating_1_to_10") or 0)
+
+        stmt = insert(FragranceRating).values(
+            user_id=user_id,
+            fragrance_neo4j_id=fid,
+            quiz_rating=rating
+        ).on_conflict_do_update(
+            index_elements=['user_id', 'fragrance_neo4j_id'],
+            set_={'quiz_rating': rating}
+        )
+        await db.execute(stmt)
+
+    await db.commit()
+    logger.info(f"Quiz Session {session_id} finalized for user {user_id}. {len(responses)} ratings synced.")
+    return {"status": "synced", "count": len(responses)}
+
+
 @router.post("/{session_id}/evaluate", response_model=QuizSessionEvaluateResponse)
 async def evaluate_quiz_session(
     session_id: str,
     request: QuizSessionEvaluateRequest,
-    user_id: int = Depends(get_current_user_id),
+    user_id: int | None = Depends(get_optional_user_id),
 ) -> QuizSessionEvaluateResponse:
-    session_payload = _require_owned_session(await get_quiz_session(session_id), session_id, user_id)
+    effective_user_id = user_id if user_id is not None else 0
+    session_payload = _require_owned_session(await get_quiz_session(session_id), session_id, effective_user_id)
 
     catalog = load_recommendation_catalog()
     catalog_by_id = {str(row.get("id", "")): row for row in catalog if str(row.get("id", "")).strip()}
@@ -426,9 +508,10 @@ async def evaluate_quiz_session(
 async def get_next_quiz_questions(
     session_id: str,
     count: int = Query(3, ge=1, le=5),
-    user_id: int = Depends(get_current_user_id),
+    user_id: int | None = Depends(get_optional_user_id),
 ) -> QuizSessionNextQuestionsResponse:
-    session_payload = _require_owned_session(await get_quiz_session(session_id), session_id, user_id)
+    effective_user_id = user_id if user_id is not None else 0
+    session_payload = _require_owned_session(await get_quiz_session(session_id), session_id, effective_user_id)
 
     catalog = load_recommendation_catalog()
     if not catalog:

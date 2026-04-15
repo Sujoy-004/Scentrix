@@ -62,7 +62,10 @@ export default function FragrancesPage() {
           sort: sortBy || undefined
         });
         
-        setItems(result?.items || []);
+        const rawItems = result?.items || [];
+        const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values());
+        
+        setItems(uniqueItems);
         setTotal(result?.total || 0);
       } catch (err) {
         console.error('Failed to load catalog:', err);
@@ -433,14 +436,14 @@ function FragCard({ frag, index, onClick }: { frag: any; index: number; onClick:
         <h3 className="frag-list-name">{frag.name}</h3>
         {topNotes.length > 0 && (
           <div className="frag-notes-row">
-            {topNotes.map((n: string) => <span key={n} className="note-pill note-pill-top">{n}</span>)}
-            {midNotes.map((n: string) => <span key={n} className="note-pill note-pill-heart">{n}</span>)}
-            {baseNotes.map((n: string) => <span key={n} className="note-pill note-pill-base">{n}</span>)}
+            {topNotes.map((n: string, i: number) => <span key={`top-${n}-${i}`} className="note-pill note-pill-top">{n}</span>)}
+            {midNotes.map((n: string, i: number) => <span key={`mid-${n}-${i}`} className="note-pill note-pill-heart">{n}</span>)}
+            {baseNotes.map((n: string, i: number) => <span key={`base-${n}-${i}`} className="note-pill note-pill-base">{n}</span>)}
           </div>
         )}
         {accords.length > 0 && (
           <div className="frag-accords-row">
-            {accords.map((a: string) => <span key={a} className="accord-badge">{a}</span>)}
+            {accords.map((a: string, i: number) => <span key={`accord-${a}-${i}`} className="accord-badge">{a}</span>)}
           </div>
         )}
         <div className="frag-list-footer">

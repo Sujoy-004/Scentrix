@@ -1,9 +1,11 @@
 from cryptography.fernet import Fernet
+
 from app.config import settings
+
 
 class DataVault:
     """AES-256 Fernet-based encryption for PII fields."""
-    
+
     def __init__(self):
         self.fernet = Fernet(settings.data_encryption_key.encode())
 

@@ -8,41 +8,40 @@ Provides endpoints for:
 """
 
 import json
-from datetime import datetime, timezone
-from datetime import timedelta
 import logging
-from typing import Optional, List, Dict, Any
+import os
+import sys
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Query, status, Depends
-import sys
-import os
 from celery.result import AsyncResult
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user_id, get_optional_user_id
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.database import get_session
 from app.celery_app import celery_app
-from app.services.catalog import load_recommendation_catalog
-from app.services.job_store import create_job, get_job, is_job_timed_out, update_job
+from app.database import get_session
 from app.models.models import UserInteractionEvent
-from app.tasks.recommend_tasks import recommend_by_profile_task, recommend_by_text_task
 from app.routers.recommendations import get_encoder
-from app.services.hybrid_search import recommender
 from app.schemas.schemas import (
-    FragranceDetail,
+    FragranceAccord,
     FragranceCatalogItem,
     FragranceCatalogPage,
+    FragranceDetail,
+    FragranceNote,
     FragranceSearchResult,
-    TextRecommendationRequest,
-    RecommendationJob,
-    RecommendationResult,
     RecommendationInteractionBatchRequest,
     RecommendationInteractionBatchResponse,
+    RecommendationJob,
+    RecommendationResult,
     RecommendationWeeklyMetrics,
-    FragranceNote,
-    FragranceAccord,
+    TextRecommendationRequest,
 )
+from app.services.catalog import load_recommendation_catalog
+from app.services.hybrid_search import recommender
+from app.services.job_store import create_job, get_job, is_job_timed_out, update_job
+from app.tasks.recommend_tasks import recommend_by_profile_task, recommend_by_text_task
 
 # Attempt to import neo4j local client
 try:
@@ -62,10 +61,10 @@ def _matches_text(value: str, query: str) -> bool:
 def _catalog_filtered_rows_from_list(
     rows: list[dict[str, Any]],
     *,
-    query: Optional[str] = None,
-    brand: Optional[str] = None,
-    family: Optional[str] = None,
-    concentration: Optional[str] = None,
+    query: str | None = None,
+    brand: str | None = None,
+    family: str | None = None,
+    concentration: str | None = None,
 ) -> list[dict[str, Any]]:
     query_norm = (query or "").strip().lower()
     brand_norm = (brand or "").strip().lower()
@@ -87,7 +86,7 @@ def _catalog_filtered_rows_from_list(
         if isinstance(accords, str): accords = [a.strip() for a in accords.split(",")]
         if isinstance(middle_notes, str): middle_notes = [n.strip() for n in middle_notes.split(",")]
         if isinstance(base_notes, str): base_notes = [n.strip() for n in base_notes.split(",")]
-        
+
         top_notes = [str(n).strip() for n in top_notes if n and str(n).strip()]
         accords = [str(a).strip() for a in accords if a and str(a).strip()]
         middle_notes = [str(n).strip() for n in middle_notes if n and str(n).strip()]
@@ -98,7 +97,8 @@ def _catalog_filtered_rows_from_list(
             continue
 
         if family_norm:
-            family_hit = any(family_norm in accord.lower() for accord in accords)
+            # Synchronized with UI: Only show if it's one of the top 2 visible accords.
+            family_hit = any(family_norm in accord.lower() for accord in accords[:2])
             if not family_hit:
                 continue
 
@@ -127,6 +127,8 @@ def _catalog_filtered_rows_from_list(
                 "middle_notes": middle_notes,
                 "base_notes": base_notes,
                 "accords": accords,
+                "rating": row.get("rating", 0.0),
+                "match_score": row.get("match_score", 0.0),
             }
         )
 
@@ -178,7 +180,7 @@ def _safe_pct(numerator: int, denominator: int) -> float:
     return round((numerator / denominator) * 100.0, 1)
 
 
-def _parse_context_json(raw: Optional[str]) -> dict[str, Any]:
+def _parse_context_json(raw: str | None) -> dict[str, Any]:
     if not raw:
         return {}
     try:
@@ -207,17 +209,17 @@ def get_graph_client():
 
 @router.get("/catalog", response_model=FragranceCatalogPage)
 async def get_catalog(
-    q: Optional[str] = Query(None, min_length=1, max_length=100),
-    brand: Optional[str] = Query(None),
-    family: Optional[str] = Query(None),
-    concentration: Optional[str] = Query(None),
+    q: str | None = Query(None, min_length=1, max_length=100),
+    brand: str | None = Query(None),
+    family: str | None = Query(None),
+    concentration: str | None = Query(None),
     limit: int = Query(24, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    sort: Optional[str] = Query(None),
+    sort: str | None = Query(None),
 ) -> FragranceCatalogPage:
     from app.services.catalog import load_recommendation_catalog_async
     all_rows = await load_recommendation_catalog_async()
-    
+
     # Process filtering in memory (already loaded as a list)
     rows = _catalog_filtered_rows_from_list(
         all_rows,
@@ -227,28 +229,26 @@ async def get_catalog(
         concentration=concentration,
     )
 
-    # Hydrate ALL rows with stable stats before sorting
-    hydrated_rows = []
-    for row in rows:
-        stable = abs(hash(row["id"]))
-        rating = min(round(3.6 + ((stable % 14) / 10.0), 1), 5.0)
-        match_score = min(round(70 + (stable % 31), 1), 100.0)
-        hydrated_rows.append({
-            **row,
-            "rating": rating,
-            "match_score": match_score
-        })
-
-    # Apply Sorting logic
-    if sort == "rating":
-        hydrated_rows.sort(key=lambda x: x["rating"], reverse=True)
+    # Apply Sorting logic (Metadata is now pre-hydrated in catalog.py)
+    if family:
+        # Prioritize results where the selected family is the PRIMARY accord
+        # Uses substring matching to catch "Warm Spicy", "Fresh Spicy", etc.
+        def family_relevance(x):
+            accords = [a.lower() for a in x.get("accords", [])]
+            for i, accord in enumerate(accords):
+                if family.lower() in accord:
+                    return i
+            return 999
+        rows.sort(key=family_relevance)
+    elif sort == "rating":
+        rows.sort(key=lambda x: x.get("rating", 0.0), reverse=True)
     elif sort == "match":
-        hydrated_rows.sort(key=lambda x: x["match_score"], reverse=True)
+        rows.sort(key=lambda x: x.get("match_score", 0.0), reverse=True)
     elif sort == "name":
-        hydrated_rows.sort(key=lambda x: x["name"].lower())
+        rows.sort(key=lambda x: str(x.get("name", "")).lower())
 
-    total = len(hydrated_rows)
-    page_rows = hydrated_rows[offset : offset + limit]
+    total = len(rows)
+    page_rows = rows[offset : offset + limit]
 
     items: list[FragranceCatalogItem] = []
     for row in page_rows:
@@ -274,13 +274,13 @@ async def get_catalog(
     return FragranceCatalogPage(items=items, total=total, limit=limit, offset=offset)
 
 
-@router.get("", response_model=List[FragranceSearchResult])
+@router.get("", response_model=list[FragranceSearchResult])
 async def list_fragrances(
     limit: int = Query(10, ge=1, le=50),
     offset: int = Query(0, ge=0),
-    brand: Optional[str] = Query(None),
-    user_id: Optional[int] = Depends(get_optional_user_id),
-) -> List[FragranceSearchResult]:
+    brand: str | None = Query(None),
+    user_id: int | None = Depends(get_optional_user_id),
+) -> list[FragranceSearchResult]:
     """List fragrances with lightweight pagination and optional brand filter."""
     client = get_graph_client()
     if not client:
@@ -357,14 +357,14 @@ async def list_fragrances(
             for row in page_rows
         ]
 
-@router.get("/search", response_model=List[FragranceSearchResult])
+@router.get("/search", response_model=list[FragranceSearchResult])
 async def search_fragrances(
-    q: Optional[str] = Query(None, min_length=1, max_length=100),
-    brand: Optional[str] = Query(None),
-    accord: Optional[str] = Query(None),
+    q: str | None = Query(None, min_length=1, max_length=100),
+    brand: str | None = Query(None),
+    accord: str | None = Query(None),
     limit: int = Query(10, ge=1, le=50),
-    user_id: Optional[int] = Depends(get_optional_user_id),
-) -> List[FragranceSearchResult]:
+    user_id: int | None = Depends(get_optional_user_id),
+) -> list[FragranceSearchResult]:
     """Search fragrances by name, brand, or accord."""
     client = get_graph_client()
     if not client:
@@ -384,7 +384,7 @@ async def search_fragrances(
     # Simplified graph search
     conditions = []
     params: dict[str, Any] = {"limit": limit}
-    
+
     if q:
         # User-centric Search Sanitization: handle space/hyphen interchangeability
         sanitized_q = q.replace(" ", "-").lower()
@@ -394,9 +394,9 @@ async def search_fragrances(
     if brand:
         conditions.append("toLower(f.brand) CONTAINS toLower($brand)")
         params["brand"] = brand
-        
+
     where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-    
+
     query = f"""
     MATCH (f:Fragrance)
     {where_clause}
@@ -404,7 +404,7 @@ async def search_fragrances(
     RETURN f, collect(distinct a.name) as accords
     LIMIT $limit
     """
-    
+
     keyword_results = []
     try:
         results = client.execute_query(query, params)
@@ -432,7 +432,7 @@ async def search_fragrances(
                 query_vec = encoder.generate_embeddings([q])[0]
                 # Use HybridRecommender for the niche 'mood' match
                 raw_semantic = recommender.get_recommendations(query_vec, [])
-                
+
                 for r in raw_semantic:
                     # Deduplication: Don't repeat keyword matches
                     if any(k.id == r["id"] for k in keyword_results):
@@ -443,7 +443,7 @@ async def search_fragrances(
 
     # Fusion and Ranking: Prioritize Keywords, then Neural Vibes
     combined = keyword_results + semantic_results
-    
+
     if combined:
         return combined[:limit]
 
@@ -466,24 +466,24 @@ async def search_fragrances(
 @router.post("/recommend/text", response_model=RecommendationJob)
 async def recommend_by_text(
     request: TextRecommendationRequest,
-    user_id: Optional[int] = Depends(get_optional_user_id),
+    user_id: int | None = Depends(get_optional_user_id),
 ) -> RecommendationJob:
     """Generate recommendation from text description (async job).
-    
+
     Uses Sentence-BERT to encode the text query and returns top-10 similar fragrances
     based on description embeddings and user taste vector (if authenticated).
-    
+
     Args:
         request: Text query and limit (default 10)
         user_id: Optional authenticated user for personalized scoring
         session: Database session
-        
+
     Returns:
         RecommendationJob with job_id and processing status
     """
     effective_user_id = user_id if user_id is not None else 0
     job_id = str(uuid4())
-    
+
     try:
         await create_job(job_id=job_id, user_id=effective_user_id, status="processing", query=request.query)
     except RuntimeError as exc:
@@ -492,9 +492,9 @@ async def recommend_by_text(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Recommendation store unavailable",
         )
-    
+
     logger.info(f"Created recommendation job {job_id} for query: {request.query[:50]}")
-    
+
     try:
         async_task = recommend_by_text_task.delay(
             job_id=job_id,
@@ -515,7 +515,7 @@ async def recommend_by_text(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Recommendation queue unavailable",
         )
-    
+
     return RecommendationJob(
         job_id=job_id,
         status="processing",
@@ -568,7 +568,7 @@ async def ingest_recommendation_interactions(
 @router.get("/{fragrance_id}", response_model=FragranceDetail)
 async def get_fragrance_detail(
     fragrance_id: str,
-    user_id: Optional[int] = Depends(get_optional_user_id),
+    user_id: int | None = Depends(get_optional_user_id),
 ) -> FragranceDetail:
     """Get fragrance detail including notes, accords, and similarity to user profile."""
     client = get_graph_client()
@@ -584,8 +584,8 @@ async def get_fragrance_detail(
     OPTIONAL MATCH (f)-[a:BELONGS_TO_ACCORD]->(ac:Accord)
     WITH f, r, n, ac
     OPTIONAL MATCH (f)-[s:SIMILAR_TO]-(other:Fragrance)
-    RETURN f, 
-           collect(distinct {note: n.name, type: type(r), category: n.category}) as notes, 
+    RETURN f,
+           collect(distinct {note: n.name, type: type(r), category: n.category}) as notes,
            collect(distinct ac.name) as accords,
            collect(distinct {id: other.id, name: other.name, brand: other.brand, score: s.score})[0..5] as neighbors
     """
@@ -596,10 +596,10 @@ async def get_fragrance_detail(
             if fallback_match is not None:
                 return _catalog_row_to_detail(fallback_match, fragrance_id)
             raise HTTPException(status_code=404, detail="Fragrance not found")
-            
+
         record = results[0]
         f_node = record["f"]
-        
+
         # Parse notes
         top, mid, base = [], [], []
         for n in record["notes"]:
@@ -609,10 +609,10 @@ async def get_fragrance_detail(
                 if "top" in note_cat: top.append(n_obj)
                 elif "mid" in note_cat: mid.append(n_obj)
                 else: base.append(n_obj)
-                
+
         # Parse accords
         accords = [FragranceAccord(id=a, name=a) for a in record["accords"] if a]
-        
+
         # Parse neighbors
         neighbors = []
         for n in record.get("neighbors", []):
@@ -654,7 +654,7 @@ async def get_recommendation_weekly_metrics(
     session: AsyncSession = Depends(get_session),
 ) -> RecommendationWeeklyMetrics:
     """Return a 7-day recommendation quality dashboard for the current user."""
-    cutoff_naive = (datetime.now(timezone.utc) - timedelta(days=7)).replace(tzinfo=None)
+    cutoff_naive = (datetime.now(UTC) - timedelta(days=7)).replace(tzinfo=None)
 
     from sqlalchemy import select
     result = await session.execute(
@@ -741,16 +741,16 @@ async def get_recommendation_weekly_metrics(
 @router.get("/recommend/{job_id}", response_model=RecommendationResult | RecommendationJob)
 async def get_recommendation_result(
     job_id: str,
-    user_id: Optional[int] = Depends(get_optional_user_id),
+    user_id: int | None = Depends(get_optional_user_id),
 ) -> dict:
     """Poll async recommendation job result.
-    
+
     Args:
         job_id: Job ID from recommend endpoint
-        
+
     Returns:
         RecommendationResult if complete, RecommendationJob if processing
-        
+
     Raises:
         HTTPException: 404 if job not found
     """
@@ -782,7 +782,7 @@ async def get_recommendation_result(
             payload = result.result if isinstance(result.result, dict) else {}
             generated_at = payload.get("generated_at")
             if not isinstance(generated_at, str):
-                generated_at = datetime.now(timezone.utc).isoformat()
+                generated_at = datetime.now(UTC).isoformat()
 
             await update_job(
                 job_id,
@@ -826,9 +826,9 @@ async def get_recommendation_result(
             try:
                 parsed_generated_at = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
             except ValueError:
-                parsed_generated_at = datetime.now(timezone.utc)
+                parsed_generated_at = datetime.now(UTC)
         else:
-            parsed_generated_at = datetime.now(timezone.utc)
+            parsed_generated_at = datetime.now(UTC)
 
         return RecommendationResult(
             job_id=job_id,
@@ -857,35 +857,33 @@ async def get_recommendation_result(
 @router.post("/recommend/profile", response_model=RecommendationJob)
 async def recommend_by_profile(
     limit: int = Query(10, ge=1, le=50),
-    user_id: Optional[int] = Depends(get_optional_user_id),
+    user_id: int | None = Depends(get_optional_user_id),
     session: AsyncSession = Depends(get_session),
 ) -> RecommendationJob:
     """Generate recommendations based on user's fragrance ratings (async job).
-    
+
     Requires authentication. Uses user's taste vector built from their ratings
     to personalize recommendations via Bayesian Personalized Ranking (BPR).
-    
+
     Args:
         limit: Max recommendations to return
         user_id: Current authenticated user
         session: Database session
-        
+
     Returns:
         RecommendationJob with job_id and processing status
-        
+
     Raises:
         HTTPException: 401 if user not authenticated
     """
     effective_user_id = user_id if user_id is not None else 0
-    from sqlalchemy import select
-    from app.models.models import FragranceRating
-    
+
     # Assuming session is available or passed via dependency
     # For this snippet, we assume session is available in scope or via dependency
     # (Placeholder for session logic)
-    
+
     job_id = str(uuid4())
-    
+
     try:
         await create_job(job_id=job_id, user_id=effective_user_id, status="processing", query=None)
     except RuntimeError as exc:
@@ -894,9 +892,9 @@ async def recommend_by_profile(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Recommendation store unavailable",
         )
-    
+
     logger.info(f"Created profile recommendation job {job_id} for user {effective_user_id}")
-    
+
     try:
         async_task = recommend_by_profile_task.delay(
             job_id=job_id,
@@ -916,7 +914,7 @@ async def recommend_by_profile(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Recommendation queue unavailable",
         )
-    
+
     return RecommendationJob(
         job_id=job_id,
         status="processing",

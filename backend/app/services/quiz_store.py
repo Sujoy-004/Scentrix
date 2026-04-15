@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 from redis.asyncio import Redis, from_url
 
@@ -13,7 +13,7 @@ from app.config import settings
 QUIZ_KEY_PREFIX = "adaptive_quiz_session"
 QUIZ_TTL_SECONDS = 30 * 60
 
-_redis_client: Optional[Redis] = None
+_redis_client: Redis | None = None
 
 
 def _quiz_key(session_id: str) -> str:

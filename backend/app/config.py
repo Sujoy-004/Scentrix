@@ -1,8 +1,7 @@
 """Backend configuration module."""
 
 from pydantic import AliasChoices, Field, field_validator
-from pydantic_settings import BaseSettings
-from pydantic_settings import SettingsConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -57,6 +56,20 @@ class Settings(BaseSettings):
 
     # API
     api_prefix: str = "/api/v1"
+
+    # CORS
+    allowed_origins: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        "http://localhost",
+    ]
+
+    # Pinecone Vector Search
+    pinecone_api_key: str | None = Field(default=None, validation_alias=AliasChoices("PINECONE_API_KEY"))
+    pinecone_environment: str = Field(default="us-west4-gcp", validation_alias=AliasChoices("PINECONE_ENVIRONMENT"))
+    pinecone_index_name: str = Field(default="scentscape-fragrances", validation_alias=AliasChoices("PINECONE_INDEX_NAME"))
 
     @field_validator("database_url", mode="before")
     @classmethod

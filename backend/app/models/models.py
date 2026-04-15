@@ -4,10 +4,9 @@ Defines user auth/session entities, ratings/saves, and interaction ingestion mod
 """
 
 from datetime import UTC, datetime
-from typing import Optional
 
 from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text
-from sqlalchemy.orm import declarative_base, mapped_column, Mapped
+from sqlalchemy.orm import declarative_base, mapped_column
 
 Base = declarative_base()
 
@@ -27,7 +26,7 @@ class User(Base):
     __allow_unmapped__ = True
 
     id: int = mapped_column(Integer, primary_key=True, index=True)
-    full_name: Optional[str] = mapped_column(String(100), nullable=True)
+    full_name: str | None = mapped_column(String(100), nullable=True)
     encrypted_email: str = mapped_column(Text, unique=True, nullable=False)
     email_hash: str = mapped_column(String(64), unique=True, index=True, nullable=False)
     hashed_password: str = mapped_column(String(255), nullable=False)
@@ -43,7 +42,7 @@ class User(Base):
     )
 
     # GDPR fields
-    gdpr_deletion_requested_at: Optional[datetime] = mapped_column(
+    gdpr_deletion_requested_at: datetime | None = mapped_column(
         DateTime,
         nullable=True,
         default=None,
@@ -56,7 +55,7 @@ class User(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<User(id={self.id}, email={self.email})>"
+        return f"<User(id={self.id}, email_hash={self.email_hash})>"
 
 
 class FragranceRating(Base):
@@ -74,15 +73,15 @@ class FragranceRating(Base):
     fragrance_neo4j_id: str = mapped_column(String(100), nullable=False, index=True)
 
     # Simple quiz rating (1-10 scale) — set by the Discovery Protocol
-    quiz_rating: Optional[float] = mapped_column(Float, nullable=True)
+    quiz_rating: float | None = mapped_column(Float, nullable=True)
 
     # Five perceptual dimensions (0-5 scale) — legacy/advanced analytics
-    rating_sweetness: Optional[float] = mapped_column(Float, nullable=True)
-    rating_woodiness: Optional[float] = mapped_column(Float, nullable=True)
-    rating_longevity: Optional[float] = mapped_column(Float, nullable=True)
-    rating_projection: Optional[float] = mapped_column(Float, nullable=True)
-    rating_freshness: Optional[float] = mapped_column(Float, nullable=True)
-    overall_satisfaction: Optional[float] = mapped_column(Float, nullable=True)
+    rating_sweetness: float | None = mapped_column(Float, nullable=True)
+    rating_woodiness: float | None = mapped_column(Float, nullable=True)
+    rating_longevity: float | None = mapped_column(Float, nullable=True)
+    rating_projection: float | None = mapped_column(Float, nullable=True)
+    rating_freshness: float | None = mapped_column(Float, nullable=True)
+    overall_satisfaction: float | None = mapped_column(Float, nullable=True)
 
     # Metadata
     created_at: datetime = mapped_column(DateTime, default=utc_now, nullable=False)
@@ -113,7 +112,7 @@ class SavedFragrance(Base):
     id: int = mapped_column(Integer, primary_key=True, index=True)
     user_id: int = mapped_column(Integer, nullable=False, index=True)
     fragrance_neo4j_id: str = mapped_column(String(100), nullable=False, index=True)
-    notes: Optional[str] = mapped_column(Text, nullable=True)
+    notes: str | None = mapped_column(Text, nullable=True)
     created_at: datetime = mapped_column(DateTime, default=utc_now, nullable=False)
 
     def __repr__(self) -> str:
@@ -133,7 +132,7 @@ class RefreshToken(Base):
     user_id: int = mapped_column(Integer, nullable=False, index=True)
     token: str = mapped_column(String(500), unique=True, nullable=False)
     expires_at: datetime = mapped_column(DateTime, nullable=False)
-    revoked_at: Optional[datetime] = mapped_column(DateTime, nullable=True, default=None)
+    revoked_at: datetime | None = mapped_column(DateTime, nullable=True, default=None)
     created_at: datetime = mapped_column(DateTime, default=utc_now, nullable=False)
 
     def __repr__(self) -> str:
@@ -154,17 +153,17 @@ class UserInteractionEvent(Base):
         nullable=False,
         comment="Event type, e.g. view, click, save, rate, purchase",
     )
-    interaction_value: Optional[float] = mapped_column(
+    interaction_value: float | None = mapped_column(
         Float,
         nullable=True,
         comment="Optional numeric value (e.g., dwell_seconds, rating)",
     )
-    source: Optional[str] = mapped_column(
+    source: str | None = mapped_column(
         String(50),
         nullable=True,
         comment="Origin channel (web, mobile, api, import)",
     )
-    context_json: Optional[str] = mapped_column(
+    context_json: str | None = mapped_column(
         Text,
         nullable=True,
         comment="Optional serialized metadata for offline feature generation",

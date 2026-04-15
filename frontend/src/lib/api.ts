@@ -6,7 +6,7 @@ const BASE_URL = typeof window === 'undefined'
 
 const apiInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000,
+  timeout: 60000, // 60s for deep neural synthesis
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -97,7 +97,30 @@ export const api = {
     const { data } = await apiInstance.get('/recommendations/personalized');
     return Array.isArray(data) ? data : [];
   },
+  // Adaptive Quiz Protocol
+  submitQuizResponse: async (sessionId: string, payload: { fragrance_id: string; rating_1_to_10: number; source: string }) => {
+    const { data } = await apiInstance.post(`/quiz/session/${sessionId}/responses`, payload);
+    return data;
+  },
+
+  evaluateQuizSession: async (sessionId: string, payload: { force: boolean }) => {
+    const { data } = await apiInstance.post(`/quiz/session/${sessionId}/evaluate`, payload);
+    return data;
+  },
+
+  getNextQuizQuestions: async (sessionId: string, count: number) => {
+    const { data } = await apiInstance.get(`/quiz/session/${sessionId}/next-questions`, {
+      params: { count }
+    });
+    return data;
+  },
+
+  finalizeQuizSession: async (sessionId: string) => {
+    const { data } = await apiInstance.post(`/quiz/session/${sessionId}/finalize`);
+    return data;
+  },
 };
+
 
 export interface FragranceCatalogItem {
   id: string;

@@ -3,8 +3,7 @@
 Provides token generation, verification, and password hashing.
 """
 
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from jose import JWTError, jwt
@@ -12,7 +11,6 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 
 from app.config import settings
-
 
 pwd_context = CryptContext(
     schemes=["bcrypt"],
@@ -44,22 +42,22 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def create_access_token(user_id: int, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(user_id: int, expires_delta: timedelta | None = None) -> str:
     """Create a JWT access token.
-    
+
     Args:
         user_id: User ID to encode in token
         expires_delta: Custom expiration time. Defaults to ACCESS_TOKEN_EXPIRE_MINUTES
-        
+
     Returns:
         Encoded JWT token
     """
     if expires_delta is None:
         expires_delta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    
-    now = datetime.now(timezone.utc)
+
+    now = datetime.now(UTC)
     expire = now + expires_delta
-    
+
     payload = {
         "sub": str(user_id),
         "iat": int(now.timestamp()),
@@ -67,27 +65,27 @@ def create_access_token(user_id: int, expires_delta: Optional[timedelta] = None)
         "type": "access",
         "jti": str(uuid4()),
     }
-    
+
     encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 
-def create_refresh_token(user_id: int, expires_delta: Optional[timedelta] = None) -> str:
+def create_refresh_token(user_id: int, expires_delta: timedelta | None = None) -> str:
     """Create a JWT refresh token.
-    
+
     Args:
         user_id: User ID to encode in token
         expires_delta: Custom expiration time. Defaults to REFRESH_TOKEN_EXPIRE_DAYS
-        
+
     Returns:
         Encoded JWT token
     """
     if expires_delta is None:
         expires_delta = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    
-    now = datetime.now(timezone.utc)
+
+    now = datetime.now(UTC)
     expire = now + expires_delta
-    
+
     payload = {
         "sub": str(user_id),
         "iat": int(now.timestamp()),
@@ -95,20 +93,20 @@ def create_refresh_token(user_id: int, expires_delta: Optional[timedelta] = None
         "type": "refresh",
         "jti": str(uuid4()),
     }
-    
+
     encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 
-def verify_token(token: str) -> Optional[TokenPayload]:
+def verify_token(token: str) -> TokenPayload | None:
     """Verify and decode a JWT token.
-    
+
     Args:
         token: JWT token string
-        
+
     Returns:
         TokenPayload if valid, None if invalid
-        
+
     Raises:
         JWTError: If token is invalid or expired
     """
@@ -119,12 +117,12 @@ def verify_token(token: str) -> Optional[TokenPayload]:
         return None
 
 
-def get_user_id_from_token(token: str) -> Optional[int]:
+def get_user_id_from_token(token: str) -> int | None:
     """Extract user ID from JWT token.
-    
+
     Args:
         token: JWT token string
-        
+
     Returns:
         User ID if valid token, None otherwise
     """

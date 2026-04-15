@@ -8,7 +8,6 @@ Brings the live DB in line with the current ORM models:
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
 
 revision = "003_fix_schema"
 down_revision = "002_add_user_interaction_events"
@@ -18,6 +17,10 @@ depends_on = None
 
 def upgrade() -> None:
     conn = op.get_bind()
+
+    # ── PREREQUISITES ───────────────────────────────────────────────────────
+    # Ensure pgcrypto is available for the SHA-256 digest function
+    conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS pgcrypto"))
 
     # ── USERS table ─────────────────────────────────────────────────────────
     inspector = sa.inspect(conn)
@@ -75,6 +78,15 @@ def upgrade() -> None:
     except Exception:
         pass  # Already exists
 
+    try:
+        op.create_unique_constraint("uq_users_encrypted_email", "users", ["encrypted_email"])
+    except Exception:
+        pass
+
+    # Final cleanup: drop legacy email column if all data is migrated
+    if "email" in user_cols:
+        op.drop_column("users", "email")
+
     # ── FRAGRANCE_RATINGS table ─────────────────────────────────────────────
     rating_cols = {c["name"] for c in inspector.get_columns("fragrance_ratings")}
 
@@ -102,10 +114,14 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Non-destructive downgrade — just remove added columns
+    # Non-destructive downgrade — just remove added columns and restore email
     op.drop_column("fragrance_ratings", "quiz_rating")
     op.drop_index("ix_users_email_hash", table_name="users")
+    op.drop_constraint("uq_users_encrypted_email", "users", type_="unique")
     op.drop_column("users", "email_hash")
     op.drop_column("users", "encrypted_email")
     op.drop_column("users", "full_name")
     op.drop_column("users", "role")
+
+    # Restore legacy email column
+    op.add_column("users", sa.Column("email", sa.String(255), nullable=True))

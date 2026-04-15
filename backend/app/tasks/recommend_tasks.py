@@ -8,8 +8,9 @@ import logging
 import math
 import random
 import re
+from collections.abc import Sequence
 from datetime import UTC, datetime
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any
 
 from celery import Task
 from sqlalchemy import select
@@ -18,7 +19,6 @@ from app.celery_app import celery_app
 from app.database import async_session_maker
 from app.models.models import FragranceRating
 from app.services.catalog import load_recommendation_catalog
-
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ EXTRA_FEATURE_DIM = 12
 VECTOR_DIM = len(FEATURE_TERMS) + EXTRA_FEATURE_DIM
 
 
-def _load_catalog() -> List[Dict[str, Any]]:
+def _load_catalog() -> list[dict[str, Any]]:
     """Load merged catalog: large canonical primary + seed fallback."""
     return load_recommendation_catalog()
 
@@ -48,7 +48,7 @@ def _split_train_val_test(
     train_ratio: float = 0.7,
     val_ratio: float = 0.15,
     seed: int = 42,
-) -> Dict[str, List[Any]]:
+) -> dict[str, list[Any]]:
     """Deterministically split rows into train/val/test partitions."""
     if not rows:
         return {"train": [], "val": [], "test": []}
@@ -89,7 +89,7 @@ def _tokenize(value: str) -> set[str]:
     return set(re.findall(r"[a-z0-9']+", value.lower()))
 
 
-def _fragrance_tokens(fragrance: Dict[str, Any]) -> set[str]:
+def _fragrance_tokens(fragrance: dict[str, Any]) -> set[str]:
     tokens: set[str] = set()
     tokens.update(_tokenize(str(fragrance.get("id", "") or "")))
     for key in ("name", "brand", "description"):
@@ -144,9 +144,9 @@ def _encode_gender(raw_gender: Any) -> tuple[float, float, float]:
     return 0.0, 0.0, 0.0
 
 
-def _fragrance_feature_vector(fragrance: Dict[str, Any]) -> List[float]:
+def _fragrance_feature_vector(fragrance: dict[str, Any]) -> list[float]:
     tokens = _fragrance_tokens(fragrance)
-    vector: List[float] = []
+    vector: list[float] = []
     for terms in FEATURE_TERMS.values():
         hits = sum(1 for term in terms if term in tokens) if tokens else 0
         vector.append(hits / max(len(terms), 1))
@@ -185,7 +185,7 @@ def _cosine_similarity(left: Sequence[float], right: Sequence[float]) -> float:
     if not left or not right or len(left) != len(right):
         return 0.0
 
-    dot = sum(a * b for a, b in zip(left, right))
+    dot = sum(a * b for a, b in zip(left, right, strict=False))
     left_norm = math.sqrt(sum(a * a for a in left))
     right_norm = math.sqrt(sum(b * b for b in right))
     if left_norm == 0.0 or right_norm == 0.0:
@@ -193,7 +193,7 @@ def _cosine_similarity(left: Sequence[float], right: Sequence[float]) -> float:
     return dot / (left_norm * right_norm)
 
 
-def _weighted_average(vectors: Sequence[Sequence[float]], weights: Sequence[float]) -> List[float]:
+def _weighted_average(vectors: Sequence[Sequence[float]], weights: Sequence[float]) -> list[float]:
     if not vectors:
         return [0.0] * VECTOR_DIM
 
@@ -202,7 +202,7 @@ def _weighted_average(vectors: Sequence[Sequence[float]], weights: Sequence[floa
         return [0.0] * VECTOR_DIM
 
     out = [0.0] * len(vectors[0])
-    for vector, weight in zip(vectors, weights):
+    for vector, weight in zip(vectors, weights, strict=False):
         safe_weight = max(weight, 0.0)
         for idx, value in enumerate(vector):
             out[idx] += value * safe_weight
@@ -210,7 +210,7 @@ def _weighted_average(vectors: Sequence[Sequence[float]], weights: Sequence[floa
     return [value / total_weight for value in out]
 
 
-async def _fetch_user_ratings_async(user_id: int) -> List[FragranceRating]:
+async def _fetch_user_ratings_async(user_id: int) -> list[FragranceRating]:
     async with async_session_maker() as session:
         result = await session.execute(
             select(FragranceRating).where(FragranceRating.user_id == user_id)
@@ -218,7 +218,7 @@ async def _fetch_user_ratings_async(user_id: int) -> List[FragranceRating]:
         return list(result.scalars().all())
 
 
-def _fetch_user_ratings(user_id: int) -> List[FragranceRating]:
+def _fetch_user_ratings(user_id: int) -> list[FragranceRating]:
     """Load user ratings in Celery context while tolerating unavailable DB dependencies."""
     try:
         return asyncio.run(_fetch_user_ratings_async(user_id))
@@ -235,10 +235,10 @@ def _fetch_user_ratings(user_id: int) -> List[FragranceRating]:
 
 
 def _serialize_recommendation(
-    fragrance: Dict[str, Any],
+    fragrance: dict[str, Any],
     score: float,
     reason: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     top_notes = [
         str(note).strip()
         for note in (fragrance.get("top_notes") or [])
@@ -270,10 +270,10 @@ def _serialize_recommendation(
 
 def _build_user_taste_vector(
     rating_rows: Sequence[FragranceRating],
-    catalog_by_id: Dict[str, Dict[str, Any]],
-) -> List[float]:
-    vectors: List[List[float]] = []
-    weights: List[float] = []
+    catalog_by_id: dict[str, dict[str, Any]],
+) -> list[float]:
+    vectors: list[list[float]] = []
+    weights: list[float] = []
     for row in rating_rows:
         fragrance = catalog_by_id.get(str(row.fragrance_neo4j_id))
         if fragrance is None:
@@ -286,15 +286,15 @@ def _build_user_taste_vector(
 
 def _rank_by_text(
     query: str,
-    catalog: Sequence[Dict[str, Any]],
-    user_taste_vector: Optional[Sequence[float]],
+    catalog: Sequence[dict[str, Any]],
+    user_taste_vector: Sequence[float] | None,
     limit: int,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     query_tokens = _tokenize(query)
     if not query_tokens:
         return []
 
-    ranked: List[tuple[float, Dict[str, Any], str]] = []
+    ranked: list[tuple[float, dict[str, Any], str]] = []
     for fragrance in catalog:
         fragrance_tokens = _fragrance_tokens(fragrance)
         overlap = len(query_tokens.intersection(fragrance_tokens))
@@ -325,12 +325,12 @@ def _rank_by_text(
 
 
 def _rank_by_profile(
-    catalog: Sequence[Dict[str, Any]],
+    catalog: Sequence[dict[str, Any]],
     user_taste_vector: Sequence[float],
     rated_ids: set[str],
     limit: int,
-) -> List[Dict[str, Any]]:
-    ranked: List[tuple[float, Dict[str, Any], str]] = []
+) -> list[dict[str, Any]]:
+    ranked: list[tuple[float, dict[str, Any], str]] = []
     for fragrance in catalog:
         frag_id = str(fragrance.get("id", ""))
         if frag_id in rated_ids:
@@ -380,8 +380,8 @@ def recommend_by_text_task(
     job_id: str,
     query: str,
     limit: int = 10,
-    user_id: Optional[int] = None,
-) -> Dict:
+    user_id: int | None = None,
+) -> dict:
     """Generate text-based fragrance recommendations using lexical+profile ranking."""
     try:
         logger.info(f"[{job_id}] Starting text-based recommendation for: {query[:50]}")
@@ -396,7 +396,7 @@ def recommend_by_text_task(
             len(catalog_split["test"]),
         )
 
-        user_taste_vector: Optional[List[float]] = None
+        user_taste_vector: list[float] | None = None
         if user_id:
             logger.info("[%s] Building user taste vector for user=%s", job_id, user_id)
             ratings = _fetch_user_ratings(user_id)
@@ -421,7 +421,7 @@ def recommend_by_text_task(
                 "test": len(catalog_split["test"]),
             },
         }
-    
+
     except Exception as exc:
         logger.error(f"[{job_id}] Recommendation task failed: {exc}")
         self.retry(exc=exc)
@@ -439,7 +439,7 @@ def recommend_by_profile_task(
     job_id: str,
     user_id: int,
     limit: int = 10,
-) -> Dict:
+) -> dict:
     """Generate user-profile recommendations with split-aware taste modeling."""
     try:
         logger.info(f"[{job_id}] Starting profile-based recommendation for user {user_id}")
@@ -474,7 +474,7 @@ def recommend_by_profile_task(
                 "test": len(interaction_split["test"]),
             },
         }
-    
+
     except Exception as exc:
         logger.error(f"[{job_id}] Profile recommendation task failed: {exc}")
         self.retry(exc=exc)
@@ -489,15 +489,15 @@ def recommend_by_profile_task(
 def generate_user_embeddings_task(
     self,
     user_id: int,
-) -> Dict:
+) -> dict:
     """Generate and cache user taste vector embeddings.
-    
+
     Called periodically for each user who has rated fragrances.
     Caches result in Redis for fast access during recommendations.
-    
+
     Args:
         user_id: User ID for whom to generate embeddings
-        
+
     Returns:
         Dictionary with task status and embedding shape
     """
@@ -521,7 +521,7 @@ def generate_user_embeddings_task(
                 "test": len(split["test"]),
             },
         }
-    
+
     except Exception as exc:
         logger.error(f"Embedding generation failed for user {user_id}: {exc}")
         self.retry(exc=exc)
@@ -534,7 +534,7 @@ def generate_user_embeddings_task(
     default_retry_delay=120,
     name="app.tasks.rebuild_embeddings",
 )
-def rebuild_embeddings_task(self) -> Dict:
+def rebuild_embeddings_task(self) -> dict:
     """Rebuild text and graph embeddings from the current seed dataset."""
     try:
         fragrances = load_recommendation_catalog(force_reload=True)
@@ -542,8 +542,8 @@ def rebuild_embeddings_task(self) -> Dict:
             raise FileNotFoundError("Merged recommendation catalog is empty")
 
         # Lazy imports to avoid forcing ML deps on API startup.
-        from ml.models.text_encoder import TextEncoder
         from ml.models.graph_sage import GraphEmbedder
+        from ml.models.text_encoder import TextEncoder
 
         text_encoder = TextEncoder()
         text_encoder.process_and_upload(fragrances)

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import UTC, datetime
-from typing import Any, Optional
+from typing import Any
 
 from redis.asyncio import Redis, from_url
 
@@ -17,7 +17,7 @@ JOB_KEY_PREFIX = "recommendation_job"
 JOB_TTL_SECONDS = 60 * 60
 JOB_TIMEOUT_SECONDS = 60 * 3
 
-_redis_client: Optional[Redis] = None
+_redis_client: Redis | None = None
 
 
 def _job_key(job_id: str) -> str:

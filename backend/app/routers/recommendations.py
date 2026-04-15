@@ -1,15 +1,14 @@
 import logging
-import math
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_optional_user_id, get_current_user_id
+from app.auth.dependencies import get_current_user_id, get_optional_user_id
 from app.database import get_session
-from app.models.models import FragranceRating as DBFragranceRating, SavedFragrance
+from app.models.models import FragranceRating as DBFragranceRating
 from app.services.catalog import load_recommendation_catalog
 
 try:
@@ -24,6 +23,7 @@ logger = logging.getLogger(__name__)
 # ── Module-level caches ───────────────────────────────────────────────────────
 _encoder = None
 _catalog_embeddings_cache = None
+_is_hydrating = False
 
 
 def get_encoder():
@@ -53,19 +53,19 @@ class FragranceRatingInput(BaseModel):
     """A single fragrance rating from the quiz."""
     fragrance_id: str          # ID as sent by the frontend (may have frag_ prefix)
     rating: float              # 1-10 quiz rating
-    top_notes: Optional[List[str]] = None
-    accords: Optional[List[str]] = None
-    description: Optional[str] = None
-    name: Optional[str] = None
-    brand: Optional[str] = None
+    top_notes: list[str] | None = None
+    accords: list[str] | None = None
+    description: str | None = None
+    name: str | None = None
+    brand: str | None = None
 
 
 class GuestRecommendationRequest(BaseModel):
-    ratings: List[FragranceRatingInput]
+    ratings: list[FragranceRatingInput]
 
 
 class BatchRatingRequest(BaseModel):
-    ratings: List[FragranceRatingInput]
+    ratings: list[FragranceRatingInput]
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -75,7 +75,7 @@ def _normalize_id(raw_id: str) -> str:
     return raw_id.replace("frag_syn_", "").replace("frag_", "")
 
 
-def _get_item_text(item: Dict[str, Any]) -> str:
+def _get_item_text(item: dict[str, Any]) -> str:
     parts = [
         str(item.get("name", "")),
         str(item.get("brand", "")),
@@ -86,10 +86,10 @@ def _get_item_text(item: Dict[str, Any]) -> str:
     return " ".join(filter(None, parts))
 
 
-def _cosine_similarity(v1: List[float], v2: List[float]) -> float:
+def _cosine_similarity(v1: list[float], v2: list[float]) -> float:
     if not v1 or not v2 or len(v1) != len(v2):
         return 0.0
-    return sum(a * b for a, b in zip(v1, v2))
+    return sum(a * b for a, b in zip(v1, v2, strict=False))
 
 
 def warmup_neural_engine():
@@ -98,19 +98,24 @@ def warmup_neural_engine():
     catalog = load_recommendation_catalog()
     encoder = get_encoder()
     if catalog and encoder and _catalog_embeddings_cache is None:
-        logger.info(f"Neural Engine: pre-caching {len(catalog)} fragrances …")
-        texts = [_get_item_text(item) for item in catalog]
-        _catalog_embeddings_cache = encoder.generate_embeddings(texts)
-        logger.info("Neural Engine: catalog indexed and ready.")
+        global _is_hydrating
+        _is_hydrating = True
+        try:
+            logger.info(f"Neural Engine: pre-caching {len(catalog)} fragrances …")
+            texts = [_get_item_text(item) for item in catalog]
+            _catalog_embeddings_cache = encoder.generate_embeddings(texts)
+            logger.info("Neural Engine: catalog indexed and ready.")
+        finally:
+            _is_hydrating = False
     return _catalog_embeddings_cache
 
 
 # ── Score engine ──────────────────────────────────────────────────────────────
 
 def _score_catalog(
-    user_ratings: List[FragranceRatingInput],
-    catalog: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
+    user_ratings: list[FragranceRatingInput],
+    catalog: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     """
     Generate recommendations from user quiz ratings.
 
@@ -123,8 +128,8 @@ def _score_catalog(
     catalog_by_norm_id = {_normalize_id(str(item.get("id", ""))): item for item in catalog}
 
     # -- Resolve user rated items against catalog --------------------------
-    rated_items: List[Dict[str, Any]] = []
-    weights: List[float] = []
+    rated_items: list[dict[str, Any]] = []
+    weights: list[float] = []
     liked_notes: set = set()
     liked_accords: set = set()
 
@@ -153,7 +158,7 @@ def _score_catalog(
             total_w = sum(weights) or 1.0
             dim = len(user_embeddings[0])
             user_vec = [0.0] * dim
-            for emb, w in zip(user_embeddings, weights):
+            for emb, w in zip(user_embeddings, weights, strict=False):
                 for i in range(dim):
                     user_vec[i] += emb[i] * (w / total_w)
 
@@ -162,7 +167,7 @@ def _score_catalog(
             scores = catalog_embs.dot(uv).tolist()
 
             results = []
-            for item, score in zip(catalog, scores):
+            for item, score in zip(catalog, scores, strict=False):
                 nid = _normalize_id(str(item.get("id", "")))
                 if nid in seed_ids:
                     continue
@@ -184,17 +189,30 @@ def _score_catalog(
     # -- Heuristic note-overlap path ----------------------------------------
     if liked_notes or liked_accords:
         results = []
+        l_notes = {str(n).lower() for n in liked_notes}
+        l_accords = {str(a).lower() for a in liked_accords}
+
         for item in catalog:
             nid = _normalize_id(str(item.get("id", "")))
             if nid in seed_ids:
                 continue
-            item_notes = set(item.get("top_notes", []) or [])
-            item_accords = set(item.get("accords", []) or [])
-            note_overlap = len(item_notes & liked_notes)
-            accord_overlap = len(item_accords & liked_accords)
+
+            # Use pre-cached sets if available, otherwise fallback (to handle synthetic adds)
+            item_notes = item.get("_notes_set")
+            if item_notes is None:
+                item_notes = {str(n).lower() for n in (item.get("top_notes") or []) + (item.get("middle_notes") or []) + (item.get("base_notes") or [])}
+
+            item_accords = item.get("_accords_set")
+            if item_accords is None:
+                item_accords = {str(a).lower() for a in (item.get("accords") or [])}
+
+            note_overlap = len(item_notes & l_notes)
+            accord_overlap = len(item_accords & l_accords)
+
             total_overlap = note_overlap * 2 + accord_overlap
-            max_possible = max(len(liked_notes) * 2 + len(liked_accords), 1)
+            max_possible = max(len(l_notes) * 2 + len(l_accords), 1)
             score = min(total_overlap / max_possible, 1.0)
+
             results.append({
                 "id": str(item.get("id", "")),
                 "name": str(item.get("name", "Unknown")),
@@ -223,10 +241,13 @@ def _score_catalog(
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+from app.cache import cache
+
+
 @router.post("/rate", status_code=200)
 async def submit_fragrance_rating(
     request: FragranceRatingInput,
-    user_id: Optional[int] = Depends(get_optional_user_id),
+    user_id: int | None = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_session),
 ):
     """
@@ -258,6 +279,10 @@ async def submit_fragrance_rating(
             ))
 
         await db.commit()
+
+        # Invalidate recommendation cache
+        await cache.delete(f"rec:user:{user_id}")
+
         return {"status": "saved"}
 
     except Exception as e:
@@ -286,7 +311,7 @@ async def submit_batch_ratings(
                 )
             )
             row = existing.scalar_one_or_none()
-            
+
             if row:
                 row.quiz_rating = r.rating
             else:
@@ -296,8 +321,12 @@ async def submit_batch_ratings(
                     quiz_rating=r.rating,
                 ))
             count += 1
-            
+
         await db.commit()
+
+        # Invalidate recommendation cache
+        await cache.delete(f"rec:user:{user_id}")
+
         return {"status": "saved", "count": count}
     except Exception as e:
         logger.error(f"Batch rating persist error for user {user_id}: {e}")
@@ -305,26 +334,23 @@ async def submit_batch_ratings(
         raise HTTPException(status_code=500, detail="Failed to sync batch ratings")
 
 
-@router.post("/guest", response_model=List[FragranceRecommendation])
+@router.post("/guest", response_model=list[FragranceRecommendation])
 async def get_guest_recommendations(
     request: GuestRecommendationRequest,
 ):
-    """Score against the full catalog purely from guest quiz ratings."""
-    catalog = load_recommendation_catalog()
-    if not catalog:
-        raise HTTPException(status_code=503, detail="Catalog unavailable")
-
-    if not request.ratings:
-        return []
-
-    warmup_neural_engine()
-    results = _score_catalog(request.ratings, catalog)
-    return [FragranceRecommendation(**r) for r in results]
+    """
+    GATED: Guests no longer receive recommendations until authentication.
+    Returns 403 Forbidden to enforce the signup wall.
+    """
+    raise HTTPException(
+        status_code=403,
+        detail="Neural Synthesis requires an authenticated Elite profile. Please sign up to view your results."
+    )
 
 
-@router.get("/personalized", response_model=List[FragranceRecommendation])
+@router.get("/personalized", response_model=list[FragranceRecommendation])
 async def get_personalized_recommendations(
-    user_id: Optional[int] = Depends(get_optional_user_id),
+    user_id: int | None = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_session),
 ):
     """
@@ -333,6 +359,11 @@ async def get_personalized_recommendations(
     """
     if not user_id:
         return []
+
+    # Check cache first
+    cached_recs = await cache.get(f"rec:user:{user_id}")
+    if cached_recs:
+        return [FragranceRecommendation(**r) for r in cached_recs]
 
     stmt = select(DBFragranceRating).where(DBFragranceRating.user_id == user_id)
     result = await db.execute(stmt)
@@ -347,7 +378,9 @@ async def get_personalized_recommendations(
 
     warmup_neural_engine()
 
-    # Convert DB rows back to the same format as guest ratings
+    from app.services.hybrid_search import recommender  # noqa: E402
+    
+    # Convert DB rows back to the same format for the scoring engine
     guest_ratings = [
         FragranceRatingInput(
             fragrance_id=r.fragrance_neo4j_id,
@@ -355,6 +388,49 @@ async def get_personalized_recommendations(
         )
         for r in saved_ratings
     ]
+    
+    # ── User Profile Vector Generation ──────────────────────────────────────
+    encoder = get_encoder()
+    if not encoder:
+        logger.warning("ML Encoder unavailable, falling back to heuristic scoring.")
+        results = _score_catalog(guest_ratings, catalog)
+    else:
+        try:
+            # 1. Gather texts from user's rated items to build the profile vector
+            rated_items = []
+            weights = []
+            catalog_by_id = {_normalize_id(str(i.get("id", ""))): i for i in catalog}
+            
+            for r in guest_ratings:
+                item = catalog_by_id.get(_normalize_id(r.fragrance_id))
+                if item:
+                    rated_items.append(_get_item_text(item))
+                    weights.append(r.rating)
+            
+            if not rated_items:
+                return []
 
-    results = _score_catalog(guest_ratings, catalog)
+            # 2. Generate embeddings for user profile
+            user_embeddings = encoder.generate_embeddings(rated_items)
+            
+            # 3. Weighted average of embeddings (Profile DNA)
+            total_w = sum(weights) or 1.0
+            dim = len(user_embeddings[0])
+            user_vec = [0.0] * dim
+            for emb, w in zip(user_embeddings, weights, strict=False):
+                for i in range(dim):
+                    user_vec[i] += emb[i] * (w / total_w)
+            
+            # 4. Neural Discovery via Hybrid Engine (Vector + Graph Genetics)
+            seed_ids = [_normalize_id(r.fragrance_id) for r in guest_ratings]
+            results = recommender.get_recommendations(user_vec, seed_ids)
+            
+        except Exception as e:
+            logger.error(f"Hybrid discovery hit a critical fault: {e}")
+            results = _score_catalog(guest_ratings, catalog)
+
+    # Store in cache (expire in 1 hour)
+    if results:
+        await cache.set(f"rec:user:{user_id}", results, expire=3600)
+
     return [FragranceRecommendation(**r) for r in results]

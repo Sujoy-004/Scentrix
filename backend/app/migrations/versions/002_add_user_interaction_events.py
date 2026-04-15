@@ -3,7 +3,6 @@
 import sqlalchemy as sa
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
 revision = "002_add_user_interaction_events"
 down_revision = "001_initial_setup"

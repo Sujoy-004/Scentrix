@@ -47,7 +47,7 @@ export function HeroSection() {
         whileInView="visible"
         viewport={{ once: false }}
       >
-        <div className="hero-content text-center max-w-4xl mx-auto">
+        <div className="hero-content max-w-6xl mx-auto">
           {/* Eyebrow */}
           <motion.p 
             variants={itemVariants}
@@ -59,7 +59,7 @@ export function HeroSection() {
             >
               <Sparkles size={16} />
             </motion.span>
-            <span className="tracking-[0.2em] uppercase font-bold text-[0.7rem] text-primary">
+            <span className="tracking-[0.2em] uppercase font-bold text-[0.7rem] text-primary glow-amber">
               The Digital Alchemist — AI Discovery
             </span>
           </motion.p>
@@ -70,7 +70,7 @@ export function HeroSection() {
             className="hero-title mb-8"
           >
             <span className="hero-title-main">Sculpted by intelligence.</span>
-            <span className="hero-title-sub">Worn by instinct.</span>
+            <span className="hero-title-sub glow-amber-strong">Worn by instinct.</span>
           </motion.h1>
 
           {/* Subtitle */}

@@ -132,22 +132,19 @@ export default function FragranceDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="detail-error">
-        <div className="error-inner">
-          <span className="error-icon">⌛</span>
-          <h2>Loading fragrance profile...</h2>
-        </div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <DiscoveryNeuralLoader />
       </div>
     );
   }
 
   if (!fragrance) {
     return (
-      <div className="detail-error">
+      <div className="detail-error min-h-screen bg-black">
         <div className="error-inner">
           <span className="error-icon">🔍</span>
-          <h2>Fragrance not found</h2>
-          <p>{loadError || 'We could not find the requested fragrance.'}</p>
+          <h2 className="text-white">Fragrance not found</h2>
+          <p className="text-white/60">{loadError || 'We could not find the requested fragrance.'}</p>
           <button className="error-button" onClick={() => router.push('/fragrances')}>
             ← Back to All Fragrances
           </button>
@@ -156,20 +153,14 @@ export default function FragranceDetailPage() {
     );
   }
 
+  const palette = getFragrancePalette(fragrance);
+
   const notePyramid = {
     top: normalizeNotes(fragrance.top_notes, ['Bergamot', 'Lemon']),
     middle: normalizeNotes(fragrance.middle_notes, ['Jasmine', 'Rose']),
     base: normalizeNotes(fragrance.base_notes, ['Sandalwood', 'Musk']),
   };
 
-  const mainAccord = fragrance.accords?.[0] || 'Unknown';
-  const accordColors: Record<string, string> = {
-    'Woody': 'rgba(74, 55, 40, 0.2)',
-    'Floral': 'rgba(139, 26, 74, 0.15)',
-    'Citrus': 'rgba(244, 187, 146, 0.18)',
-    'Aquatic': 'rgba(26, 58, 92, 0.15)',
-    'Spicy': 'rgba(107, 26, 26, 0.15)',
-    'Gourmand': 'rgba(139, 69, 19, 0.15)',
     'Green': 'rgba(26, 74, 26, 0.15)',
     'Musky': 'rgba(74, 74, 74, 0.15)',
     'Unknown': 'rgba(244, 187, 146, 0.15)',

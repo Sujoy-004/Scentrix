@@ -132,13 +132,6 @@ export default function RecommendationsPage() {
             >
               <LogIn size={16} /> Sign In to Existing Account
             </motion.button>
-
-            <button
-              onClick={() => router.push('/fragrances')}
-              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', marginTop: '0.5rem', textDecoration: 'underline' }}
-            >
-              Continue browsing without saving
-            </button>
           </div>
 
           <p style={{ marginTop: '2rem', fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
@@ -153,21 +146,8 @@ export default function RecommendationsPage() {
   // ── Authenticated: loading state ──────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="recommendations-loading min-h-screen">
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            rotate: [0, 90, 180, 270, 360],
-          }}
-          transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-          className="loading-artifact"
-          style={{ width: '8rem', height: '8rem', border: '1px solid rgba(244,187,146,0.2)', borderRadius: '50%', background: 'rgba(244,187,146,0.05)', position: 'relative' }}
-        >
-          <Sparkles style={{ position: 'absolute', inset: 0, margin: 'auto', color: '#f4bb92' }} size={40} />
-        </motion.div>
-        <p style={{ color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '0.3em', fontWeight: 'bold' }}>
-          Synthesizing Neural Scent Graph...
-        </p>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <DiscoveryNeuralLoader />
       </div>
     );
   }
@@ -223,13 +203,27 @@ export default function RecommendationsPage() {
   }
 
   const topMatches = recommendations.slice(0, 10);
+  const topFragrance = topMatches[0];
+  const palette = getFragrancePalette(topFragrance);
 
   const avgFidelity = topMatches.length > 0 
     ? Math.round(topMatches.reduce((acc, curr) => acc + (curr.match_score || 0), 0) / topMatches.length)
     : 0;
 
   return (
-    <div className="recommendations-page">
+    <motion.div 
+      className="recommendations-page"
+      initial={{ '--quiz-accent': '#f4bb92', '--quiz-soft': '#8b5e3c', '--quiz-glow': '#e4c285' } as any}
+      animate={{ 
+        '--quiz-accent': palette.accent, 
+        '--quiz-soft': palette.softSecondary, 
+        '--quiz-glow': palette.glow,
+        '--color-primary': palette.accent,
+        '--color-primary-container': palette.softSecondary,
+        '--color-on-primary': palette.ink,
+      } as any}
+      transition={{ duration: 0.8, ease: 'easeInOut' }}
+    >
       <div className="container mx-auto px-6">
         
         <motion.header 
@@ -237,7 +231,7 @@ export default function RecommendationsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="recommendations-header"
         >
-          <div style={{ color: '#f4bb92', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '1rem' }}>Protocol Results Complete</div>
+          <div style={{ color: 'var(--color-primary)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '1rem' }}>Protocol Results Complete</div>
           <h1 className="font-display italic text-white mb-4">Your Aromatic Constellation</h1>
           <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', maxWidth: '30rem', margin: '0 auto' }}>
             Finely tuned matches based on your neural preferences and taste geography.
@@ -255,7 +249,7 @@ export default function RecommendationsPage() {
             <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700 }}>Matches</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '2rem', fontFamily: 'var(--font-display)', color: '#f4bb92' }}>{avgFidelity}%</div>
+            <div style={{ fontSize: '2rem', fontFamily: 'var(--font-display)', color: 'var(--color-primary)' }}>{avgFidelity}%</div>
             <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700 }}>Fidelity</div>
           </div>
         </motion.div>

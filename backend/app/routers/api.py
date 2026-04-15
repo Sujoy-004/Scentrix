@@ -1,18 +1,21 @@
 """API router for core ScentScape endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import APIRouter
 
-from app.config import settings
 # from app.models.models import Base, engine  # Assume engine in models or main
-from app.schemas.schemas import FragranceSearchResult, HealthCheck, RecommendationResult, TextRecommendationRequest
+from app.schemas.schemas import (
+    FragranceSearchResult,
+    HealthCheck,
+    RecommendationResult,
+    TextRecommendationRequest,
+)
 
 router = APIRouter(tags=["api"])
 
 # Placeholder engine (will be created in main.py)
 # Placeholder - DB will be injected from main.py
-from typing import Any
 from datetime import UTC, datetime
+
 
 def get_db():
     # Placeholder DB dependency - configure in main.py

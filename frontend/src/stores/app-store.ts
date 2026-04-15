@@ -275,6 +275,7 @@ export const useAppStore = create<AppState>()(
         quizId: state.quizId,
         userPreferences: state.userPreferences,
         wishlist: state.wishlist,
+        adaptiveQuiz: state.adaptiveQuiz,
       }),
     }
   )

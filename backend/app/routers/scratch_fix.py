@@ -1,7 +1,6 @@
-import sys
 
 filename = r'c:\Users\KIIT0001\Downloads\Telegram Desktop\Scentrix\backend\app\routers\fragrances.py'
-with open(filename, 'r', encoding='utf-8') as f:
+with open(filename, encoding='utf-8') as f:
     content = f.read()
 
 part1 = content.split('@router.get("/{fragrance_id}", response_model=FragranceDetail)')[0]

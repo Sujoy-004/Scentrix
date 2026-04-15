@@ -1,8 +1,7 @@
-[tool.ruff]
 line-length = 100
 target-version = "py311"
 
-[tool.ruff.lint]
+[lint]
 select = [
     "E",     # pycodestyle errors
     "W",     # pycodestyle warnings
@@ -14,8 +13,8 @@ select = [
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
-    "B008",  # do not perform function calls in argument defaults
+    "B008",  # do not perform function calls in argument defaults (Depends() usage)
 ]
 
-[tool.ruff.per-file-ignores]
+[lint.per-file-ignores]
 "__init__.py" = ["F401"]

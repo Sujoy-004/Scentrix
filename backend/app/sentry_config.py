@@ -32,7 +32,7 @@ def init_sentry() -> None:
         return
 
     integrations = [FastApiIntegration()]
-    
+
     if SqlAlchemyIntegration:
         integrations.append(SqlAlchemyIntegration())
     if CeleryIntegration:
@@ -68,7 +68,7 @@ def before_send_filter(event, hint):
         for key in sensitive_keys:
             if key in headers:
                 headers[key] = "[REDACTED]"
-    
+
     # Remove sensitive query parameters
     if "request" in event and "url" in event["request"]:
         url = event["request"]["url"]
@@ -76,5 +76,5 @@ def before_send_filter(event, hint):
         for param in sensitive_params:
             url = url.replace(f"{param}=", f"{param}=[REDACTED]&")
         event["request"]["url"] = url
-    
+
     return event

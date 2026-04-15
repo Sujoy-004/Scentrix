@@ -5,12 +5,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
-from app.database import init_db, close_db
-from app.routers import auth, fragrances, users, recommendations, quiz
+from app.database import close_db, init_db
+from app.limiter import limiter
+from app.routers import auth, fragrances, quiz, recommendations, users
 from app.sentry_config import init_sentry
-
 
 # Initialize Sentry for error tracking (if configured)
 init_sentry()
@@ -29,26 +31,27 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Initializing Scentrix API...")
     await init_db()
-    
+
     # Universal Warm-up (Hydrating Discovery Brain & Knowledge Graph)
     try:
+        import asyncio
+
         from app.routers.recommendations import warmup_neural_engine
         from app.services.catalog import load_recommendation_catalog_async
-        import asyncio
-        
+
         logger.info("Universal Boiler: Waking up Neural & Catalog Engines...")
         asyncio.create_task(asyncio.to_thread(warmup_neural_engine))
         asyncio.create_task(load_recommendation_catalog_async())
         logger.info("Universal Boiler: Background hydration dispatched.")
-            
+
     except Exception as e:
         logger.error(f"Universal Boiler: Startup Warm-up failed: {str(e)}")
 
     logger.info(f"Database initialized: {settings.database_url}")
     logger.info("Scentrix API started successfully")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down ScentScape API...")
     await close_db()
@@ -65,16 +68,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        "http://localhost",
-    ],
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

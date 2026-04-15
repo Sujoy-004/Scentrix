@@ -1,10 +1,9 @@
 """Pydantic request/response schemas for ScentScape API."""
 
 from datetime import datetime
-from typing import Any, Optional, Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
-
 
 # ============================================================================
 # AUTH SCHEMAS
@@ -16,7 +15,7 @@ class UserRegister(BaseModel):
 
     email: EmailStr
     password: str = Field(..., min_length=6, max_length=100)
-    full_name: Optional[str] = None
+    full_name: str | None = None
     opt_in_training: bool = False
 
 
@@ -53,7 +52,7 @@ class UserProfile(BaseModel):
 
     id: int
     email: str
-    full_name: Optional[str]
+    full_name: str | None
     is_active: bool
     created_at: datetime
     opt_in_training: bool
@@ -118,7 +117,7 @@ class FragranceBase(BaseModel):
     id: str
     name: str
     brand: str
-    year: Optional[int] = None
+    year: int | None = None
     concentration: str
     gender_label: str = "N/A"
     description: str
@@ -130,15 +129,15 @@ class FragranceSearchResult(BaseModel):
     id: str
     name: str
     brand: str
-    year: Optional[int] = None
+    year: int | None = None
     top_accords: list[str] = []
     top_notes: list[str] = []
-    similarity_score: Optional[float] = None
-    match_score: Optional[float] = None
-    availability: Optional[str] = None
-    rating: Optional[float] = None
-    review_count: Optional[float] = None
-    reason: Optional[str] = None
+    similarity_score: float | None = None
+    match_score: float | None = None
+    availability: str | None = None
+    rating: float | None = None
+    review_count: float | None = None
+    reason: str | None = None
 
 
 class FragranceDetail(FragranceBase):
@@ -148,8 +147,8 @@ class FragranceDetail(FragranceBase):
     middle_notes: list[FragranceNote] = []
     base_notes: list[FragranceNote] = []
     accords: list[FragranceAccord] = []
-    neighbors: Optional[list[FragranceSearchResult]] = None
-    similarity_score: Optional[float] = None  # To user profile if authenticated
+    neighbors: list[FragranceSearchResult] | None = None
+    similarity_score: float | None = None  # To user profile if authenticated
 
 
 class FragranceCatalogItem(BaseModel):
@@ -159,7 +158,7 @@ class FragranceCatalogItem(BaseModel):
     name: str
     brand: str
     family: str = "Unknown"
-    year: Optional[int] = None
+    year: int | None = None
     concentration: str = "N/A"
     gender_label: str = "N/A"
     description: str = ""
@@ -167,8 +166,8 @@ class FragranceCatalogItem(BaseModel):
     middle_notes: list[str] = []
     base_notes: list[str] = []
     accords: list[str] = []
-    rating: Optional[float] = None
-    match_score: Optional[float] = None
+    rating: float | None = None
+    match_score: float | None = None
 
 
 class FragranceCatalogPage(BaseModel):
@@ -222,10 +221,10 @@ class RecommendationInteractionEventCreate(BaseModel):
         "purchase",
         "refine_prompt_click",
     ]
-    interaction_value: Optional[float] = None
-    match_score: Optional[float] = Field(default=None, ge=0, le=100)
-    confidence_tier: Optional[Literal["low", "medium", "high", "unknown"]] = None
-    availability: Optional[str] = None
+    interaction_value: float | None = None
+    match_score: float | None = Field(default=None, ge=0, le=100)
+    confidence_tier: Literal["low", "medium", "high", "unknown"] | None = None
+    availability: str | None = None
     source: str = Field(default="web", min_length=1, max_length=50)
     context: dict[str, Any] = Field(default_factory=dict)
 
@@ -254,7 +253,7 @@ class RecommendationWeeklyMetrics(BaseModel):
     similar_clicks: int
     wishlist_adds: int
     purchases: int
-    avg_match_score: Optional[float] = None
+    avg_match_score: float | None = None
     low_confidence_share_pct: float
     click_through_rate_pct: float
     wishlist_rate_pct: float
@@ -350,7 +349,7 @@ class QuizSessionEvaluateResponse(BaseModel):
     extension_required: bool
     additional_questions_target: int
     total_answered: int
-    stop_reason: Optional[str] = None
+    stop_reason: str | None = None
     components: QuizConfidenceComponents
 
 
@@ -370,7 +369,7 @@ class SavedFragranceCreate(BaseModel):
     """Add fragrance to collection."""
 
     fragrance_neo4j_id: str
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class SavedFragranceResponse(BaseModel):
@@ -379,7 +378,7 @@ class SavedFragranceResponse(BaseModel):
     id: int
     user_id: int
     fragrance_neo4j_id: str
-    notes: Optional[str] = None
+    notes: str | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -402,5 +401,5 @@ class ErrorResponse(BaseModel):
     """Error response."""
 
     error: str
-    detail: Optional[str] = None
+    detail: str | None = None
     code: int

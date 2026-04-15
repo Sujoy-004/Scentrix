@@ -4,10 +4,10 @@
    ===================================================== */
 
 :root {
-  --aura-color-1: rgba(244, 187, 146, 0.15); /* Primary Aura (Amber) */
+  --aura-color-1: var(--color-primary-container, rgba(244, 187, 146, 0.15)); /* Dynamic Primary Aura */
   --aura-color-2: rgba(45, 41, 38, 0.3);    /* Surface Base Blend */
   --glass-bg: rgba(30, 27, 24, 0.45);
-  --glass-border: rgba(244, 187, 146, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.05);
   --glass-blur: 48px;
 }
 
@@ -64,7 +64,7 @@
   font-weight: 700;
   letter-spacing: 0.5em;
   text-transform: uppercase;
-  color: rgba(244, 187, 146, 0.15);
+  color: var(--color-primary, rgba(244, 187, 146, 0.15));
   white-space: nowrap;
   pointer-events: none;
   display: block;

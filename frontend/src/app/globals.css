@@ -1,12 +1,13 @@
 @import "tailwindcss";
 @import "../styles/hero.css";
 
-
-/* =====================================================
-   SCENTSCAPE — AETHER & AMBER DESIGN SYSTEM
-   "The Digital Alchemist"
-   Dark velvet luxury meets cutting-edge AI
-   ===================================================== */
+@theme {
+  --font-sans: var(--font-cormorant), Georgia, serif;
+  --font-serif: var(--font-cormorant), Georgia, serif;
+  --font-display: var(--font-cormorant), Georgia, serif;
+  --font-body: var(--font-cormorant), Georgia, serif;
+  --font-label: var(--font-cormorant), Georgia, serif;
+}
 
 :root {
   /* ── Surface Hierarchy ── */
@@ -46,9 +47,9 @@
   --note-base-text:         #64beb9;
 
   /* ── Typography ── */
-  --font-display:           'Cormorant Garamond', Georgia, serif;
-  --font-body:              'Inter', -apple-system, sans-serif;
-  --font-label:             'Inter', sans-serif;
+  --font-display:           var(--font-cormorant), Georgia, serif;
+  --font-body:              var(--font-cormorant), Georgia, serif;
+  --font-label:             var(--font-cormorant), Georgia, serif;
 
   /* ── Spacing Scale ── */
   --space-1:  0.25rem;
@@ -308,6 +309,14 @@ h1, h2, h3, h4, h5, h6 {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+.glow-amber {
+  filter: drop-shadow(0 0 15px rgba(244, 187, 146, 0.4));
+}
+
+.glow-amber-strong {
+  filter: drop-shadow(0 0 25px rgba(244, 187, 146, 0.6));
 }
 
 /* =====================================================
@@ -1109,7 +1118,7 @@ body.is-scrolling .scroll-reveal {
 }
 
 .stat-label-elite {
-  font-family: var(--font-inter), sans-serif;
+  font-family: var(--font-label);
   text-transform: uppercase;
   font-size: 0.75rem;
   letter-spacing: 0.2em;
