@@ -49,10 +49,12 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("DATA_ENCRYPTION_KEY"),
     )
 
-    # Sentry
+    # Sentry & Logging
     sentry_dsn: str | None = None
     sentry_environment: str = "development"
-    sentry_traces_sample_rate: float = 0.1
+    sentry_traces_sample_rate: float = 1.0
+    debug: bool = False
+    log_level: str = "INFO"
 
     # API
     api_prefix: str = "/api/v1"

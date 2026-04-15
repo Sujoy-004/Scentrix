@@ -70,9 +70,9 @@ export default function RecommendationsPage() {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="glass-card"
-          style={{ padding: '3rem', textAlign: 'center', maxWidth: '30rem', border: '1px solid rgba(244,187,146,0.1)', borderRadius: '1.5rem', background: 'rgba(255,255,255,0.03)' }}
+          style={{ padding: '3rem', textAlign: 'center', maxWidth: '30rem', border: '1px solid rgba(200,161,90,0.1)', borderRadius: '1.5rem', background: 'rgba(255,255,255,0.03)' }}
         >
-          <Sparkles style={{ margin: '0 auto 1.5rem', color: 'rgba(244,187,146,0.5)' }} size={48} />
+          <Sparkles style={{ margin: '0 auto 1.5rem', color: 'rgba(200,161,90,0.5)' }} size={48} />
           <h2 style={{ fontSize: '1.5rem', fontFamily: 'var(--font-display)', fontStyle: 'italic', color: '#fff', marginBottom: '1rem' }}>
             Begin Your Discovery
           </h2>
@@ -100,19 +100,19 @@ export default function RecommendationsPage() {
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-            style={{ width: '5rem', height: '5rem', border: '1px solid rgba(244,187,146,0.3)', borderRadius: '50%', margin: '0 auto 2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ width: '5rem', height: '5rem', border: '1px solid rgba(200,161,90,0.3)', borderRadius: '50%', margin: '0 auto 2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            <Sparkles size={28} style={{ color: '#f4bb92' }} />
+            <Sparkles size={28} style={{ color: '#C8A15A' }} />
           </motion.div>
 
-          <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.25em', textTransform: 'uppercase', color: 'rgba(244,187,146,0.7)', marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.25em', textTransform: 'uppercase', color: 'rgba(200,161,90,0.7)', marginBottom: '1rem' }}>
             Neural Calibration Complete
           </div>
           <h1 style={{ fontSize: '2rem', fontFamily: 'var(--font-display)', fontStyle: 'italic', color: '#fff', marginBottom: '0.75rem', lineHeight: 1.2 }}>
             Your Aromatic Profile is Ready
           </h1>
           <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '2.5rem' }}>
-            You rated <strong style={{ color: '#f4bb92' }}>{quizResponses.length}</strong> fragrances.
+            You rated <strong style={{ color: '#C8A15A' }}>{quizResponses.length}</strong> fragrances.
             Sign in or create a free account to unlock your personalized discovery landscape.
           </p>
 
@@ -121,7 +121,7 @@ export default function RecommendationsPage() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => router.push('/auth/register')}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.85rem 2rem', background: 'linear-gradient(135deg, rgba(244,187,146,0.9), rgba(196,113,0,0.8))', border: 'none', borderRadius: '100px', color: '#0a0806', fontWeight: 700, fontSize: '0.8rem', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.85rem 2rem', background: 'linear-gradient(135deg, rgba(200,161,90,0.9), rgba(90,42,27,0.8))', border: 'none', borderRadius: '100px', color: '#0a0806', fontWeight: 700, fontSize: '0.8rem', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}
             >
               <UserPlus size={16} /> Create Free Account
             </motion.button>
@@ -130,14 +130,14 @@ export default function RecommendationsPage() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => router.push('/auth/login')}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.85rem 2rem', background: 'transparent', border: '1px solid rgba(244,187,146,0.3)', borderRadius: '100px', color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: '0.8rem', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.85rem 2rem', background: 'transparent', border: '1px solid rgba(200,161,90,0.3)', borderRadius: '100px', color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: '0.8rem', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}
             >
               <LogIn size={16} /> Sign In to Existing Account
             </motion.button>
           </div>
 
           <p style={{ marginTop: '2rem', fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-            <ShieldCheck size={10} style={{ display: 'inline', marginRight: '0.3rem', color: '#f4bb92' }} />
+            <ShieldCheck size={10} style={{ display: 'inline', marginRight: '0.3rem', color: '#C8A15A' }} />
             Your quiz data stays local until you sign up. We never share it.
           </p>
         </motion.div>

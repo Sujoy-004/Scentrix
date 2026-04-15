@@ -6,6 +6,15 @@
  * instead of a default image.
  */
 
+// Silent Luxury Palette Integration
+export const SCENT_PALETTE: Record<string, string[]> = {
+  oriental: ['#5A2A1B', '#C8A15A', '#1B0F12'],
+  green: ['#0F3D2E', '#8FAE8B', '#D6E3D2'],
+  woody: ['#3B2C24', '#8B6B4A', '#E6D8C8'],
+  citrus: ['#B8860B', '#FFE08A', '#6B3A1F'],
+  floral: ['#8B1A4A', '#E91E8C', '#4A3728'],
+};
+
 export const CANONICAL_FAMILIES = [
   'amber', 'animalic', 'aquatic', 'aromatic', 'citrus', 'earthy',
   'floral', 'fresh', 'fruity', 'gourmand', 'green', 'leather',

@@ -164,12 +164,12 @@ export default function FragranceDetailPage() {
   const mainAccord = fragrance.family || 'Unknown';
 
   const accordColors: Record<string, string> = {
-    Citrus: 'rgba(255, 200, 120, 0.15)',
-    Floral: 'rgba(244, 187, 146, 0.15)',
-    Woody: 'rgba(122, 84, 58, 0.15)',
-    Oriental: 'rgba(180, 120, 220, 0.15)',
+    Citrus: 'rgba(184, 134, 11, 0.15)',
+    Floral: 'rgba(139, 26, 74, 0.15)',
+    Woody: 'rgba(59, 44, 36, 0.15)',
+    Oriental: 'rgba(90, 42, 27, 0.15)',
     Fresh: 'rgba(120, 200, 255, 0.15)',
-    Green: 'rgba(26, 74, 26, 0.15)',
+    Green: 'rgba(15, 61, 46, 0.15)',
     Musky: 'rgba(74, 74, 74, 0.15)',
     Unknown: 'rgba(244, 187, 146, 0.15)',
   };
