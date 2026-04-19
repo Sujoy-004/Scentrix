@@ -13,13 +13,25 @@ COPY README.md .
 # The ML extras are intentionally excluded here because they blow past Railway's image size limit.
 RUN pip install --no-cache-dir setuptools wheel && \
     pip install --no-cache-dir ".[runtime]"
-# Copy application code
+# Copy application code and config
 COPY app app
 COPY ml/data ml/data
+COPY ml/graph ml/graph
+COPY ml/__init__.py ml/__init__.py
+COPY alembic.ini .
+COPY railway.toml .
+COPY Procfile .
+
 # Change ownership
 RUN chown -R appuser:appuser /app
 USER appuser
+ENV PYTHONPATH=/app
+
+# Expose port (metadata)
+EXPOSE 8000
+
 # Health check
 HEALTHCHECK --interval=300s --timeout=15s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
+
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
