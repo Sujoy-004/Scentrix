@@ -2,7 +2,9 @@ import axios from 'axios';
 
 const BASE_URL = typeof window === 'undefined' 
   ? process.env.INTERNAL_API_URL || 'http://backend:8000'
-  : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  : process.env.NODE_ENV === 'production'
+    ? '/api'
+    : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 const apiInstance = axios.create({
   baseURL: BASE_URL,

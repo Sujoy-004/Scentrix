@@ -81,7 +81,7 @@ export default function FragranceDetailPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const apiBase = process.env.NODE_ENV === 'production' ? '/api' : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
     const loadFragrance = async () => {
       if (!id) {
