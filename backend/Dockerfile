@@ -9,9 +9,10 @@ RUN useradd -m -u 1000 appuser
 # Copy pyproject for dependency installation
 COPY pyproject.toml .
 COPY README.md .
-# Install project dependencies (use built-in pip)
+# Install project dependencies for the API runtime only.
+# The ML extras are intentionally excluded here because they blow past Railway's image size limit.
 RUN pip install --no-cache-dir setuptools wheel && \
-    pip install --no-cache-dir ".[ml]"
+    pip install --no-cache-dir "."
 # Copy application code
 COPY app app
 # Change ownership
