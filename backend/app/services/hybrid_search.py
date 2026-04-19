@@ -20,9 +20,9 @@ class HybridRecommender:
 
     def __init__(self):
         # 1. Vector Client
-        pc_api_key = os.environ.get("PINECONE_API_KEY")
-        self.pc = Pinecone(api_key=pc_api_key) if pc_api_key else None
-        self.text_index = self.pc.Index("scentscape-fragrances") if self.pc else None
+        self.pc = Pinecone(api_key=settings.pinecone_api_key) if settings.pinecone_api_key else None
+        self.text_index = self.pc.Index(settings.pinecone_index_name) if self.pc else None
+        # Note: scentscape-graph is hardcoded but we should verify if it's in settings
         self.graph_index = self.pc.Index("scentscape-graph") if self.pc else None
 
         # 2. Graph Client

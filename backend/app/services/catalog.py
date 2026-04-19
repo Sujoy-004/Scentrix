@@ -6,12 +6,9 @@ from typing import Any
 
 from neo4j import GraphDatabase
 
-logger = logging.getLogger(__name__)
+from app.config import settings
 
-# Basic Config
-NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-NEO4J_USERNAME = os.getenv("NEO4J_USERNAME", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "neo4j_password")
+logger = logging.getLogger(__name__)
 
 _catalog_cache: list[dict[str, Any]] | None = None
 _driver: Any | None = None
@@ -24,13 +21,12 @@ def get_neo4j_client():
     if _driver is not None:
         return _driver
 
-    if os.environ.get("RUNNING_IN_DOCKER") == "true":
+    uri = settings.neo4j_uri
+    if os.environ.get("RUNNING_IN_DOCKER") == "true" and uri == "neo4j://localhost:7687":
         uri = "bolt://neo4j:7687"
-    else:
-        uri = NEO4J_URI
 
     try:
-        _driver = GraphDatabase.driver(uri, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
+        _driver = GraphDatabase.driver(uri, auth=(settings.neo4j_user, settings.neo4j_password))
         return _driver
     except Exception as e:
         logger.error(f"Could not connect to Neo4j: {str(e)}")
