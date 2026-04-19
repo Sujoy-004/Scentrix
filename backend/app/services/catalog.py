@@ -129,13 +129,20 @@ def load_recommendation_catalog(force_reload: bool = False) -> list[dict[str, An
     if not neo4j_rows:
         logger.warning("Neo4j Catalog empty or offline. Falling back to local SSOT JSON.")
         try:
-            repo_root = os.getenv("SCENTSCAPE_REPO_ROOT", r"c:\Users\KIIT0001\Documents\antigravity skills\Scentrix")
-            json_path = os.path.join(repo_root, "ml", "data", "fra_elite_24k.json")
+            # Try current working directory first (standard for Docker / local dev)
+            json_path = os.path.abspath(os.path.join(os.getcwd(), "ml", "data", "fra_elite_24k.json"))
+            
+            # If not found, try common repo structures
+            if not os.path.exists(json_path):
+                json_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "ml", "data", "fra_elite_24k.json"))
+
             if os.path.exists(json_path):
                 import json
                 with open(json_path, "r", encoding="utf-8") as f:
                     neo4j_rows = json.load(f)
-                logger.info(f"Successfully loaded {len(neo4j_rows)} fragrances from local SSOT JSON.")
+                logger.info(f"Successfully loaded {len(neo4j_rows)} fragrances from local SSOT JSON: {json_path}")
+            else:
+                logger.error(f"Catalog fallback failed: File not found at {json_path}")
         except Exception as e:
             logger.error(f"Critical failure loading SSOT fallback: {e}")
 
