@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir setuptools wheel && \
     pip install --no-cache-dir ".[runtime]"
 # Copy application code
 COPY app app
+COPY ml/data ml/data
 # Change ownership
 RUN chown -R appuser:appuser /app
 USER appuser
