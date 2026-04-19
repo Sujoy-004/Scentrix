@@ -33,6 +33,7 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     expires_in: int  # seconds
+    user_id: str | None = None
 
 
 class RefreshTokenRequest(BaseModel):
@@ -55,8 +56,24 @@ class UserProfile(BaseModel):
     is_active: bool
     created_at: datetime
     opt_in_training: bool
+    preferences: dict[str, Any] | None = None
+    quiz_count: int = 0
+    wishlist_count: int = 0
+    recommendation_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserPreferencesUpdate(BaseModel):
+    """Update payload for stored fragrance preferences."""
+
+    favorite_families: list[str] | None = None
+    preferred_intensity: str | None = None
+    budget_range: str | None = None
+    gender_neutral: bool | None = None
+    notes: str | None = None
+
+    model_config = ConfigDict(extra="ignore")
 
 
 # ============================================================================

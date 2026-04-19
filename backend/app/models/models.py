@@ -6,8 +6,9 @@ Defines user auth/session entities, ratings/saves, and interaction ingestion mod
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
-from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -28,10 +29,12 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    supabase_user_id: Mapped[str | None] = mapped_column(String(128), unique=True, index=True, nullable=True)
+    auth_provider: Mapped[str] = mapped_column(String(20), default="local", nullable=False)
     full_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     encrypted_email: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     email_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
-    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
     role: Mapped[str] = mapped_column(String(20), default="user", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
 
@@ -55,9 +58,10 @@ class User(Base):
         nullable=False,
         comment="User consents to use of their data for model training",
     )
+    preferences_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True, default=dict)
 
     def __repr__(self) -> str:
-        return f"<User(id={self.id}, email_hash={self.email_hash})>"
+        return f"<User(id={self.id}, provider={self.auth_provider}, email_hash={self.email_hash})>"
 
 
 class FragranceRating(Base):

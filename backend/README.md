@@ -5,11 +5,11 @@ FastAPI-based REST API for the ScentScape fragrance discovery platform.
 ## Architecture
 
 - **Framework:** FastAPI with Uvicorn
-- **Database:** PostgreSQL (user data), Neo4j (knowledge graph)
+- **Database:** Supabase for auth/profile/preference data; Neo4j for knowledge graph data
 - **Cache/Queue:** Redis (Celery broker, recommendations cache)
-- **Vector DB:** Pinecone (fragrance embeddings)
-- **Auth:** JWT with refresh tokens
-- **Task Queue:** Celery (async recommendation generation, GDPR deletion)
+- **Vector DB:** Pinecone (derived fragrance embeddings)
+- **Auth:** Supabase JWTs verified by FastAPI
+- **Task Queue:** Celery (async recommendation generation, GDPR deletion, cache warmups)
 
 ## Local Development
 
@@ -51,7 +51,7 @@ backend/
 
 ## API Endpoints
 
-See [docs/API.md](../docs/API.md) for full endpoint documentation (to be created in Phase 2).
+See the generated OpenAPI docs at `/docs` when the backend is running.
 
 ### Health Check
 ```
@@ -66,11 +66,12 @@ GET /health
 All configuration is loaded from environment variables. See `.env.example` for required keys.
 
 Key settings:
-- `DATABASE_URL` — PostgreSQL connection string
+- `DATABASE_URL` — PostgreSQL connection string for the relational store; in production this can point to Supabase Postgres
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET` — Auth/profile/preference integration
 - `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` — Knowledge graph
 - `REDIS_URL` — Cache and Celery broker
 - `PINECONE_API_KEY`, `PINECONE_INDEX_NAME` — Vector embeddings
-- `JWT_SECRET_KEY` — Token signing (generate with `openssl rand -hex 32`)
+- `JWT_SECRET_KEY` — Legacy/local token signing during migration
 
 ## Testing
 
@@ -123,7 +124,9 @@ celery -A app.celery_app events
 
 ## Deployment
 
-See [docs/RAILWAY_SETUP.md](../docs/RAILWAY_SETUP.md) for Railway deployment instructions.
+Target production deployment keeps FastAPI on Railway, the frontend on Vercel,
+and user-owned data in Supabase. The repo-level architecture note lives in
+[docs/architecture.md](../docs/architecture.md).
 
 ## Contributing
 

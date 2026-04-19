@@ -27,6 +27,21 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://localhost:6379/0"
 
+    # Supabase
+    supabase_url: str | None = None
+    supabase_anon_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("SUPABASE_ANON_KEY"),
+    )
+    supabase_service_role_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("SUPABASE_SERVICE_ROLE_KEY"),
+    )
+    supabase_jwt_secret: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("SUPABASE_JWT_SECRET"),
+    )
+
     # JWT
     jwt_secret_key: str = Field(
         default="dev_secret_key_change_in_production",

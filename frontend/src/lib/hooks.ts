@@ -97,7 +97,7 @@ export function useUserProfile() {
   return useQuery({
     queryKey: ['user-profile'],
     queryFn: async () => {
-      const { data } = await api.get('/user/profile');
+      const { data } = await api.get('/users/profile');
       return data;
     },
   });
@@ -106,7 +106,7 @@ export function useUserProfile() {
 export function useUpdateUserPreferences() {
   return useMutation({
     mutationFn: async (prefs: any) => {
-      const { data } = await api.post('/user/preferences', prefs);
+      const { data } = await api.post('/users/preferences', prefs);
       return data;
     },
   });
@@ -116,7 +116,7 @@ export function useWishlist() {
   return useQuery({
     queryKey: ['wishlist'],
     queryFn: async () => {
-      const { data } = await api.get('/user/wishlist');
+      const { data } = await api.get('/users/saved');
       return Array.isArray(data) ? data : [];
     },
   });
@@ -125,7 +125,7 @@ export function useWishlist() {
 export function useRemoveFromWishlist() {
   return useMutation({
     mutationFn: async (id: string) => {
-      const { data } = await api.delete(`/user/wishlist/${id}`);
+      const { data } = await api.delete(`/users/saved/${id}`);
       return data;
     },
   });

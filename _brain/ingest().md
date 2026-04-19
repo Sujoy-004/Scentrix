@@ -1,0 +1,21 @@
+---
+source_file: "Scentrix\backend\scripts\full_ingest_24k.py"
+type: "code"
+community: "Community 10"
+location: "L211"
+tags:
+  - graphify/code
+  - graphify/EXTRACTED
+  - community/Community_10
+---
+
+# ingest()
+
+## Connections
+- [[.get()]] - `calls` [INFERRED]
+- [[.run()]] - `calls` [INFERRED]
+- [[full_ingest_24k.py]] - `contains` [EXTRACTED]
+- [[main()_1]] - `calls` [EXTRACTED]
+- [[run_in_batches()]] - `calls` [EXTRACTED]
+
+#graphify/code #graphify/EXTRACTED #community/Community_10

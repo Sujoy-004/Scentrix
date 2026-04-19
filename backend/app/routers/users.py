@@ -11,18 +11,19 @@ import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user_id
 from app.auth.encryption import vault
 from app.database import get_session
-from app.models.models import FragranceRating, SavedFragrance, User
+from app.models.models import FragranceRating, SavedFragrance, User, UserInteractionEvent
 from app.schemas.schemas import (
     FragranceRatingCreate,
     FragranceRatingResponse,
     SavedFragranceCreate,
     SavedFragranceResponse,
+    UserPreferencesUpdate,
     UserProfile,
 )
 
@@ -33,6 +34,33 @@ router = APIRouter(prefix="/users", tags=["users"])
 def _utc_now_naive() -> datetime:
     # DB columns are TIMESTAMP WITHOUT TIME ZONE.
     return datetime.utcnow()
+
+
+async def _build_user_profile(session: AsyncSession, user: User) -> UserProfile:
+    quiz_count_result = await session.execute(
+        select(func.count(FragranceRating.id)).where(FragranceRating.user_id == user.id)
+    )
+    wishlist_count_result = await session.execute(
+        select(func.count(SavedFragrance.id)).where(SavedFragrance.user_id == user.id)
+    )
+    recommendation_count_result = await session.execute(
+        select(func.count(UserInteractionEvent.id)).where(UserInteractionEvent.user_id == user.id)
+    )
+
+    preferences = user.preferences_json or {}
+
+    return UserProfile(
+        id=user.id,
+        email=vault.decrypt(user.encrypted_email),
+        full_name=user.full_name,
+        is_active=user.is_active,
+        created_at=user.created_at,
+        opt_in_training=user.opt_in_training,
+        preferences=preferences,
+        quiz_count=int(quiz_count_result.scalar_one() or 0),
+        wishlist_count=int(wishlist_count_result.scalar_one() or 0),
+        recommendation_count=int(recommendation_count_result.scalar_one() or 0),
+    )
 
 
 @router.get("/profile", response_model=UserProfile)
@@ -62,17 +90,35 @@ async def get_user_profile(
             detail="User not found",
         )
 
-    # Decrypt email for profile response
-    email = vault.decrypt(user.encrypted_email)
+    return await _build_user_profile(session, user)
 
-    return UserProfile(
-        id=user.id,
-        email=email,
-        full_name=user.full_name,
-        is_active=user.is_active,
-        created_at=user.created_at,
-        opt_in_training=user.opt_in_training,
-    )
+
+@router.post("/preferences", response_model=UserProfile)
+async def update_user_preferences(
+    preferences: UserPreferencesUpdate,
+    user_id: int = Depends(get_current_user_id),
+    session: AsyncSession = Depends(get_session),
+) -> UserProfile:
+    """Update stored fragrance preferences for the current user."""
+
+    stmt = select(User).where(User.id == user_id)
+    result = await session.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    current_preferences = dict(user.preferences_json or {})
+    current_preferences.update(preferences.model_dump(exclude_none=True))
+    user.preferences_json = current_preferences
+
+    await session.commit()
+    await session.refresh(user)
+
+    return await _build_user_profile(session, user)
 
 
 @router.post(

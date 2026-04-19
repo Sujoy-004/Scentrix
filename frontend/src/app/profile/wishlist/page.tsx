@@ -113,9 +113,12 @@ export default function WishlistPage() {
 
             <div className="wishlist-grid">
               {wishlist.map((item: any) => (
+                (() => {
+                  const fragrance = item.fragrance ?? item;
+                  return (
                 <div key={item.id} className="wishlist-card">
                   <div className="wishlist-card-header">
-                    <h3>{item.fragrance.name}</h3>
+                    <h3>{fragrance.name || item.fragrance_neo4j_id}</h3>
                     <button
                       className="remove-button"
                       onClick={() => handleRemove(item.id)}
@@ -126,13 +129,13 @@ export default function WishlistPage() {
                   </div>
 
                   <div className="wishlist-card-info">
-                    <p className="brand">{item.fragrance.brand}</p>
+                    <p className="brand">{fragrance.brand || 'Saved fragrance'}</p>
                     <div className="card-details">
                       <span className="family">
-                        {item.fragrance.family}
+                        {fragrance.family || 'N/A'}
                       </span>
                       <span className="rating">
-                        ⭐ {item.fragrance.rating?.toFixed(1) || 'N/A'}
+                        ⭐ {fragrance.rating?.toFixed(1) || 'N/A'}
                       </span>
                     </div>
                   </div>
@@ -140,7 +143,7 @@ export default function WishlistPage() {
                   <div className="wishlist-card-notes">
                     <p className="notes-label">Top Notes:</p>
                     <p className="notes-value">
-                      {item.fragrance.top_notes?.join(', ') || 'N/A'}
+                      {fragrance.top_notes?.join(', ') || item.notes || 'N/A'}
                     </p>
                   </div>
 
@@ -149,7 +152,7 @@ export default function WishlistPage() {
                       className="view-detail-button"
                       onClick={() =>
                         router.push(
-                          `/fragrances/${item.fragrance.id}`
+                          `/fragrances/${fragrance.id || item.fragrance_neo4j_id}`
                         )
                       }
                     >
@@ -168,14 +171,16 @@ export default function WishlistPage() {
                   <div className="wishlist-card-meta">
                     <small>
                       Added{' '}
-                      {item.added_at
+                      {item.added_at || item.created_at
                         ? new Date(
-                            item.added_at
+                            item.added_at || item.created_at
                           ).toLocaleDateString()
                         : 'recently'}
                     </small>
                   </div>
                 </div>
+                  );
+                })()
               ))}
             </div>
           </div>

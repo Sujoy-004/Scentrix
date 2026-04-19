@@ -6,6 +6,7 @@ Provides user registration, login, token refresh, and logout functionality.
 import hashlib
 import logging
 from datetime import datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
@@ -22,6 +23,16 @@ from app.auth.encryption import vault
 from app.database import get_session
 from app.limiter import limiter
 from app.models.models import RefreshToken, User
+from app.services.supabase_auth import (
+    SupabaseAuthError,
+    create_supabase_user,
+    extract_supabase_user_payload,
+    is_supabase_configured,
+    is_supabase_registration_enabled,
+    refresh_supabase_session,
+    sign_in_supabase_user,
+    sync_local_user_from_supabase,
+)
 from app.schemas.schemas import (
     RefreshTokenRequest,
     TokenResponse,
@@ -41,6 +52,24 @@ def _utc_now_naive() -> datetime:
 
 def _hash_email(email: str) -> str:
     return hashlib.sha256(email.lower().strip().encode()).hexdigest()
+
+
+def _token_response(
+    access_token: str,
+    refresh_token: str,
+    *,
+    user_id: int | None = None,
+    expires_in: int = 30 * 60,
+) -> dict[str, Any]:
+    response: dict[str, Any] = {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_in": expires_in,
+    }
+    if user_id is not None:
+        response["user_id"] = str(user_id)
+    return response
 
 
 @limiter.limit("5/minute")
@@ -65,10 +94,46 @@ async def register(
             detail="Email already registered",
         )
 
+    if is_supabase_registration_enabled():
+        try:
+            created_user = await create_supabase_user(
+                user_data.email,
+                user_data.password,
+                full_name=user_data.full_name,
+                opt_in_training=user_data.opt_in_training,
+            )
+            session_data = await sign_in_supabase_user(user_data.email, user_data.password)
+
+            supabase_user = extract_supabase_user_payload(session_data)
+            if not supabase_user:
+                supabase_user = extract_supabase_user_payload(created_user)
+
+            user = await sync_local_user_from_supabase(session, supabase_user)
+
+            logger.info(
+                "User registered via Supabase: %s (local ID: %s)",
+                user_data.email,
+                user.id,
+            )
+
+            return _token_response(
+                session_data["access_token"],
+                session_data["refresh_token"],
+                user_id=user.id,
+                expires_in=int(session_data.get("expires_in", 30 * 60)),
+            )
+        except SupabaseAuthError as exc:
+            logger.exception("Supabase registration failed: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Registration service unavailable",
+            ) from exc
+
     # Create new user
     hashed_password = hash_password(user_data.password)
     normalized_email = user_data.email.lower().strip()
     new_user = User(
+        auth_provider="local",
         email_hash=email_hash,
         encrypted_email=vault.encrypt(normalized_email),
         full_name=user_data.full_name,
@@ -96,12 +161,7 @@ async def register(
     # Generate tokens
     access_token = create_access_token(user_id)
 
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "expires_in": 30 * 60,
-    }
+    return _token_response(access_token, refresh_token, user_id=user_id)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -112,6 +172,28 @@ async def login(
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     """Login with email and password."""
+
+    if is_supabase_configured():
+        try:
+            session_data = await sign_in_supabase_user(credentials.email, credentials.password)
+            supabase_user = extract_supabase_user_payload(session_data)
+            user = await sync_local_user_from_supabase(session, supabase_user)
+
+            logger.info("User logged in via Supabase: %s (local ID: %s)", credentials.email, user.id)
+
+            return _token_response(
+                session_data["access_token"],
+                session_data["refresh_token"],
+                user_id=user.id,
+                expires_in=int(session_data.get("expires_in", 30 * 60)),
+            )
+        except SupabaseAuthError as exc:
+            logger.warning("Supabase login failed for %s: %s", credentials.email, exc)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password",
+            ) from exc
+
     email_hash = _hash_email(credentials.email)
 
     # Find user by email_hash
@@ -119,7 +201,7 @@ async def login(
     result = await session.execute(stmt)
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(credentials.password, user.hashed_password):
+    if not user or not user.hashed_password or not verify_password(credentials.password, user.hashed_password):
         logger.warning(f"Login failed: invalid credentials for {credentials.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -148,12 +230,7 @@ async def login(
 
     logger.info(f"User logged in: {credentials.email} (ID: {user.id})")
 
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "expires_in": 30 * 60,
-    }
+    return _token_response(access_token, refresh_token, user_id=user.id)
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -162,7 +239,29 @@ async def refresh_token(
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     """Refresh access token using a valid refresh token."""
-    # Verify refresh token exists and is not revoked
+
+    if is_supabase_configured():
+        try:
+            session_data = await refresh_supabase_session(request.refresh_token)
+            supabase_user = extract_supabase_user_payload(session_data)
+            user = await sync_local_user_from_supabase(session, supabase_user)
+
+            logger.info("Supabase session refreshed for user: %s (local ID: %s)", supabase_user.get("id"), user.id)
+
+            return _token_response(
+                session_data["access_token"],
+                session_data.get("refresh_token", request.refresh_token),
+                user_id=user.id,
+                expires_in=int(session_data.get("expires_in", 30 * 60)),
+            )
+        except SupabaseAuthError as exc:
+            logger.warning("Supabase refresh failed: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired refresh token",
+            ) from exc
+
+    # Legacy local refresh path for non-Supabase environments.
     stmt = select(RefreshToken).where(
         RefreshToken.token == request.refresh_token,
         RefreshToken.revoked_at.is_(None),
@@ -178,18 +277,12 @@ async def refresh_token(
             detail="Invalid or expired refresh token",
         )
 
-    # Create new access token (same user, same refresh token)
     user_id = token_obj.user_id
     access_token = create_access_token(user_id)
 
     logger.info(f"Token refreshed for user: {user_id}")
 
-    return {
-        "access_token": access_token,
-        "refresh_token": request.refresh_token,
-        "token_type": "bearer",
-        "expires_in": 30 * 60,
-    }
+    return _token_response(access_token, request.refresh_token, user_id=user_id)
 
 
 @router.post("/logout", response_model=dict)

@@ -44,25 +44,22 @@ scentscape/
 
 ## Architecture
 
-### Frontend
-- **Framework:** Next.js 14 (App Router)
-- **Styling:** Tailwind CSS
-- **State:** Zustand
-- **API Client:** React Query
-- **Visualizations:** D3.js, Recharts
-- **Deployment:** Vercel
+### Target production flow
 
-### Backend
-- **Framework:** FastAPI
-- **Async Jobs:** Celery + Redis
-- **Databases:** PostgreSQL, Neo4j, Pinecone
-- **Deployment:** Railway
+User -> Vercel frontend -> FastAPI on Railway -> Supabase for auth/profile/
+preference data only -> background workers and caches -> Pinecone and Neo4j for
+derived recommendation work.
 
-### ML
-- **Graph Embeddings:** GraphSAGE
-- **Text Encoding:** Sentence-BERT
-- **Personalization:** Bayesian Personalized Ranking (BPR)
-- **Vector Search:** Pinecone ANN
+### Responsibilities
+
+- **Frontend:** Next.js 14 App Router, Tailwind CSS, Zustand, React Query, Vercel
+- **Backend:** FastAPI on Railway, request orchestration, API validation, and
+	background job dispatch
+- **User data:** Supabase for authentication, profile state, preferences, and
+	consent/deletion flows
+- **Async layer:** Celery + Redis for warmups, scoring jobs, and cached reads
+- **Derived stores:** Pinecone for embeddings and Neo4j for knowledge graph data
+- **ML:** GraphSAGE, Sentence-BERT, and ranking models for derived signals
 
 ## Features
 
@@ -75,10 +72,7 @@ scentscape/
 
 ## Documentation
 
-- [Architecture Decision Records](./docs/architecture/) 
-- [GraphSchema Design](./docs/graph-schema.md)
-- [ML Pipeline](./docs/ml-architecture.md)
-- [CodeRabbit Setup](./docs/CODERABBIT_SETUP.md)
+- [Target Architecture](./docs/architecture.md)
 
 ## Development
 
@@ -91,7 +85,7 @@ See [TASK.md](../TASK.md) for full PRD and task breakdown.
 
 ## Security
 
-- JWT authentication with refresh tokens
+- Supabase-managed authentication with backend token verification
 - Input sanitization and rate limiting
 - GDPR deletion flow (24-hour SLA)
 - Gender-neutral recommendations (default)

@@ -306,65 +306,7 @@ def _score_catalog(
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 
-def _mock_public_recommendations() -> list[dict[str, Any]]:
-    # Deterministic fallback for CI/tests when external services are unavailable.
-    return [
-        {
-            "id": "4",
-            "name": "Rose 31",
-            "brand": "Le Labo",
-            "match_score": 92.5,
-            "reason": "Mock catalog fallback",
-            "mock": True,
-        },
-        {
-            "id": "7",
-            "name": "Tobacco Vanille",
-            "brand": "Tom Ford",
-            "match_score": 88.0,
-            "reason": "Mock catalog fallback",
-            "mock": True,
-        },
-        {
-            "id": "11",
-            "name": "Ombre Leather",
-            "brand": "Tom Ford",
-            "match_score": 84.0,
-            "reason": "Mock catalog fallback",
-            "mock": True,
-        },
-    ]
 
-
-@router.get("/text", response_model=list[FragranceRecommendation])
-async def recommendation_text_search(q: str) -> list[FragranceRecommendation]:
-    # Only return mock data in testing environments.
-    if not _TESTING_MODE:
-        return []
-    results = _mock_public_recommendations()
-    return [FragranceRecommendation(**r) for r in results]
-
-
-@router.get("/similar/{fragrance_id}", response_model=list[FragranceRecommendation])
-async def recommendation_similarity(fragrance_id: str) -> list[FragranceRecommendation]:
-    # Only return mock data in testing environments.
-    if not _TESTING_MODE:
-        return []
-    _ = fragrance_id
-    results = _mock_public_recommendations()
-    return [FragranceRecommendation(**r) for r in results]
-
-
-@router.get("/for-me", response_model=list[FragranceRecommendation])
-async def recommendation_for_me(
-    user_id: int = Depends(get_current_user_id),
-) -> list[FragranceRecommendation]:
-    # Only return mock data in testing environments.
-    if not _TESTING_MODE:
-        return []
-    _ = user_id
-    results = _mock_public_recommendations()
-    return [FragranceRecommendation(**r) for r in results]
 
 
 @router.post("/rate", status_code=200)
@@ -461,6 +403,7 @@ async def submit_batch_ratings(
         raise HTTPException(status_code=500, detail="Failed to sync batch ratings") from e
 
 
+@router.post("/guest", response_model=list[FragranceRecommendation])
 async def get_guest_recommendations(
     request: GuestRecommendationRequest,
 ) -> list[FragranceRecommendation]:

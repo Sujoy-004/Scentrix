@@ -1,0 +1,111 @@
+---
+type: community
+members: 77
+---
+
+# Community 1
+
+**Members:** 77 nodes
+
+## Members
+- [[7-day recommendation quality and engagement summary.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[A single fragrance rating from the quiz.]] - rationale - Scentrix\backend\app\routers\recommendations.py
+- [[Acknowledgement for ingested recommendation events.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[Adaptive quiz evaluation outcome.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[Adaptive quiz response acknowledgement.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[Adaptive quiz session start response.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[Add fragrance to collection.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[BaseModel]] - code
+- [[Batch recommendation events payload.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[BatchRatingRequest]] - code - Scentrix\backend\app\routers\recommendations.py
+- [[Catalog item for paginated fragrance browsing.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[Confidence sub-scores for observability.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[Create fragrance rating.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[ErrorResponse]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[Evaluate adaptive quiz confidence.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[Fragrance note with intensity.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[Fragrance rating response.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[Fragrance search result.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[FragranceAccord]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[FragranceBase]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[FragranceCatalogItem]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[FragranceCatalogPage]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[FragranceDetail]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[FragranceNote]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[FragranceRatingCreate]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[FragranceRatingInput]] - code - Scentrix\backend\app\routers\recommendations.py
+- [[FragranceRatingResponse]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[FragranceSearchResult]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[Full fragrance detail with notes and accords.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[Get fragrance detail including notes, accords, and similarity to user profile.]] - rationale - Scentrix\backend\app\routers\fragrances.py
+- [[GuestRecommendationRequest]] - code - Scentrix\backend\app\routers\recommendations.py
+- [[Health check response.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[HealthCheck]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[Next adaptive extension questions.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[Optional filters for adaptive quiz session creation.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[Paginated catalog response.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[Pydantic requestresponse schemas for ScentScape API.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[Quiz question card payload.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[QuizConfidenceComponents]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[QuizQuestion]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[QuizSessionEvaluateRequest]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[QuizSessionEvaluateResponse]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[QuizSessionNextQuestionsResponse]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[QuizSessionStartFilters]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[QuizSessionStartRequest]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[QuizSessionStartResponse]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[QuizSessionSubmitResponseRequest]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[QuizSessionSubmitResponseResponse]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[Recommendation interaction event for feedback loop ingestion.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[Recommendation result with ranked fragrances.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[RecommendationInteractionBatchRequest]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[RecommendationInteractionBatchResponse]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[RecommendationInteractionEventCreate]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[RecommendationResult]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[RecommendationWeeklyMetrics]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[Refresh token request.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[RefreshTokenRequest]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[Saved fragrance response.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[SavedFragranceCreate]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[SavedFragranceResponse]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[Single adaptive quiz response submission.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[SommelierInsightRequest]] - code - Scentrix\backend\app\routers\recommendations.py
+- [[Start adaptive quiz session request.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[Text-based recommendation request.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[TextRecommendationRequest]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[TokenResponse]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[Update payload for stored fragrance preferences.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[User profile response.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[UserLogin]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[UserPreferencesUpdate]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[UserProfile]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[UserRegister]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[_catalog_row_to_detail()]] - code - Scentrix\backend\app\routers\fragrances.py
+- [[debug_register.py]] - code - Scentrix\artifacts\scratch\debug_register.py
+- [[get_fragrance_detail()]] - code - Scentrix\backend\app\routers\fragrances.py
+- [[schemas.py]] - code - Scentrix\backend\app\schemas\schemas.py
+- [[test_reg()]] - code - Scentrix\artifacts\scratch\debug_register.py
+
+## Live Query (requires Dataview plugin)
+
+```dataview
+TABLE source_file, type FROM #community/Community_1
+SORT file.name ASC
+```
+
+## Connections to other communities
+- 10 edges to [[_COMMUNITY_Community 11]]
+- 9 edges to [[_COMMUNITY_Community 4]]
+- 8 edges to [[_COMMUNITY_Community 9]]
+- 3 edges to [[_COMMUNITY_Community 2]]
+- 2 edges to [[_COMMUNITY_Community 3]]
+- 2 edges to [[_COMMUNITY_Community 6]]
+- 1 edge to [[_COMMUNITY_Community 16]]
+- 1 edge to [[_COMMUNITY_Community 0]]
+
+## Top bridge nodes
+- [[BaseModel]] - degree 42, connects to 4 communities
+- [[get_fragrance_detail()]] - degree 11, connects to 4 communities
+- [[schemas.py]] - degree 38, connects to 2 communities
+- [[_catalog_row_to_detail()]] - degree 6, connects to 2 communities
+- [[FragranceSearchResult]] - degree 6, connects to 2 communities
