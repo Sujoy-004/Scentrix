@@ -12,7 +12,7 @@ COPY README.md .
 # Install project dependencies for the API runtime only.
 # The ML extras are intentionally excluded here because they blow past Railway's image size limit.
 RUN pip install --no-cache-dir setuptools wheel && \
-    pip install --no-cache-dir "."
+    pip install --no-cache-dir ".[runtime]"
 # Copy application code
 COPY app app
 # Change ownership

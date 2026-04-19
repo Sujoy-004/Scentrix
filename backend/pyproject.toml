@@ -45,6 +45,11 @@ dev = [
     "types-passlib",
     "types-python-jose",
 ]
+runtime = [
+    "numpy>=1.26.0",
+    "neo4j>=5.14.0",
+    "pinecone>=5.0.0",
+]
 ml = [
     "torch-geometric>=2.4.0",
     "pinecone>=5.0.0",
