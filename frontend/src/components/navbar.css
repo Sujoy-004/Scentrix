@@ -74,7 +74,9 @@
 }
 
 @media (max-width: 768px) {
-  .navbar-links-desktop { display: none; }
+  .navbar-links-desktop {
+    display: none;
+  }
 }
 
 .nav-link-magnetic {
@@ -241,7 +243,9 @@
 }
 
 @media (max-width: 768px) {
-  .navbar-toggle-elite { display: flex; }
+  .navbar-toggle-elite {
+    display: flex;
+  }
 }
 
 .navbar-mobile-menu {

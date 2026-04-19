@@ -93,16 +93,24 @@ def _select_seed_questions(rows: list[dict], count: int) -> list[dict]:
     if not rows:
         return []
 
-    # Olfactive Kingdoms: The 8 pillars of perfumery
+    # Olfactive Kingdoms: The 18 pillars of modern perfumery for full spectrum coverage
     KINGDOMS = {
-        "citrus": ["citrus", "lemon", "bergamot", "orange", "lime", "grapefruit"],
-        "floral": ["floral", "rose", "jasmine", "white floral", "tuberose", "iris"],
-        "oriental": ["oriental", "amber", "vanilla", "spicy", "cinnamon", "balsamic"],
-        "woody": ["woody", "sandalwood", "cedar", "patchouli", "vetiver", "oud"],
-        "aromatic": ["aromatic", "lavender", "herbal", "mint", "sage", "rosemary"],
-        "chypre": ["chypre", "oakmoss", "earthy", "mossy"],
-        "leather": ["leather", "smoky", "tobacco", "animalic"],
-        "gourmand": ["gourmand", "sweet", "chocolate", "caramel", "honey", "pudding"],
+        "citrus": ["citrus", "lemon", "bergamot", "orange", "lime", "grapefruit", "yuzu"],
+        "floral": ["floral", "rose", "jasmine", "white floral", "tuberose", "iris", "violet"],
+        "oriental": ["oriental", "amber", "vanilla", "spicy", "cinnamon", "balsamic", "resin"],
+        "woody": ["woody", "sandalwood", "cedar", "patchouli", "vetiver", "oud", "guaiac"],
+        "aromatic": ["aromatic", "lavender", "herbal", "mint", "sage", "rosemary", "fougere"],
+        "chypre": ["chypre", "oakmoss", "earthy", "mossy", "patchouli"],
+        "leather": ["leather", "smoky", "tobacco", "animalic", "castoreum"],
+        "gourmand": ["gourmand", "sweet", "chocolate", "caramel", "honey", "pudding", "vanilla"],
+        "marine": ["marine", "aquatic", "sea water", "ozonic", "salt", "calone"],
+        "green": ["green", "grass", "leafy", "galbanum", "tea", "bamboo"],
+        "fruity": ["fruity", "berry", "apple", "peach", "pear", "plum", "cherry"],
+        "animalic": ["animalic", "musk", "civet", "castoreum", "ambergris", "dirty"],
+        "powdery": ["powdery", "iris", "orris", "talc", "rice", "heliotrope"],
+        "musky": ["musk", "white musk", "clean musk", "laundry"],
+        "spicy_warm": ["warm spicy", "cinnamon", "clove", "cardamom", "nutmeg"],
+        "spicy_fresh": ["fresh spicy", "pink pepper", "ginger", "coriander", "juniper"],
     }
 
     random.shuffle(rows)
@@ -110,8 +118,12 @@ def _select_seed_questions(rows: list[dict], count: int) -> list[dict]:
     filled_kingdoms: set[str] = set()
     used_ids: set[str] = set()
 
-    # Priority 1: Fill the Kingdoms (1 item per kingdom)
-    for kingdom_name, keywords in KINGDOMS.items():
+    # Priority 1: Randomized Kingdom Coverage (1 item per kingdom, picked randomly from the 18)
+    # Shuffling the kingdoms list ensures that different sessions cover different families.
+    kingdom_list = list(KINGDOMS.items())
+    random.shuffle(kingdom_list)
+
+    for kingdom_name, keywords in kingdom_list:
         if len(selected) >= count:
             break
 
@@ -121,11 +133,23 @@ def _select_seed_questions(rows: list[dict], count: int) -> list[dict]:
                 continue
 
             accords = [str(a).lower() for a in (row.get("accords") or [])]
-            if any(k in accords for k in keywords):
-                selected.append(row)
-                used_ids.add(row_id)
-                filled_kingdoms.add(kingdom_name)
-                break
+            notes = [str(n).lower() for n in (row.get("top_notes") or []) + (row.get("middle_notes") or []) + (row.get("base_notes") or [])]
+            traits = accords + notes
+            
+            # Check if this fragrance fits the kingdom and doesn't overlap too much with already filled ones
+            if any(k in traits for k in keywords):
+                # Exclusive Selection: Does this row belong to ANY kingdom we already filled?
+                already_covered = False
+                for prev_k in filled_kingdoms:
+                    if any(k in traits for k in KINGDOMS[prev_k]):
+                        already_covered = True
+                        break
+                
+                if not already_covered or len(selected) < 4:
+                    selected.append(row)
+                    used_ids.add(row_id)
+                    filled_kingdoms.add(kingdom_name)
+                    break
 
     # Priority 2: Fill remaining slots with Greedy Diversity (Brand/Accord variation)
     if len(selected) < count:
@@ -242,13 +266,14 @@ def _require_owned_session(session_payload: dict | None, session_id: str, user_i
 
 
 @router.post("/start", response_model=QuizSessionStartResponse)
-@limiter.limit("10/minute")
+@limiter.limit("30/minute")
 async def start_quiz_session(
     quiz_data: QuizSessionStartRequest,
     request: Request,
-    user_id: int = Depends(get_current_user_id),
+    user_id: int | None = Depends(get_optional_user_id),
     session: AsyncSession = Depends(get_session),
 ) -> QuizSessionStartResponse:
+    effective_user_id = user_id if user_id is not None else 0
     catalog = load_recommendation_catalog()
     if not catalog:
         raise HTTPException(
@@ -258,13 +283,13 @@ async def start_quiz_session(
 
     candidate_rows = [row for row in catalog if str(row.get("id", "")).strip()]
 
-    if quiz_data.filters.exclude_seen:
+    if quiz_data.filters.exclude_seen and user_id:
         seen_ids = await _load_seen_ids(user_id, session)
         filtered = [row for row in candidate_rows if str(row.get("id", "")) not in seen_ids]
         if filtered:
             candidate_rows = filtered
 
-    rng = random.Random(f"quiz:{user_id}:{uuid4().hex}")
+    rng = random.Random(f"quiz:{effective_user_id}:{uuid4().hex}")
     if len(candidate_rows) > quiz_data.candidate_pool_size:
         candidate_rows = rng.sample(candidate_rows, quiz_data.candidate_pool_size)
 
@@ -319,9 +344,9 @@ async def start_quiz_session(
     )
 
 
-@router.post("/{session_id}/responses", response_model=QuizSessionSubmitResponseResponse)
-@limiter.limit("30/minute")
-async def submit_quiz_response(
+@router.post("/{session_id}/answer", response_model=QuizSessionSubmitResponseResponse)
+@limiter.limit("20/minute")
+async def submit_quiz_answer(
     session_id: str,
     quiz_data: QuizSessionSubmitResponseRequest,
     request: Request,

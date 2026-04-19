@@ -7,12 +7,12 @@ export function useLogin() {
   return useMutation({
     mutationFn: async ({ email, password }: any) => {
       const { data } = await api.post('/auth/login', { email, password });
-      
+
       // Store token so subsequent requests (like batch-rate) are authenticated
       if (data.access_token) {
         localStorage.setItem('auth_token', data.access_token);
         setAuthToken(data.access_token);
-        
+
         // Sync local guest data to the fresh account
         if (quizResponses.length > 0) {
           try {
@@ -35,7 +35,7 @@ export function useRegister() {
   return useMutation({
     mutationFn: async ({ email, password, full_name }: { email: string; password: string; full_name?: string }) => {
       const { data } = await api.post('/auth/register', { email, password, full_name });
-      
+
       // Store token so subsequent requests are authenticated
       if (data.access_token) {
         localStorage.setItem('auth_token', data.access_token);
@@ -63,17 +63,30 @@ export function useRecommendations() {
   const { isAuthenticated, quizResponses } = useAppStore();
 
   return useQuery({
-    queryKey: ['recommendations', isAuthenticated],
+    queryKey: ['recommendations', isAuthenticated, quizResponses.length],
     queryFn: async () => {
-      // Guests: do NOT fetch — the page will show the auth gate instead.
-      if (!isAuthenticated) return null;
+      // Authenticated: fetch from personalized profile
+      if (isAuthenticated) {
+        return api.getPersonalizedRecommendations();
+      }
 
-      // Authenticated: fetch from personalized endpoint.
-      return api.getPersonalizedRecommendations();
+      // Guest: fetch using local transient quiz responses
+      if (quizResponses.length > 0) {
+        return api.getGuestRecommendations(quizResponses.map(r => ({
+          fragrance_id: r.fragrance_id,
+          rating: r.rating,
+          top_notes: r.top_notes,
+          accords: r.accords,
+          name: r.name,
+          brand: r.brand
+        })));
+      }
+
+      return null;
     },
-    enabled: isAuthenticated, // only run for logged-in users
+    enabled: isAuthenticated || quizResponses.length > 0,
     retry: (failureCount, error: any) => {
-      if (error?.response?.status >= 400 && error?.response?.status < 500) return false;
+      if (error?.response?.status === 403) return false; // Don't retry auth gates
       return failureCount < 2;
     },
   });
@@ -128,41 +141,26 @@ export function useSubmitRating() {
 
 export function useAdaptiveQuizSession() {
   const startSession = useMutation({
-    mutationFn: async (payload: { seed_count: number; candidate_pool_size: number; filters: any }) => {
-      const { data } = await api.post('/quiz/session/start', payload);
-      return data;
-    },
+    mutationFn: (payload: { seed_count: number; candidate_pool_size: number; filters: any }) =>
+      api.startQuizSession(payload),
   });
 
   const evaluateSession = useMutation({
-    mutationFn: async ({ sessionId, ...payload }: { sessionId: string; [key: string]: any }) => {
-      const { data } = await api.post(`/quiz/session/${sessionId}/evaluate`, payload);
-      return data;
-    },
-  });
-
-  const extendSession = useMutation({
-    mutationFn: async ({ sessionId, ...payload }: { sessionId: string; [key: string]: any }) => {
-      const { data } = await api.post(`/quiz/session/${sessionId}/extend`, payload);
-      return data;
-    },
+    mutationFn: ({ sessionId, ...payload }: { sessionId: string;[key: string]: any }) =>
+      api.evaluateQuizSession(sessionId, payload as any),
   });
 
   const submitResponse = useMutation({
-    mutationFn: async ({ sessionId, ...payload }: { sessionId: string; [key: string]: any }) => {
-      const { data } = await api.post(`/quiz/session/${sessionId}/response`, payload);
-      return data;
-    },
+    mutationFn: ({ sessionId, ...payload }: { sessionId: string;[key: string]: any }) =>
+      api.submitQuizResponse(sessionId, payload as any),
   });
 
   const fetchNextQuestions = useMutation({
-    mutationFn: async ({ sessionId, ...payload }: { sessionId: string; [key: string]: any }) => {
-      const { data } = await api.post(`/quiz/session/${sessionId}/next`, payload);
-      return data;
-    },
+    mutationFn: ({ sessionId, count }: { sessionId: string; count: number }) =>
+      api.getNextQuizQuestions(sessionId, count),
   });
 
-  return { startSession, evaluateSession, extendSession, submitResponse, fetchNextQuestions };
+  return { startSession, evaluateSession, submitResponse, fetchNextQuestions };
 }
 
 export function useFragranceCatalog(limit: number, offset: number, filters?: { q?: string; brand?: string; family?: string }) {

@@ -43,8 +43,8 @@ def _hash_email(email: str) -> str:
     return hashlib.sha256(email.lower().strip().encode()).hexdigest()
 
 
-@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     request: Request,
     user_data: UserRegister,
@@ -69,7 +69,6 @@ async def register(
     hashed_password = hash_password(user_data.password)
     normalized_email = user_data.email.lower().strip()
     new_user = User(
-        email=normalized_email,
         email_hash=email_hash,
         encrypted_email=vault.encrypt(normalized_email),
         full_name=user_data.full_name,

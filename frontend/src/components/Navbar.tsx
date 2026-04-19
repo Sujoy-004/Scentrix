@@ -132,7 +132,7 @@ export default function Navbar() {
               <MagneticLink href="/recommendations" isActive={pathname === '/recommendations'} onClick={() => router.push('/recommendations')}>
                 Discovery
               </MagneticLink>
-              <MagneticLink href="/onboarding/quiz" isActive={pathname === '/onboarding/quiz'} onClick={() => router.push('/onboarding/quiz')}>
+              <MagneticLink href="/quiz" isActive={pathname === '/quiz'} onClick={() => router.push('/quiz')}>
                 Quiz
               </MagneticLink>
               <ProfileDropdown handleLogout={handleLogout} />
@@ -181,7 +181,7 @@ export default function Navbar() {
               ) : (
                 <>
                   <MobileNavLink icon={<Sparkles size={18} />} label="Discovery" onClick={() => { router.push('/recommendations'); setIsOpen(false); }} variants={itemVariants} />
-                  <MobileNavLink icon={<Sparkles size={18} />} label="Personalized Quiz" onClick={() => { router.push('/onboarding/quiz'); setIsOpen(false); }} variants={itemVariants} />
+                  <MobileNavLink icon={<Sparkles size={18} />} label="Personalized Quiz" onClick={() => { router.push('/quiz'); setIsOpen(false); }} variants={itemVariants} />
                   <MobileNavLink icon={<Heart size={18} />} label="Wishlist" onClick={() => { router.push('/profile/wishlist'); setIsOpen(false); }} variants={itemVariants} />
                   <MobileNavLink icon={<Settings size={18} />} label="Account" onClick={() => { router.push('/profile'); setIsOpen(false); }} variants={itemVariants} />
 

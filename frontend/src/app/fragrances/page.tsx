@@ -12,8 +12,8 @@ import { AnimatePresence } from 'framer-motion';
 import './fragrances.css';
 
 const FAMILIES = [
-  'Amber', 'Animalic', 'Aquatic', 'Aromatic', 'Citrus', 'Earthy', 
-  'Floral', 'Fresh', 'Fruity', 'Gourmand', 'Green', 'Leather', 
+  'Amber', 'Animalic', 'Aquatic', 'Aromatic', 'Citrus', 'Earthy',
+  'Floral', 'Fresh', 'Fruity', 'Gourmand', 'Green', 'Leather',
   'Musky', 'Oriental', 'Powdery', 'Smoky', 'Spicy', 'Woody'
 ];
 const VIDEO_FAMILIES = ['animalic', 'aquatic', 'citrus', 'earthy', 'floral', 'fresh', 'fruity', 'leather', 'aromatic', 'amber', 'all'];
@@ -38,7 +38,7 @@ export default function FragrancesPage() {
   const [items, setItems] = useState<FragranceCatalogItem[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const [sortBy, setSortBy] = useState<'rating' | 'name' | 'match'>('rating');
   const [filterFamily, setFilterFamily] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,7 +77,7 @@ export default function FragrancesPage() {
         setIsLoading(false);
       }
     };
-    
+
     const timer = setTimeout(load, searchQuery ? 300 : 0);
     return () => clearTimeout(timer);
   }, [page, filterFamily, searchQuery, sortBy]);
@@ -106,12 +106,12 @@ export default function FragrancesPage() {
 
   return (
     <div className="browse-page">
-      <VideoScrubber 
+      <VideoScrubber
         videoPath="/assets/top_hero.mp4"
         isFixed={true}
       />
       <FamilyBackground family={filterFamily || 'all'} />
-      
+
 
       {/* ── Floating Atmospheric Filter Nexus ── */}
       <div className="browse-layout">
@@ -119,30 +119,30 @@ export default function FragrancesPage() {
           <div className="sidebar-section">
             <h2 className="sidebar-label">Olfactive DNA Strands</h2>
             <div className="family-button-grid">
-              <FamilyWideBtn 
-                name="All Fragments" 
-                slug="all" 
-                active={filterFamily === ''} 
-                onClick={() => setFilterFamily('')} 
+              <FamilyWideBtn
+                name="All Fragments"
+                slug="all"
+                active={filterFamily === ''}
+                onClick={() => setFilterFamily('')}
               />
               {FAMILIES.map((f) => (
-                <FamilyWideBtn 
+                <FamilyWideBtn
                   key={f}
-                  name={f} 
-                  slug={f.toLowerCase()} 
-                  active={filterFamily === f.toLowerCase()} 
-                  onClick={() => setFilterFamily(f.toLowerCase())} 
+                  name={f}
+                  slug={f.toLowerCase()}
+                  active={filterFamily === f.toLowerCase()}
+                  onClick={() => setFilterFamily(f.toLowerCase())}
                 />
               ))}
             </div>
           </div>
-          
+
           <div className="sidebar-section">
             <div className="sort-btn-group" style={{ flexDirection: 'row', overflowX: 'auto', gap: '8px' }}>
               {(['rating', 'match', 'name'] as const).map((s) => (
-                <button 
-                  key={s} 
-                  className={`sort-btn ${sortBy === s ? 'active' : ''}`} 
+                <button
+                  key={s}
+                  className={`sort-btn ${sortBy === s ? 'active' : ''}`}
                   onClick={() => setSortBy(s)}
                   style={{ borderRadius: '40px', padding: '10px 24px', border: '1px solid rgba(255,255,255,0.08)' }}
                 >
@@ -163,15 +163,15 @@ export default function FragrancesPage() {
 
           {isLoading ? (
             <div style={{ padding: '60px 0', minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-               <DiscoveryNeuralLoader title="Sequencing olfactory graph..." />
+              <DiscoveryNeuralLoader title="Sequencing olfactory graph..." />
             </div>
           ) : items.length === 0 ? (
             <div className="empty-state">
               <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '3rem', fontStyle: 'italic', fontWeight: 300 }}>Empty Strand</h2>
               <p style={{ color: 'var(--color-muted)', marginTop: '12px', fontSize: '1rem' }}>No molecular signatures found in this spectrum.</p>
-              <button 
-                className="btn-secondary-detail" 
-                style={{ marginTop: '32px' }} 
+              <button
+                className="btn-secondary-detail"
+                style={{ marginTop: '32px' }}
                 onClick={() => { setFilterFamily(''); setSearchQuery(''); }}
               >
                 Reset Inversion
@@ -180,15 +180,15 @@ export default function FragrancesPage() {
           ) : (
             <div className="fragrances-grid" ref={gridRef}>
               {items.map((frag, idx) => (
-                <FragCard 
-                  key={frag.id} 
+                <FragCard
+                  key={frag.id}
                   frag={{
                     ...frag,
                     rating: frag.rating || 3.8,
                     match_score: frag.match_score || 82
-                  }} 
-                  index={idx} 
-                  onClick={() => router.push(`/fragrances/${frag.id}`)} 
+                  }}
+                  index={idx}
+                  onClick={() => router.push(`/fragrances/${frag.id}`)}
                 />
               ))}
             </div>
@@ -196,34 +196,34 @@ export default function FragrancesPage() {
 
           {totalPages > 1 && (
             <div className="discovery-pagination">
-              <motion.button 
+              <motion.button
                 whileHover={{ x: -4 }}
                 whileTap={{ scale: 0.95 }}
-                className="page-nav-btn prev" 
-                onClick={() => setPage((p) => Math.max(1, p - 1))} 
+                className="page-nav-btn prev"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
               >
                 <span className="nav-arrow">←</span>
               </motion.button>
-              
+
               <div className="page-numbers-nexus">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   let p = i + 1;
                   if (page > 3) p = page - 3 + (i + 1);
                   if (p > totalPages) return null;
-                  
+
                   const isActive = p === page;
-                  
+
                   return (
-                    <motion.button 
-                      key={p} 
-                      className={`page-num-btn ${isActive ? 'active' : ''}`} 
+                    <motion.button
+                      key={p}
+                      className={`page-num-btn ${isActive ? 'active' : ''}`}
                       onClick={() => setPage(p)}
                       whileHover={{ y: -2, scale: 1.1 }}
                       whileTap={{ scale: 0.95 }}
                     >
                       {isActive && (
-                        <motion.div 
+                        <motion.div
                           layoutId="active-pill"
                           className="active-pill-glow"
                           transition={{ type: "spring", stiffness: 350, damping: 30 }}
@@ -235,21 +235,21 @@ export default function FragrancesPage() {
                 })}
               </div>
 
-              <motion.button 
+              <motion.button
                 whileHover={{ x: 4 }}
                 whileTap={{ scale: 0.95 }}
-                className="page-nav-btn next" 
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))} 
+                className="page-nav-btn next"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
               >
                 <span className="nav-arrow">→</span>
               </motion.button>
-              
+
               <div className="jump-nexus">
-                <input 
-                  className="jump-input" 
-                  placeholder="GOTO" 
-                  value={jumpPage} 
+                <input
+                  className="jump-input"
+                  placeholder="GOTO"
+                  value={jumpPage}
                   onChange={(e) => setJumpPage(e.target.value.replace(/\D/g, ''))}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
@@ -272,7 +272,7 @@ export default function FragrancesPage() {
 
 function FamilyBackground({ family }: { family: string }) {
   const asset = getFamilyAsset(family || 'all');
-  
+
   if (asset.error) {
     return (
       <div className="family-discovery-bg flex items-center justify-center bg-black/80">
@@ -283,13 +283,13 @@ function FamilyBackground({ family }: { family: string }) {
 
   return (
     <div className="family-discovery-bg">
-      <img 
-        src={asset.src!} 
-        alt={family} 
+      <img
+        src={asset.src!}
+        alt={family}
         className="family-discovery-img"
       />
       <div className="family-discovery-dimmer" />
-      
+
       {/* ── Holographic Parallax: Triple-Vapor Scentscape ── */}
       <div className="spatial-vapor-nexus">
         <div className="vapor-cloud vapor-layer-1" />
@@ -303,7 +303,7 @@ function FamilyBackground({ family }: { family: string }) {
 
 function FamilyWideBtn({ name, slug, active, onClick }: { name: string; slug: string; active: boolean; onClick: () => void }) {
   const asset = getFamilyAsset(slug);
-  
+
   return (
     <button
       className={`family-btn-wide ${active ? 'active' : ''}`}
@@ -316,10 +316,10 @@ function FamilyWideBtn({ name, slug, active, onClick }: { name: string; slug: st
               <span className="error-text">{asset.error}</span>
             </div>
           ) : (
-            <img 
-              src={asset.src!} 
-              alt={name} 
-              className="btn-bg-img" 
+            <img
+              src={asset.src!}
+              alt={name}
+              className="btn-bg-img"
               loading="lazy"
             />
           )}
@@ -412,20 +412,20 @@ function FragCard({ frag, index, onClick }: { frag: any; index: number; onClick:
         <div className="glass-pillar" />
         <div className="bottle-visual-wrapper" style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}>
           {frag.image_url ? (
-            <img 
-              src={frag.image_url} 
-              alt={frag.name} 
-              className="frag-card-img" 
+            <img
+              src={frag.image_url}
+              alt={frag.name}
+              className="frag-card-img"
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               onError={(e) => {
-                 (e.currentTarget as HTMLImageElement).src = fallbackSrc || '/assets/family/all.png';
+                (e.currentTarget as HTMLImageElement).src = fallbackSrc || '/assets/family/all.png';
               }}
             />
           ) : (
-            <img 
-              src={fallbackSrc || '/assets/family/all.png'} 
-              alt={frag.name} 
-              className="frag-card-img fallback-family-img" 
+            <img
+              src={fallbackSrc || '/assets/family/all.png'}
+              alt={frag.name}
+              className="frag-card-img fallback-family-img"
               style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'saturate(0.9) brightness(0.8)' }}
               loading="lazy"
             />

@@ -157,7 +157,7 @@ export default function ProfilePage() {
         <div className="quick-actions">
           <button
             className="action-button"
-            onClick={() => router.push('/onboarding/quiz')}
+            onClick={() => router.push('/quiz')}
           >
             Retake Quiz
           </button>

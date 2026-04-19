@@ -54,20 +54,22 @@ def _load_from_neo4j() -> list[dict[str, Any]]:
             # Optimized Query: Use subqueries or localized matching to prevent cartesian explosion
             query = """
             MATCH (f:Fragrance)
-            CALL {
+            OPTIONAL MATCH (f)-[:MADE_BY]->(b:Brand)
+            CALL (f) {
                 WITH f
-                MATCH (f)-[:HAS_NOTE]->(n:Note)
+                OPTIONAL MATCH (f)-[r]->(n:Note)
+                WHERE type(r) IN ['HAS_NOTE', 'HAS_TOP_NOTE', 'HAS_MIDDLE_NOTE', 'HAS_BASE_NOTE']
                 RETURN collect({name: n.name, category: n.category}) as all_notes
             }
-            CALL {
+            CALL (f) {
                 WITH f
-                MATCH (f)-[:BELONGS_TO_ACCORD]->(a:Accord)
+                OPTIONAL MATCH (f)-[:BELONGS_TO_ACCORD]->(a:Accord)
                 RETURN collect(a.name) as accords
             }
             RETURN
                 f.id as id,
                 f.name as name,
-                f.brand as brand,
+                b.name as brand,
                 [n in all_notes WHERE n.category = 'top' | n.name] as top_notes,
                 [n in all_notes WHERE n.category = 'middle' | n.name] as middle_notes,
                 [n in all_notes WHERE n.category = 'base' | n.name] as base_notes,
@@ -98,6 +100,11 @@ def _load_from_neo4j() -> list[dict[str, Any]]:
                     val = item.get(key)
                     if not val:
                         item[key] = []
+                        
+                # Un-slugify name
+                raw_name = item.get("name")
+                if raw_name and "-" in raw_name and " " not in raw_name:
+                    item["name"] = raw_name.replace("-", " ").title()
 
                 items_dict[fid] = item
 
@@ -121,6 +128,21 @@ def load_recommendation_catalog(force_reload: bool = False) -> list[dict[str, An
             return _catalog_cache
 
         neo4j_rows = _load_from_neo4j()
+    
+    # -- Fallback to JSON SSOT if Neo4j is empty or down --
+    if not neo4j_rows:
+        logger.warning("Neo4j Catalog empty or offline. Falling back to local SSOT JSON.")
+        try:
+            repo_root = os.getenv("SCENTSCAPE_REPO_ROOT", r"c:\Users\KIIT0001\Documents\antigravity skills\Scentrix")
+            json_path = os.path.join(repo_root, "ml", "data", "fra_elite_24k.json")
+            if os.path.exists(json_path):
+                import json
+                with open(json_path, "r", encoding="utf-8") as f:
+                    neo4j_rows = json.load(f)
+                logger.info(f"Successfully loaded {len(neo4j_rows)} fragrances from local SSOT JSON.")
+        except Exception as e:
+            logger.error(f"Critical failure loading SSOT fallback: {e}")
+
     if neo4j_rows:
         # Optimization: Pre-compute stable engagement metrics during hydration
         # This prevents 24,000 loop overhead in the search router
@@ -138,7 +160,7 @@ def load_recommendation_catalog(force_reload: bool = False) -> list[dict[str, An
             row["_notes_set"] = {str(n).lower() for n in all_notes if n}
             row["_accords_set"] = {str(a).lower() for a in (row.get("accords") or []) if a}
 
-        logger.info(f"Retrieved and hydrated {len(neo4j_rows)} fragrances from Neo4j Graph.")
+        logger.info(f"Retrieved and hydrated {len(neo4j_rows)} fragrances for Scentrix Neural Engine.")
         _catalog_cache = neo4j_rows
         return _catalog_cache
 

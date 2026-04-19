@@ -22,81 +22,111 @@ class HybridRecommender:
         # 1. Vector Client
         pc_api_key = os.environ.get("PINECONE_API_KEY")
         self.pc = Pinecone(api_key=pc_api_key) if pc_api_key else None
-        self.vector_index = self.pc.Index("scentscape-fragrances") if self.pc else None
+        self.text_index = self.pc.Index("scentscape-fragrances") if self.pc else None
+        self.graph_index = self.pc.Index("scentscape-graph") if self.pc else None
 
         # 2. Graph Client
         self.driver = GraphDatabase.driver(
             settings.neo4j_uri, auth=(settings.neo4j_user, settings.neo4j_password)
         )
 
-    def _query_vector_dna(self, user_vec: list[float], limit: int = 100) -> list[dict[str, Any]]:
-        """Phase 1: High-recall vector search (Pinecone with Local Fallback)."""
-        # 1. External Production Service (Pinecone)
-        if self.vector_index:
+    def _query_vector_dna(
+        self, user_vec: list[float], limit: int = 100, use_graph_dna: bool = True
+    ) -> list[dict[str, Any]]:
+        """Phase 1: High-recall dual-vector search (Text DNA + Graph DNA)."""
+        candidates_map: dict[str, dict[str, Any]] = {}
+
+        # 1. Text DNA Search (Pinecone)
+        if self.text_index:
             try:
-                res: Any = self.vector_index.query(
-                    vector=user_vec, top_k=limit, include_metadata=True
-                )
-                return [
-                    {"id": m.id, "score": m.score, "metadata": m.metadata or {}}
-                    for m in res.matches
-                ]
+                res = self.text_index.query(vector=user_vec, top_k=limit, include_metadata=True)
+                for m in res.matches:
+                    candidates_map[m.id] = {
+                        "id": m.id,
+                        "text_score": m.score,
+                        "graph_score": 0.0,
+                        "metadata": m.metadata or {},
+                    }
             except Exception as e:
-                logger.warning(f"Pinecone query failed, attempting local fallback: {e}")
+                logger.warning(f"Text index query failed: {e}")
 
-        # 2. Local Semantic Brain Fallback (High-Fidelity)
-        from app.routers.recommendations import (  # noqa: E402
-            _catalog_embeddings_cache,
-            _is_hydrating,
-            load_recommendation_catalog,
-        )
+        # 2. Graph DNA Search (Pinecone - GraphSAGE Embeddings)
+        if use_graph_dna and self.graph_index:
+            try:
+                # We use the same user vector (assuming joint embedding space or similar dimension)
+                # In a true Scenter-GNN setup, we might need a separate Graph-Encoder pass.
+                res = self.graph_index.query(vector=user_vec, top_k=limit, include_metadata=False)
+                for m in res.matches:
+                    if m.id in candidates_map:
+                        candidates_map[m.id]["graph_score"] = m.score
+                    else:
+                        candidates_map[m.id] = {
+                            "id": m.id,
+                            "text_score": 0.0,
+                            "graph_score": m.score,
+                            "metadata": {},  # Metadata will be hydrated via local catalog if missing
+                        }
+            except Exception as e:
+                logger.warning(f"Graph index query failed: {e}")
 
-        # If the engine is busy hydrating, we skip the slow local scan and return empty
-        if _is_hydrating:
-            logger.info("Neural Engine is hydrating; skipping local fallback.")
-            return []
+        # 3. Local Semantic Fallback (if no results from Pinecone)
+        if not candidates_map:
+            from app.routers.recommendations import (  # noqa: E402
+                _catalog_embeddings_cache,
+                _is_hydrating,
+                load_recommendation_catalog,
+            )
 
-        catalog = load_recommendation_catalog()
+            if not _is_hydrating and _catalog_embeddings_cache is not None:
+                catalog = load_recommendation_catalog()
+                user_vec_np = np.array(user_vec)
+                similarities = np.dot(_catalog_embeddings_cache, user_vec_np)
+                top_indices = np.argsort(similarities)[-limit:][::-1]
+                for idx in top_indices:
+                    item = catalog[idx]
+                    candidates_map[item["id"]] = {
+                        "id": item["id"],
+                        "text_score": float(similarities[idx]),
+                        "graph_score": 0.0,
+                        "metadata": item,
+                    }
 
-        if _catalog_embeddings_cache is not None and catalog:
-            # Vectorized Cosine Similarity in NumPy for O(N) performance
-            candidates = []
-            user_vec_np = np.array(user_vec)
-
-            # Simple dot product since SentenceTransformers outputs unit vectors
-            similarities = np.dot(_catalog_embeddings_cache, user_vec_np)
-
-            # Get top K indices
-            top_indices = np.argsort(similarities)[-limit:][::-1]
-
-            for idx in top_indices:
-                item = catalog[idx]
-                candidates.append(
-                    {"id": item.get("id"), "score": float(similarities[idx]), "metadata": item}
-                )
-            return candidates
-
-        return []
+        return list(candidates_map.values())
 
     def _rerank_genetic_match(
         self, candidate_ids: list[str], user_rated_ids: list[str]
-    ) -> dict[str, Any]:
+    ) -> dict[str, dict[str, float]]:
         """Phase 2: High-precision graph reranking using genetic distance."""
-        if not user_rated_ids:
+        if not user_rated_ids or not candidate_ids:
             return {}
 
         try:
             with self.driver.session() as session:
-                # We calculate 'Genetic Distance' based on shared notes/accords between candidates and user seeds.
+                # Optimized Genetic Query: Checks shared Notes, Accords, and Family
                 query = """
                 MATCH (rec:Fragrance) WHERE rec.id IN $cids
                 MATCH (seed:Fragrance) WHERE seed.id IN $sids
-                MATCH (rec)-[:HAS_TOP_NOTE|HAS_MIDDLE_NOTE|HAS_BASE_NOTE]->(n:Note)<-[:HAS_TOP_NOTE|HAS_MIDDLE_NOTE|HAS_BASE_NOTE]-(seed)
-                WITH rec, count(n) as shared_notes
-                RETURN rec.id as id, shared_notes
+                
+                OPTIONAL MATCH (rec)-[:HAS_NOTE]->(n:Note)<-[:HAS_NOTE]-(seed)
+                OPTIONAL MATCH (rec)-[:BELONGS_TO_ACCORD]->(a:Accord)<-[:BELONGS_TO_ACCORD]-(seed)
+                OPTIONAL MATCH (rec)-[:IN_FAMILY]->(f:Family)<-[:IN_FAMILY]-(seed)
+                
+                WITH rec.id as id, 
+                     count(distinct n) as shared_notes, 
+                     count(distinct a) as shared_accords,
+                     count(distinct f) as shared_family
+                
+                RETURN id, shared_notes, shared_accords, shared_family
                 """
                 result = session.run(query, {"cids": candidate_ids, "sids": user_rated_ids})
-                return {r["id"]: r["shared_notes"] for r in result}
+                return {
+                    r["id"]: {
+                        "notes": r["shared_notes"],
+                        "accords": r["shared_accords"],
+                        "family": r["shared_family"],
+                    }
+                    for r in result
+                }
         except Exception as e:
             logger.error(f"Neo4j reranking failed: {e}")
             return {}
@@ -105,40 +135,56 @@ class HybridRecommender:
         self, user_profile_vec: list[float], user_seed_ids: list[str]
     ) -> list[dict[str, Any]]:
         """Main entry point for 300ms Adaptive Discovery."""
-        # Step 1: Candidate Selection (Vector ANN)
-        try:
-            candidates = self._query_vector_dna(user_profile_vec, limit=50)
-            if not candidates:
-                return []
-            c_ids = [c["id"] for c in candidates]
-        except Exception as e:
-            logger.error(f"Vector search critical failure: {e}")
+        # Step 1: Candidate Selection (Dual Vector DNA)
+        candidates = self._query_vector_dna(user_profile_vec, limit=60)
+        if not candidates:
             return []
+        
+        c_ids = [c["id"] for c in candidates]
 
         # Step 2: Genetic Reranking (Graph)
-        shared_note_counts = self._rerank_genetic_match(c_ids, user_seed_ids)
+        genetic_data = self._rerank_genetic_match(c_ids, user_seed_ids)
 
-        # Step 3: Reciprocal Rank Fusion (RRF) / Hybrid Scalar Fusion
+        # Step 3: Reciprocal Rank Fusion (RRF) & Metadata Hydration
+        from app.routers.recommendations import load_recommendation_catalog
+        catalog_map = {item["id"]: item for item in load_recommendation_catalog()}
+
         refined = []
         for c in candidates:
             c_id = c["id"]
-            shared_notes = shared_note_counts.get(c_id, 0)
+            metadata = c["metadata"] or catalog_map.get(c_id, {})
+            
+            # Genetic Weights
+            g = genetic_data.get(c_id, {"notes": 0, "accords": 0, "family": 0})
+            genetic_score = (g["notes"] * 1.0) + (g["accords"] * 2.0) + (g["family"] * 3.0)
+            genetic_normalized = min(genetic_score / 15.0, 1.0)
 
-            # Weighted Hybrid Score: 70% Vibe (Vector) + 30% Genetics (Graph)
-            # Normalize shared notes (Assume 10 max shared notes for scaling)
-            graph_boost = min(shared_notes / 5.0, 1.0)
-            hybrid_score = (c["score"] * 0.7) + (graph_boost * 0.3)
+            # RRF / Hybrid Scalar Fusion: 40% Text Vibe + 40% Graph DNA + 20% Genetic Match
+            hybrid_score = (
+                (c["text_score"] * 0.4) + 
+                (c["graph_score"] * 0.4) + 
+                (genetic_normalized * 0.2)
+            )
+
+            # Generate reasoning string
+            if genetic_score > 5:
+                reason = "Deep Genetic Match (Shared Family & Accords)"
+            elif g["notes"] > 0:
+                reason = f"Genetic Spark ({g['notes']} shared notes)"
+            elif c["graph_score"] > 0.8:
+                reason = "Neural Discovery (GraphSAGE Structural Match)"
+            else:
+                reason = "Semantic Soulbound (Aetheric Text Vibe)"
 
             refined.append(
                 {
                     "id": c_id,
-                    "name": c["metadata"].get("name", "Unknown"),
-                    "brand": c["metadata"].get("brand", "Unknown"),
-                    "image_url": c["metadata"].get("image_url", ""),
+                    "name": metadata.get("name", "Unknown"),
+                    "brand": metadata.get("brand", "Unknown"),
                     "match_score": round(hybrid_score * 100, 1),
-                    "reason": f"Shared Genetic Resonance ({shared_notes} notes)"
-                    if shared_notes > 0
-                    else "Semantic Soulbound Match",
+                    "reason": reason,
+                    "top_accords": metadata.get("accords", [])[:3],
+                    "top_notes": metadata.get("top_notes", [])[:3],
                 }
             )
 

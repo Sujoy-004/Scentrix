@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -21,6 +22,8 @@ except ImportError:
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 logger = logging.getLogger(__name__)
 
+# Circuit breaker: in production, never return mock/fake data
+_TESTING_MODE = os.environ.get("TESTING_MODE", "false").lower() == "true"
 
 # ── Module-level caches ───────────────────────────────────────────────────────
 _encoder = None
@@ -130,6 +133,10 @@ def _score_catalog(
     2. Note/accord overlap heuristic (always available)
     3. Trending fallback (when no ratings match catalogue)
     """
+    if _is_hydrating:
+        logger.info("Score Engine: Neural engine is still hydrating. Aborting scoring early.")
+        return []
+
     encoder = get_encoder()
     catalog_by_norm_id = {_normalize_id(str(item.get("id", ""))): item for item in catalog}
 
@@ -153,6 +160,9 @@ def _score_catalog(
             liked_accords.update(r.accords or [])
 
     seed_ids = {_normalize_id(r.fragrance_id) for r in user_ratings}
+    
+    logger.info(f"Score Catalog: Received {len(user_ratings)} ratings. Matched {len(rated_items)} items against catalog.")
+    logger.info(f"Successfully resolved {len(rated_items)} items against catalog for scoring out of {len(user_ratings)} provided.")
 
     # -- ML path -----------------------------------------------------------
     if encoder and _catalog_embeddings_cache is not None and rated_items:
@@ -162,28 +172,64 @@ def _score_catalog(
             user_texts = [_get_item_text(item) for item in rated_items]
             user_embeddings = encoder.generate_embeddings(user_texts)
 
-            total_w = sum(weights) or 1.0
+            # Center weights so <5.5 pushes vector AWAY from the target, >5.5 pulls TOWARD the target.
+            shifted_weights = [w - 5.5 for w in weights]
+            total_w = sum(abs(w) for w in shifted_weights) or 1.0
+            
             dim = len(user_embeddings[0])
-            user_vec = [0.0] * dim
-            for emb, w in zip(user_embeddings, weights, strict=False):
-                for i in range(dim):
-                    user_vec[i] += emb[i] * (w / total_w)
+            user_vec = np.zeros(dim)
+            for emb, w in zip(user_embeddings, shifted_weights, strict=False):
+                user_vec += np.array(emb) * (w / total_w)
+
+            # Normalize user vector to ensure unit length
+            user_v_norm = np.linalg.norm(user_vec)
+            if user_v_norm > 0:
+                user_vec = user_vec / user_v_norm
 
             catalog_embs = np.array(_catalog_embeddings_cache)
-            uv = np.array(user_vec)
-            scores = catalog_embs.dot(uv).tolist()
+            # Ensure catalog is normalized (it should be, but let's be safe)
+            norms = np.linalg.norm(catalog_embs, axis=1, keepdims=True)
+            catalog_embs = catalog_embs / np.where(norms > 0, norms, 1.0)
+            
+            scores = catalog_embs.dot(user_vec).tolist()
+
+            logger.info(f"Neural ML Computed {len(scores)} scores. Max score: {max(scores):.4f}")
 
             results = []
+            nid_set = seed_ids  # already a set of normalized IDs to exclude
             for item, score in zip(catalog, scores, strict=False):
                 nid = _normalize_id(str(item.get("id", "")))
-                if nid in seed_ids:
+                if nid in nid_set:
                     continue
+
+                # Neural contrast: Only boost positive correlations.
+                # Negative correlations (repulsion) are handled by the shifted vector.
+                safe_score = max(score, 0.0)
+
+                # --- Specificity Boosting & Generalist Penalty ---
+                # A "specialist" typically has 5-8 well-defined notes.
+                # A "generalist" (like London) has 20+.
+                all_notes = (
+                    (item.get("top_notes", []) or [])
+                    + (item.get("middle_notes", []) or [])
+                    + (item.get("base_notes", []) or [])
+                )
+                num_notes = len(all_notes)
+
+                # Dynamic complexity penalty: starts at 12 notes, drops scores by up to 30%
+                complexity_penalty = 1.0
+                if num_notes > 10:
+                    complexity_penalty = max(0.7, 1.0 - (num_notes - 10) * 0.03)
+
+                # Exponential Contrast: score^3 creates much sharper separation than score^1
+                calibrated_score = (safe_score**3.0) * complexity_penalty
+
                 results.append(
                     {
                         "id": str(item.get("id", "")),
                         "name": str(item.get("name", "Unknown")),
                         "brand": str(item.get("brand", "Unknown")),
-                        "match_score": round(min(max(score, 0.0), 1.0) * 100, 1),
+                        "match_score": round(min(max(calibrated_score, 0.0), 1.0) * 100, 1),
                         "reason": "Neural soulbound match",
                     }
                 )
@@ -193,7 +239,9 @@ def _score_catalog(
             if top and top[0]["match_score"] > 0:
                 return top
         except Exception as e:
-            logger.warning(f"ML scoring failed, falling back to heuristic: {e}")
+            logger.warning(f"ML scoring failed: {e}")
+            import traceback
+            logger.warning(traceback.format_exc())
 
     # -- Heuristic note-overlap path ----------------------------------------
     if liked_notes or liked_accords:
@@ -290,14 +338,18 @@ def _mock_public_recommendations() -> list[dict[str, Any]]:
 
 @router.get("/text", response_model=list[FragranceRecommendation])
 async def recommendation_text_search(q: str) -> list[FragranceRecommendation]:
-    # Minimal contract for integration tests.
+    # Only return mock data in testing environments.
+    if not _TESTING_MODE:
+        return []
     results = _mock_public_recommendations()
     return [FragranceRecommendation(**r) for r in results]
 
 
 @router.get("/similar/{fragrance_id}", response_model=list[FragranceRecommendation])
 async def recommendation_similarity(fragrance_id: str) -> list[FragranceRecommendation]:
-    # Minimal contract for integration tests.
+    # Only return mock data in testing environments.
+    if not _TESTING_MODE:
+        return []
     _ = fragrance_id
     results = _mock_public_recommendations()
     return [FragranceRecommendation(**r) for r in results]
@@ -307,7 +359,9 @@ async def recommendation_similarity(fragrance_id: str) -> list[FragranceRecommen
 async def recommendation_for_me(
     user_id: int = Depends(get_current_user_id),
 ) -> list[FragranceRecommendation]:
-    # Minimal contract for integration tests.
+    # Only return mock data in testing environments.
+    if not _TESTING_MODE:
+        return []
     _ = user_id
     results = _mock_public_recommendations()
     return [FragranceRecommendation(**r) for r in results]
@@ -407,18 +461,54 @@ async def submit_batch_ratings(
         raise HTTPException(status_code=500, detail="Failed to sync batch ratings") from e
 
 
-@router.post("/guest", response_model=list[FragranceRecommendation])
 async def get_guest_recommendations(
     request: GuestRecommendationRequest,
 ) -> list[FragranceRecommendation]:
     """
-    GATED: Guests no longer receive recommendations until authentication.
-    Returns 403 Forbidden to enforce the signup wall.
+    Return neural recommendations for guest users using the Hybrid Engine.
     """
-    raise HTTPException(
-        status_code=403,
-        detail="Neural Synthesis requires an authenticated Elite profile. Please sign up to view your results.",
-    )
+    if not request.ratings:
+        return []
+
+    catalog = load_recommendation_catalog()
+    if not catalog:
+        raise HTTPException(status_code=503, detail="Catalog unavailable")
+
+    encoder = get_encoder()
+    if not encoder:
+        return [FragranceRecommendation(**r) for r in _score_catalog(request.ratings, catalog)]
+
+    try:
+        # Generate profile vector from guest ratings
+        rated_items = []
+        weights = []
+        catalog_by_id = {_normalize_id(str(i.get("id", ""))): i for i in catalog}
+
+        for r in request.ratings:
+            item = catalog_by_id.get(_normalize_id(r.fragrance_id))
+            if item:
+                rated_items.append(_get_item_text(item))
+                weights.append(r.rating)
+
+        if not rated_items:
+            return [FragranceRecommendation(**r) for r in _score_catalog(request.ratings, catalog)]
+
+        user_embeddings = encoder.generate_embeddings(rated_items)
+        total_w = sum(weights) or 1.0
+        dim = len(user_embeddings[0])
+        user_vec = [0.0] * dim
+        for emb, w in zip(user_embeddings, weights, strict=False):
+            for i in range(dim):
+                user_vec[i] += emb[i] * (w / total_w)
+
+        seed_ids = [_normalize_id(r.fragrance_id) for r in request.ratings]
+        results = recommender.get_recommendations(user_vec, seed_ids)
+        return [FragranceRecommendation(**r) for r in results]
+
+    except Exception as e:
+        logger.error(f"Guest hybrid discovery failed: {e}")
+        results = _score_catalog(request.ratings, catalog)
+        return [FragranceRecommendation(**r) for r in results]
 
 
 @router.get("/personalized", response_model=list[FragranceRecommendation])
@@ -427,13 +517,11 @@ async def get_personalized_recommendations(
     db: AsyncSession = Depends(get_session),
 ) -> list[FragranceRecommendation]:
     """
-    Return personalized recommendations for an authenticated user based on
-    their saved quiz ratings. Falls back to empty list if no ratings exist.
+    Return personalized recommendations for an authenticated user.
     """
     if not user_id:
         return []
 
-    # Check cache first
     cached_recs = await cache.get(f"rec:user:{user_id}")
     if cached_recs:
         return [FragranceRecommendation(**r) for r in cached_recs]
@@ -447,11 +535,8 @@ async def get_personalized_recommendations(
 
     catalog = load_recommendation_catalog()
     if not catalog:
-        raise HTTPException(status_code=503, detail="Catalog unavailable")
+        return []
 
-    warmup_neural_engine()
-
-    # Convert DB rows back to the same format for the scoring engine
     guest_ratings = [
         FragranceRatingInput(
             fragrance_id=r.fragrance_neo4j_id,
@@ -460,14 +545,11 @@ async def get_personalized_recommendations(
         for r in saved_ratings
     ]
 
-    # ── User Profile Vector Generation ──────────────────────────────────────
     encoder = get_encoder()
     if not encoder:
-        logger.warning("ML Encoder unavailable, falling back to heuristic scoring.")
         results = _score_catalog(guest_ratings, catalog)
     else:
         try:
-            # 1. Gather texts from user's rated items to build the profile vector
             rated_items = []
             weights = []
             catalog_by_id = {_normalize_id(str(i.get("id", ""))): i for i in catalog}
@@ -481,10 +563,7 @@ async def get_personalized_recommendations(
             if not rated_items:
                 return []
 
-            # 2. Generate embeddings for user profile
             user_embeddings = encoder.generate_embeddings(rated_items)
-
-            # 3. Weighted average of embeddings (Profile DNA)
             total_w = sum(weights) or 1.0
             dim = len(user_embeddings[0])
             user_vec = [0.0] * dim
@@ -492,16 +571,43 @@ async def get_personalized_recommendations(
                 for i in range(dim):
                     user_vec[i] += emb[i] * (w / total_w)
 
-            # 4. Neural Discovery via Hybrid Engine (Vector + Graph Genetics)
             seed_ids = [_normalize_id(r.fragrance_id) for r in guest_ratings]
             results = recommender.get_recommendations(user_vec, seed_ids)
-
         except Exception as e:
             logger.error(f"Hybrid discovery hit a critical fault: {e}")
             results = _score_catalog(guest_ratings, catalog)
 
-    # Store in cache (expire in 1 hour)
     if results:
         await cache.set(f"rec:user:{user_id}", results, expire=3600)
 
     return [FragranceRecommendation(**r) for r in results]
+
+
+class SommelierInsightRequest(BaseModel):
+    fragrances: list[FragranceRecommendation]
+
+
+class SommelierInsightResponse(BaseModel):
+    insight: str
+    vibe_category: str
+    sommelier_name: str = "Aethera"
+
+
+@router.post("/sommelier/insight", response_model=SommelierInsightResponse)
+async def get_sommelier_insight(
+    request: SommelierInsightRequest,
+) -> SommelierInsightResponse:
+    """
+    Generate an atmospheric, AI-powered insight for a collection of recommendations.
+    """
+    from app.services.sommelier import sommelier_service
+
+    try:
+        insight, category = await sommelier_service.generate_insight(request.fragrances)
+        return SommelierInsightResponse(insight=insight, vibe_category=category)
+    except Exception as e:
+        logger.error(f"Sommelier Service failed: {e}")
+        return SommelierInsightResponse(
+            insight="Your collection resonates with a unique, elusive frequency. There is a deep, structural harmony between your choices that suggests a preference for complex, narrative-driven olfactive profiles.",
+            vibe_category="Aetheric Discovery",
+        )

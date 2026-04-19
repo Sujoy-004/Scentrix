@@ -100,7 +100,7 @@ export default function QuizHistoryPage() {
             <p>Take the quiz to discover fragrances tailored to you!</p>
             <button
               className="cta-button"
-              onClick={() => router.push('/onboarding/quiz')}
+              onClick={() => router.push('/quiz')}
             >
               Take the Quiz
             </button>
@@ -176,7 +176,7 @@ export default function QuizHistoryPage() {
                       </button>
                       <button
                         className="retake-quiz"
-                        onClick={() => router.push('/onboarding/quiz')}
+                        onClick={() => router.push('/quiz')}
                       >
                         Retake Quiz
                       </button>
@@ -207,7 +207,7 @@ export default function QuizHistoryPage() {
           <div className="history-footer">
             <button
               className="take-new-quiz"
-              onClick={() => router.push('/onboarding/quiz')}
+              onClick={() => router.push('/quiz')}
             >
               Take a New Quiz
             </button>

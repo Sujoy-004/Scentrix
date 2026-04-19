@@ -83,7 +83,7 @@ export default function WishlistPage() {
             </button>
             <button
               className="secondary-button"
-              onClick={() => router.push('/onboarding/quiz')}
+              onClick={() => router.push('/quiz')}
             >
               Take the Quiz
             </button>

@@ -34,7 +34,7 @@ export function FinalCTA() {
             whileHover={{ scale: 1.05, y: -4 }}
             whileTap={{ scale: 0.95 }}
             className="final-cta-button"
-            onClick={() => router.push('/onboarding/quiz')}
+            onClick={() => router.push('/quiz')}
           >
             Start Your Protocol <ArrowRight className="ml-2" size={18} />
           </motion.button>

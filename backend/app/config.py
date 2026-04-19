@@ -79,6 +79,11 @@ class Settings(BaseSettings):
         default="scentscape-fragrances", validation_alias=AliasChoices("PINECONE_INDEX_NAME")
     )
 
+    # Google (Gemini) - For Digital Sommelier
+    google_api_key: str | None = Field(
+        default=None, validation_alias=AliasChoices("GOOGLE_API_KEY")
+    )
+
     @field_validator("database_url", mode="before")
     @classmethod
     def normalize_database_url(cls, value: str) -> str:

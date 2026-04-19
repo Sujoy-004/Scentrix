@@ -129,7 +129,7 @@ export default function RegisterPage() {
             }
             router.push(syncWarning ? '/recommendations?sync=partial' : '/recommendations');
           } else {
-            router.push('/onboarding/quiz');
+            router.push('/quiz');
           }
         },
         onError: (err: unknown) => {

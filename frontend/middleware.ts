@@ -9,6 +9,7 @@ const publicRoutes = [
   '/fragrances',
   '/families',
   '/recommendations',
+  '/quiz',
   '/terms',
   '/privacy',
 ];
@@ -16,7 +17,6 @@ const publicRoutes = [
 // Define routes that require authentication
 const protectedRoutes = [
   '/profile',
-  '/user',
 ];
 
 

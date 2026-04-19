@@ -98,25 +98,30 @@ export const api = {
     return Array.isArray(data) ? data : [];
   },
   // Adaptive Quiz Protocol
+  startQuizSession: async (payload: { seed_count: number; candidate_pool_size: number; filters: any }) => {
+    const { data } = await apiInstance.post('/fragrances/quiz/session/start', payload);
+    return data;
+  },
+
   submitQuizResponse: async (sessionId: string, payload: { fragrance_id: string; rating_1_to_10: number; source: string }) => {
-    const { data } = await apiInstance.post(`/quiz/session/${sessionId}/responses`, payload);
+    const { data } = await apiInstance.post(`/fragrances/quiz/session/${sessionId}/answer`, payload);
     return data;
   },
 
   evaluateQuizSession: async (sessionId: string, payload: { force: boolean }) => {
-    const { data } = await apiInstance.post(`/quiz/session/${sessionId}/evaluate`, payload);
+    const { data } = await apiInstance.post(`/fragrances/quiz/session/${sessionId}/evaluate`, payload);
     return data;
   },
 
   getNextQuizQuestions: async (sessionId: string, count: number) => {
-    const { data } = await apiInstance.get(`/quiz/session/${sessionId}/next-questions`, {
+    const { data } = await apiInstance.get(`/fragrances/quiz/session/${sessionId}/next-questions`, {
       params: { count }
     });
     return data;
   },
 
   finalizeQuizSession: async (sessionId: string) => {
-    const { data } = await apiInstance.post(`/quiz/session/${sessionId}/finalize`);
+    const { data } = await apiInstance.post(`/fragrances/quiz/session/${sessionId}/finalize`);
     return data;
   },
 };

@@ -3,11 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Sparkles, 
-  Heart, 
-  ArrowRight, 
-  RotateCcw, 
+import {
+  Sparkles,
+  Heart,
+  ArrowRight,
+  RotateCcw,
   ShieldCheck,
   LogIn,
   UserPlus,
@@ -41,9 +41,9 @@ interface FragranceRecommendation {
 
 const cardVariants = {
   hidden: { opacity: 0, y: 30, scale: 0.95 },
-  visible: { 
-    opacity: 1, 
-    y: 0, 
+  visible: {
+    opacity: 1,
+    y: 0,
     scale: 1,
     transition: { type: 'spring' as const, stiffness: 100, damping: 20 }
   }
@@ -79,7 +79,7 @@ export default function RecommendationsPage() {
           <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '2rem', lineHeight: '1.6' }}>
             Take the Discovery Protocol to calibrate your neural scent profile.
           </p>
-          <button className="btn btn-primary" onClick={() => router.push('/onboarding/quiz')}>
+          <button className="btn btn-primary" onClick={() => router.push('/quiz')}>
             Enter Protocol <ArrowRight size={18} />
           </button>
         </motion.div>
@@ -87,63 +87,8 @@ export default function RecommendationsPage() {
     );
   }
 
-  // ── GATE 2: Guest with quiz data → show Login/Sign Up gate ──────────────
-  if (!isAuthenticated && quizResponses.length > 0) {
-    return (
-      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050505', padding: '2rem' }}>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
-          style={{ textAlign: 'center', maxWidth: '34rem' }}
-        >
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-            style={{ width: '5rem', height: '5rem', border: '1px solid rgba(200,161,90,0.3)', borderRadius: '50%', margin: '0 auto 2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Sparkles size={28} style={{ color: '#C8A15A' }} />
-          </motion.div>
-
-          <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.25em', textTransform: 'uppercase', color: 'rgba(200,161,90,0.7)', marginBottom: '1rem' }}>
-            Neural Calibration Complete
-          </div>
-          <h1 style={{ fontSize: '2rem', fontFamily: 'var(--font-display)', fontStyle: 'italic', color: '#fff', marginBottom: '0.75rem', lineHeight: 1.2 }}>
-            Your Aromatic Profile is Ready
-          </h1>
-          <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '2.5rem' }}>
-            You rated <strong style={{ color: '#C8A15A' }}>{quizResponses.length}</strong> fragrances.
-            Sign in or create a free account to unlock your personalized discovery landscape.
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: '18rem', margin: '0 auto' }}>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => router.push('/auth/register')}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.85rem 2rem', background: 'linear-gradient(135deg, rgba(200,161,90,0.9), rgba(90,42,27,0.8))', border: 'none', borderRadius: '100px', color: '#0a0806', fontWeight: 700, fontSize: '0.8rem', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}
-            >
-              <UserPlus size={16} /> Create Free Account
-            </motion.button>
-
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => router.push('/auth/login')}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.85rem 2rem', background: 'transparent', border: '1px solid rgba(200,161,90,0.3)', borderRadius: '100px', color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: '0.8rem', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}
-            >
-              <LogIn size={16} /> Sign In to Existing Account
-            </motion.button>
-          </div>
-
-          <p style={{ marginTop: '2rem', fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-            <ShieldCheck size={10} style={{ display: 'inline', marginRight: '0.3rem', color: '#C8A15A' }} />
-            Your quiz data stays local until you sign up. We never share it.
-          </p>
-        </motion.div>
-      </div>
-    );
-  }
+  // ── GATE 2: Guest with quiz data → allow discovery, show action banner later ──
+  // We no longer block the user here. They see their results immediately.
 
   // ── Authenticated: loading state ──────────────────────────────────────────
   if (isLoading) {
@@ -170,30 +115,30 @@ export default function RecommendationsPage() {
           <div style={{ width: '4rem', height: '4rem', border: '1px solid rgba(244,187,146,0.2)', borderRadius: '50%', margin: '0 auto 2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <RotateCcw style={{ color: '#f4bb92', opacity: 0.6 }} size={32} />
           </div>
-          
+
           <h2 style={{ fontSize: '1.75rem', fontFamily: 'var(--font-display)', fontStyle: 'italic', color: '#fff', marginBottom: '1rem', letterSpacing: '-0.02em' }}>
             {isColdStart ? "Neural Synthesis in Progress" : "Neural Sync Required"}
           </h2>
-          
+
           <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '2.5rem', lineHeight: '1.7', fontSize: '0.95rem' }}>
-            {isColdStart 
-              ? "Your profile is being mapped across our 24,000 scents. This usually takes a moment on your first visit." 
+            {isColdStart
+              ? "Your profile is being mapped across our 24,000 scents. This usually takes a moment on your first visit."
               : "We couldn't detect your olfactory signature. Please complete the Discovery Protocol to begin."}
           </p>
-          
+
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
             {isColdStart && (
-              <button 
-                className="btn btn-outline" 
+              <button
+                className="btn btn-outline"
                 onClick={() => window.location.reload()}
                 style={{ borderRadius: '100px', padding: '0.75rem 2rem', fontSize: '0.8rem', letterSpacing: '0.1em' }}
               >
                 Verify Sync
               </button>
             )}
-            <button 
-              className="btn btn-primary" 
-              onClick={() => router.push('/onboarding/quiz')}
+            <button
+              className="btn btn-primary"
+              onClick={() => router.push('/quiz')}
               style={{ borderRadius: '100px', padding: '0.75rem 2.5rem', fontSize: '0.8rem', letterSpacing: '0.1em' }}
             >
               {isColdStart ? "Recalibrate" : "Enter Protocol"} <ArrowRight size={18} />
@@ -208,17 +153,17 @@ export default function RecommendationsPage() {
   const topFragrance = topMatches[0];
   const palette = getFragrancePalette(topFragrance);
 
-  const avgFidelity = topMatches.length > 0 
+  const avgFidelity = topMatches.length > 0
     ? Math.round(topMatches.reduce((acc, curr) => acc + (curr.match_score || 0), 0) / topMatches.length)
     : 0;
 
   return (
-    <motion.div 
+    <motion.div
       className="recommendations-page"
       initial={{ '--quiz-accent': '#f4bb92', '--quiz-soft': '#8b5e3c', '--quiz-glow': '#e4c285' } as any}
-      animate={{ 
-        '--quiz-accent': palette.accent, 
-        '--quiz-soft': palette.softSecondary, 
+      animate={{
+        '--quiz-accent': palette.accent,
+        '--quiz-soft': palette.softSecondary,
         '--quiz-glow': palette.glow,
         '--color-primary': palette.accent,
         '--color-primary-container': palette.softSecondary,
@@ -227,8 +172,35 @@ export default function RecommendationsPage() {
       transition={{ duration: 0.8, ease: 'easeInOut' }}
     >
       <div className="container mx-auto px-6">
-        
-        <motion.header 
+
+        {/* Guest Auth Invitation Banner */}
+        {!isAuthenticated && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="guest-auth-banner-elite"
+          >
+            <div className="flex items-center gap-4">
+              <div className="banner-icon-pillar">
+                <Sparkles size={16} className="text-primary" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-[0.7rem] uppercase tracking-widest font-bold text-white mb-0.5">Guest Discovery Session</h4>
+                <p className="text-[0.6rem] text-white/50 leading-tight">Your neural profile is temporary. Sign up to save these matches to your lifetime library.</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => router.push('/auth/register')}
+                  className="btn btn-primary !py-2 !px-4 !text-[0.6rem]"
+                >
+                  Save Profile
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        <motion.header
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="recommendations-header"
@@ -240,7 +212,7 @@ export default function RecommendationsPage() {
           </p>
         </motion.header>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
@@ -256,21 +228,21 @@ export default function RecommendationsPage() {
           </div>
         </motion.div>
 
-        <motion.div 
+        <motion.div
           variants={containerVariants}
           initial="hidden"
           animate="visible"
           className="recommendations-grid-elite"
         >
           {topMatches.map((fragrance, index) => (
-            <motion.div 
+            <motion.div
               key={fragrance.id || index}
               variants={cardVariants}
               whileHover={{ y: -8 }}
               className="recommendation-card-elite"
             >
               <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem' }}>
-                <button 
+                <button
                   onClick={() => addToWishlist(fragrance.id)}
                   style={{ width: '2.5rem', height: '2.5rem', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', borderRadius: '50%', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
@@ -292,7 +264,7 @@ export default function RecommendationsPage() {
                   <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#f4bb92' }}>{fragrance.match_score}%</span>
                 </div>
                 <div className="score-track-elite">
-                  <motion.div 
+                  <motion.div
                     initial={{ width: 0 }}
                     whileInView={{ width: `${fragrance.match_score || 85}%` }}
                     transition={{ ...springConfig, delay: 0.5 }}
@@ -310,13 +282,13 @@ export default function RecommendationsPage() {
               </div>
 
               <div className="card-actions-elite">
-                <button 
+                <button
                   onClick={() => router.push(`/fragrances/${fragrance.id}`)}
                   className="btn-details-elite"
                 >
                   Details
                 </button>
-                <button 
+                <button
                   onClick={() => router.push(`/fragrances/${fragrance.id}?view=similar`)}
                   className="btn-similar-elite"
                 >
@@ -325,24 +297,6 @@ export default function RecommendationsPage() {
               </div>
             </motion.div>
           ))}
-        </motion.div>
-
-        <motion.div 
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          className="recommendations-footer-elite"
-        >
-          <div className="footer-actions-elite">
-            <button className="btn btn-outline" onClick={() => router.push('/fragrances')}>
-              Explore All
-            </button>
-            <button className="btn btn-primary" onClick={() => router.push('/onboarding/quiz')}>
-              Recalibrate
-            </button>
-          </div>
-          <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.15em', fontStyle: 'italic', color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <ShieldCheck size={12} style={{ color: '#f4bb92' }} /> Verified Neural Sync
-          </p>
         </motion.div>
       </div>
     </motion.div>

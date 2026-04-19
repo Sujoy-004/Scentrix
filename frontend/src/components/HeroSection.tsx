@@ -90,7 +90,7 @@ export function HeroSection() {
               whileHover={{ scale: 1.05, y: -4 }}
               whileTap={{ scale: 0.95 }}
               className="btn btn-primary px-10 py-5 text-sm"
-              onClick={() => router.push('/onboarding/quiz')}
+              onClick={() => router.push('/quiz')}
             >
               Start Discovery <ArrowRight className="ml-2" size={18} />
             </motion.button>
