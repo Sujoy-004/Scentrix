@@ -3,7 +3,6 @@
   "devCommand": "npm run dev",
   "installCommand": "npm ci",
   "framework": "nextjs",
-  "regions": ["sfo1", "iad1"],
   "public": false,
   "headers": [
     {
