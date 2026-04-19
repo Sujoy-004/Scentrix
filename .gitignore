@@ -57,11 +57,6 @@ build/
 .env.local
 .env.*.local
 
-# Environment
-.env
-.env.local
-.env.*.local
-
 # OS
 .DS_Store
 Thumbs.db
@@ -73,6 +68,10 @@ logs/
 # Local runtime databases
 backend/local_dev.db
 backend/local_test.db
+backend/scentrix.db
+backend/.env
+backend/.env.cloud
+*.db
 
 # Git
 .git/
@@ -82,11 +81,15 @@ test-results/
 playwright-report/
 frontend/tests/visual-regression.spec.ts-snapshots/
 
-# Agent State Files
+# Agent & Knowledge Artifacts
 progress.json
 progress_phase6.json
 .github/agents/
 todo.html
+graphify-out/
+_brain/
+DEPLOYMENT_LEDGER.md
+
 # Keep frontend app library sources tracked.
 !frontend/src/lib/
 !frontend/src/lib/**

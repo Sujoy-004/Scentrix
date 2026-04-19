@@ -1,4 +1,4 @@
-# AGENTS.md (ScentScape)
+# AGENTS.md (Scentrix)
 
 This repo is a multi-service app:
 - `backend/`: FastAPI API + Celery worker (Python)

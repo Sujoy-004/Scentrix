@@ -2,26 +2,26 @@
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: scentscape-postgres
+    container_name: Scentrix-postgres
     environment:
-      POSTGRES_USER: ${DB_USER:-scentscape}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-scentscape_password}
-      POSTGRES_DB: ${DB_NAME:-scentscape}
+      POSTGRES_USER: ${DB_USER:-Scentrix}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-Scentrix_password}
+      POSTGRES_DB: ${DB_NAME:-Scentrix}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-scentscape}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-Scentrix}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - scentscape
+      - Scentrix
 
   neo4j:
     image: neo4j:5-community
-    container_name: scentscape-neo4j
+    container_name: Scentrix-neo4j
     environment:
       NEO4J_AUTH: ${NEO4J_USERNAME:-neo4j}/${NEO4J_PASSWORD:-neo4j_password}
       NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
@@ -37,11 +37,11 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - scentscape
+      - Scentrix
 
   redis:
     image: redis:7-alpine
-    container_name: scentscape-redis
+    container_name: Scentrix-redis
     ports:
       - "6379:6379"
     volumes:
@@ -52,17 +52,17 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - scentscape
+      - Scentrix
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: scentscape-backend
+    container_name: Scentrix-backend
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql+asyncpg://${DB_USER:-scentscape}:${DB_PASSWORD:-scentscape_password}@postgres:5432/${DB_NAME:-scentscape}}
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql+asyncpg://${DB_USER:-Scentrix}:${DB_PASSWORD:-Scentrix_password}@postgres:5432/${DB_NAME:-Scentrix}}
       NEO4J_URI: ${DOCKER_NEO4J_URI:-neo4j://neo4j:7687}
       NEO4J_USERNAME: ${NEO4J_USERNAME:-neo4j}
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-neo4j_password}
@@ -72,7 +72,7 @@ services:
       PINECONE_API_KEY: ${PINECONE_API_KEY:-}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev_secret_key_change_in_production}
       SENTRY_DSN: ${SENTRY_DSN:-}
-      SCENTSCAPE_REPO_ROOT: ${SCENTSCAPE_REPO_ROOT:-/app}
+      Scentrix_REPO_ROOT: ${Scentrix_REPO_ROOT:-/app}
       RUNNING_IN_DOCKER: "true"
       PYTHONPATH: /app
     depends_on:
@@ -92,16 +92,16 @@ services:
       retries: 5
       start_period: 180s
     networks:
-      - scentscape
+      - Scentrix
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   worker:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: scentscape-worker
+    container_name: Scentrix-worker
     environment:
-      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql+asyncpg://${DB_USER:-scentscape}:${DB_PASSWORD:-scentscape_password}@postgres:5432/${DB_NAME:-scentscape}}
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql+asyncpg://${DB_USER:-Scentrix}:${DB_PASSWORD:-Scentrix_password}@postgres:5432/${DB_NAME:-Scentrix}}
       NEO4J_URI: ${DOCKER_NEO4J_URI:-neo4j://neo4j:7687}
       NEO4J_USERNAME: ${NEO4J_USERNAME:-neo4j}
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-neo4j_password}
@@ -111,7 +111,7 @@ services:
       PINECONE_API_KEY: ${PINECONE_API_KEY:-}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev_secret_key_change_in_production}
       SENTRY_DSN: ${SENTRY_DSN:-}
-      SCENTSCAPE_REPO_ROOT: ${SCENTSCAPE_REPO_ROOT:-/app}
+      Scentrix_REPO_ROOT: ${Scentrix_REPO_ROOT:-/app}
       RUNNING_IN_DOCKER: "true"
       PYTHONPATH: /app
     depends_on:
@@ -127,14 +127,14 @@ services:
     healthcheck:
       disable: true
     networks:
-      - scentscape
+      - Scentrix
     command: celery -A app.celery_app:celery_app worker --loglevel=info --queues recommendations,ml
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: scentscape-frontend
+    container_name: Scentrix-frontend
     ports:
       - "3000:3000"
     depends_on:
@@ -148,7 +148,7 @@ services:
       - /app/node_modules
       - /app/.next
     networks:
-      - scentscape
+      - Scentrix
     command: npm run dev -- --hostname 0.0.0.0 --port 3000
 
 volumes:
@@ -158,5 +158,5 @@ volumes:
   redis_data:
 
 networks:
-  scentscape:
+  Scentrix:
     driver: bridge

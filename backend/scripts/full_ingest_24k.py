@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 
 # Ensure the repo root (inside the container /app) is on the path
-sys.path.append(os.getenv("SCENTSCAPE_REPO_ROOT", "/app"))
+sys.path.append(os.getenv("Scentrix_REPO_ROOT", "/app"))
 
 from neo4j import GraphDatabase, basic_auth
 
@@ -30,7 +30,7 @@ log = logging.getLogger("ingest_24k")
 NEO4J_URI = "bolt://neo4j:7687"
 NEO4J_USER = os.getenv("NEO4J_USERNAME", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "neo4j_password")
-DATA_FILE = Path(os.getenv("SCENTSCAPE_REPO_ROOT", "/app")) / "ml" / "data" / "fra_elite_24k.json"
+DATA_FILE = Path(os.getenv("Scentrix_REPO_ROOT", "/app")) / "ml" / "data" / "fra_elite_24k.json"
 BATCH_SIZE = 500  # records per Cypher UNWIND call
 
 

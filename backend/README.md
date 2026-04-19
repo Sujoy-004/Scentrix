@@ -1,6 +1,6 @@
-# ScentScape Backend API
+# Scentrix Backend API
 
-FastAPI-based REST API for the ScentScape fragrance discovery platform.
+FastAPI-based REST API for the Scentrix fragrance discovery platform.
 
 ## Architecture
 

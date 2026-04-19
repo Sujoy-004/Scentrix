@@ -54,7 +54,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
     # Shutdown
-    logger.info("Shutting down ScentScape API...")
+    logger.info("Shutting down Scentrix API...")
     await close_db()
     logger.info("Database connection closed")
 
@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(
     title="Scentrix API",
     description="AI-Driven Fragrance Discovery & Personalization",
-    version="0.1.0",
+    version="0.0.1",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
@@ -100,7 +100,7 @@ async def health_check() -> dict[str, str]:
 async def root() -> dict[str, str]:
     """Root endpoint with API info."""
     return {
-        "name": "ScentScape API",
+        "name": "Scentrix API",
         "version": "0.1.0",
         "status": "running",
     }
@@ -109,7 +109,7 @@ async def root() -> dict[str, str]:
 @app.get("/version", tags=["system"])
 async def version() -> dict[str, str]:
     """Return API version."""
-    return {"version": "0.1.0"}
+    return {"version": "0.0.1"}
 
 
 if __name__ == "__main__":

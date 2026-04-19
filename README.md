@@ -1,96 +1,72 @@
-# ScentScape - AI-Driven Fragrance Discovery & Personalization
+# 🌌 Scentrix — v0.01
+### *The World's First Atmospheric Fragrance Discovery Engine.*
 
-An intelligent fragrance recommendation platform combining knowledge graphs, graph neural networks, and natural language processing to help users discover their signature scent.
+[![Production: Healthy](https://img.shields.io/badge/Production-Healthy-success?style=for-the-badge&logo=railway)](https://scentrix-api.up.railway.app/health)
+[![Deploy: Vercel](https://img.shields.io/badge/Frontend-Vercel-black?style=for-the-badge&logo=vercel)](https://scentrix.vercel.app)
+[![Engine: Neural](https://img.shields.io/badge/Engine-Neural_Sommelier-blueviolet?style=for-the-badge)](https://scentrix-api.up.railway.app/redoc)
 
-## Quick Start
+---
 
-### Prerequisites
-- Docker & Docker Compose
-- Node.js 18+ (for frontend development)
-- Python 3.11+ (for backend development)
+**Scentrix** is a digital sommelier that deconstructs the olfactive universe. By fusing **Graph Neural Networks (GraphSAGE)** with **High-Recall Dual-Vector Search**, Scentrix maps your personal scent DNA across a library of over **21,000+ fragrances**.
 
-### Local Development
+## 🧠 The Neural Discovery Flow
+
+Scentrix doesn't just match keywords; it understands the molecular relationships between notes, accords, and brands.
+
+```mermaid
+graph TD
+    User((User)) -->|Olfactive Quiz| A[Neural Engine]
+    A -->|Text DNA| B[Pinecone Vector Store]
+    A -->|Graph DNA| C[Neo4j Knowledge Graph]
+    B -->|Cosine Similarity| D[Similarity Reranker]
+    C -->|Genetic Distance| D
+    D -->|Atmospheric Insight| E[Neural Sommelier]
+    E -->|Personalized Match| User
+```
+
+## ✨ Core Pillars
+
+- **Neural Sommelier (Aethera):** Generates evocative, atmospheric insights for every recommendation.
+- **Adaptive Discovery:** A confidence-aware quiz that narrows down your olfactive kingdom in real-time.
+- **Deep Recall:** Access to 21,500+ unique fragrances with detailed note pyramids and accord structures.
+- **Privacy First:** Full GDPR compliance. Your scent DNA belongs to you—one-click data deletion and zero unconsented training.
+
+## 🚀 Quick Start
+
+### The Flight Proof (Local Dev)
+The entire stack is containerized for deterministic scaling.
 
 ```bash
-# Start all services (PostgreSQL, Neo4j, Redis, Backend API, Celery worker)
+# 1. Start the Neural Stack
 make up
 
-# Seed test data
+# 2. Hydrate the Discovery Engine (21k+ Frags)
 make seed
 
-# Run tests
+# 3. Flight Check (Backend Tests)
 make test-backend
-make test-frontend
-
-# View logs
-make logs
-
-# Stop services
-make down
 ```
 
-## Project Structure
+### Repo Map
 
-```
-scentscape/
-├── frontend/          # Next.js 14 frontend (TypeScript, Tailwind)
-├── backend/           # FastAPI backend (Python 3.11)
-├── ml/                # ML pipeline (GraphSAGE, Sentence-BERT)
-├── infra/             # Infrastructure-as-Code (Terraform)
-├── docs/              # Documentation
-├── docker-compose.yml # Local dev services
-└── Makefile          # Development commands
-```
+- `frontend/` — Next.js 15 Cinematic UI (Vercel)
+- `backend/` — FastAPI High-Throughput API (Railway)
+- `ml/` — The Brain: GraphSAGE modeling & Scrapy pipelines
+- `docs/` — Architectural blueprints and system specs
 
-## Architecture
+## 🛠️ Technology Stack
 
-### Target production flow
+- **Core:** FastAPI, Next.js 15, PostgreSQL (Supabase)
+- **Memory:** Neo4j Aura (Graph), Pinecone (Vector), Redis (Cache)
+- **Neural:** PyTorch Geometric (GraphSAGE), Sentence-Transformers (BERT)
+- **Infrastructure:** Docker, Railway, Vercel, Alembic
 
-User -> Vercel frontend -> FastAPI on Railway -> Supabase for auth/profile/
-preference data only -> background workers and caches -> Pinecone and Neo4j for
-derived recommendation work.
+---
 
-### Responsibilities
+## 📅 Roadmap: v0.01 → v1.0
+- [x] **v0.01:** Stable production deployment & Neural Quiz launch.
+- [ ] **v0.10:** Collection Management & Community Scent-Sharing.
+- [ ] **v0.20:** Real-time Olfactive Mapping (Mobile Native).
 
-- **Frontend:** Next.js 14 App Router, Tailwind CSS, Zustand, React Query, Vercel
-- **Backend:** FastAPI on Railway, request orchestration, API validation, and
-	background job dispatch
-- **User data:** Supabase for authentication, profile state, preferences, and
-	consent/deletion flows
-- **Async layer:** Celery + Redis for warmups, scoring jobs, and cached reads
-- **Derived stores:** Pinecone for embeddings and Neo4j for knowledge graph data
-- **ML:** GraphSAGE, Sentence-BERT, and ranking models for derived signals
-
-## Features
-
-- **Personalized Discovery:** Rate reference fragrances to build a taste profile
-- **Text-Based Search:** "Smoky vanilla with leather notes"
-- **Knowledge Graph:** 1,000+ fragrances with note breakdowns and accords
-- **Visual Analytics:** Note pyramids, similarity scores, accord breakdowns
-- **Collection Management:** Save and organize fragrances you love
-- **GDPR Compliant:** One-click data deletion, no unconsented training data use
-
-## Documentation
-
-- [Target Architecture](./docs/architecture.md)
-
-## Development
-
-Each phase of development occurs on a dedicated branch:
-- `main` — Production release
-- `develop` — Integration branch (staging)
-- `phase/0-bootstrap` → `phase/6-deploy` — Feature phases
-
-See [TASK.md](../TASK.md) for full PRD and task breakdown.
-
-## Security
-
-- Supabase-managed authentication with backend token verification
-- Input sanitization and rate limiting
-- GDPR deletion flow (24-hour SLA)
-- Gender-neutral recommendations (default)
-- Regular security audits via CodeRabbit
-
-## License
-
-MIT
+---
+*Developed with obsession by the Antigravity Team.*

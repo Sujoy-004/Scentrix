@@ -102,7 +102,7 @@ class Settings(BaseSettings):
         default="us-west4-gcp", validation_alias=AliasChoices("PINECONE_ENVIRONMENT")
     )
     pinecone_index_name: str = Field(
-        default="scentscape-fragrances", validation_alias=AliasChoices("PINECONE_INDEX_NAME")
+        default="Scentrix-fragrances", validation_alias=AliasChoices("PINECONE_INDEX_NAME")
     )
 
     # Google (Gemini) - For Digital Sommelier

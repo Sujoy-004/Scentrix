@@ -3,14 +3,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "scentscape-backend"
-version = "0.1.0"
-description = "ScentScape Backend API - AI-Driven Fragrance Discovery"
+name = "Scentrix-backend"
+version = "0.0.1"
+description = "Scentrix Backend API - AI-Driven Fragrance Discovery"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
-    {name = "ScentScape Team", email = "dev@scentscape.local"}
+    {name = "Scentrix Team", email = "dev@Scentrix.local"}
 ]
 
 dependencies = [

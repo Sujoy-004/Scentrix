@@ -1,7 +1,7 @@
 .PHONY: up down logs migrate seed test-backend test-frontend lint help
 
 help:
-	@echo "ScentScape Development Makefile"
+	@echo "Scentrix Development Makefile"
 	@echo "================================"
 	@echo "make up              - Start all Docker containers"
 	@echo "make down            - Stop all Docker containers"

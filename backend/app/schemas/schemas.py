@@ -1,4 +1,4 @@
-"""Pydantic request/response schemas for ScentScape API."""
+"""Pydantic request/response schemas for Scentrix API."""
 
 from datetime import datetime
 from typing import Any, Literal

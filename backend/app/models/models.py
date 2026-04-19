@@ -1,4 +1,4 @@
-"""SQLAlchemy ORM models for ScentScape.
+"""SQLAlchemy ORM models for Scentrix.
 
 Defines user auth/session entities, ratings/saves, and interaction ingestion models.
 """

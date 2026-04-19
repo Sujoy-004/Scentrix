@@ -5,7 +5,7 @@ from pathlib import Path
 
 # Add project root to path
 # In Docker, project root is /app
-sys.path.append(os.getenv("SCENTSCAPE_REPO_ROOT", "/app"))
+sys.path.append(os.getenv("Scentrix_REPO_ROOT", "/app"))
 
 from ml.graph import init_neo4j
 from ml.pipeline.ingest import ingest_fragrances_from_file
@@ -29,7 +29,7 @@ def main():
     else:
         # Default to elite 24k
         seed_file = (
-            Path(os.getenv("SCENTSCAPE_REPO_ROOT", "/app")) / "ml" / "data" / "fra_elite_24k.json"
+            Path(os.getenv("Scentrix_REPO_ROOT", "/app")) / "ml" / "data" / "fra_elite_24k.json"
         )
 
     if not seed_file.exists():

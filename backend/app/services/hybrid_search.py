@@ -22,8 +22,8 @@ class HybridRecommender:
         # 1. Vector Client
         self.pc = Pinecone(api_key=settings.pinecone_api_key) if settings.pinecone_api_key else None
         self.text_index = self.pc.Index(settings.pinecone_index_name) if self.pc else None
-        # Note: scentscape-graph is hardcoded but we should verify if it's in settings
-        self.graph_index = self.pc.Index("scentscape-graph") if self.pc else None
+        # Note: Scentrix-graph is hardcoded but we should verify if it's in settings
+        self.graph_index = self.pc.Index("Scentrix-graph") if self.pc else None
 
         # 2. Graph Client
         self.driver = GraphDatabase.driver(
