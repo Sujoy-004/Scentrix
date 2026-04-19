@@ -29,8 +29,8 @@ target_metadata = Base.metadata
 
 
 def get_url():
-    # Use environment variable if running in Docker, else use config
-    return os.getenv("DATABASE_URL", settings.database_url)
+    # Use the normalized URL from settings (handles postgresql+asyncpg:// rewrite)
+    return settings.database_url
 
 
 def run_migrations_offline() -> None:
