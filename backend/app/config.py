@@ -17,12 +17,18 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://scentrix:scentrix_password@localhost:5432/scentrix"
 
     # Neo4j
-    neo4j_uri: str = "neo4j://localhost:7687"
+    neo4j_uri: str = Field(
+        default="neo4j://localhost:7687",
+        validation_alias=AliasChoices("NEO4J_URI", "NEO4J_URL"),
+    )
     neo4j_user: str = Field(
         default="neo4j",
         validation_alias=AliasChoices("NEO4J_USERNAME", "NEO4J_USER"),
     )
-    neo4j_password: str = "neo4j_password"
+    neo4j_password: str = Field(
+        default="neo4j_password",
+        validation_alias=AliasChoices("NEO4J_PASSWORD", "NEO4J_PW"),
+    )
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"
@@ -76,6 +82,8 @@ class Settings(BaseSettings):
 
     # CORS
     allowed_origins: list[str] = [
+        "https://scentrix-one.vercel.app",
+        "https://scentrix.vercel.app",
         "http://localhost:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3000",
