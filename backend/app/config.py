@@ -31,7 +31,10 @@ class Settings(BaseSettings):
     )
 
     # Redis
-    redis_url: str = "redis://localhost:6379/0"
+    redis_url: str = Field(
+        default="redis://localhost:6379/0",
+        validation_alias=AliasChoices("REDIS_URL", "CELERY_BROKER_URL"),
+    )
 
     # Supabase
     supabase_url: str | None = None

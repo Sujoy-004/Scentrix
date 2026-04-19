@@ -190,6 +190,8 @@ def _parse_context_json(raw: str | None) -> dict[str, Any]:
     return {}
 
 
+from app.config import settings
+
 def get_graph_client():
     """Lazy initialize neo4j client"""
     try:
@@ -199,10 +201,9 @@ def get_graph_client():
         try:
             return get_neo4j()
         except RuntimeError:
-            uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
-            user = os.environ.get("NEO4J_USERNAME", "neo4j")
-            pwd = os.environ.get("NEO4J_PASSWORD", "password")
-            return init_neo4j(uri, user, pwd)
+            return init_neo4j(
+                settings.neo4j_uri, settings.neo4j_user, settings.neo4j_password
+            )
     except Exception as exc:
         logger.error(f"Neo4j client init failed: {exc}")
         return None

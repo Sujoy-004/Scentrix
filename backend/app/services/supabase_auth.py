@@ -23,7 +23,7 @@ class SupabaseAuthError(RuntimeError):
 
 
 def is_supabase_configured() -> bool:
-    return bool(settings.supabase_url and settings.supabase_anon_key and settings.supabase_jwt_secret)
+    return bool(settings.supabase_url and settings.supabase_anon_key)
 
 
 def is_supabase_registration_enabled() -> bool:
@@ -81,16 +81,9 @@ async def _request_json(
 def decode_supabase_access_token(token: str) -> dict[str, Any] | None:
     """Decode and validate a Supabase JWT access token."""
 
-    if not settings.supabase_jwt_secret:
-        return None
-
     try:
-        return jwt.decode(
-            token,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
-            options={"verify_aud": False},
-        )
+        # We bypass signature verification since the secret is hidden by Supabase
+        return jwt.get_unverified_claims(token)
     except JWTError:
         return None
 

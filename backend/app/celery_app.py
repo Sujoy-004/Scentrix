@@ -6,8 +6,7 @@ Configures Celery for async recommendation job processing, including:
 - Result caching (Redis, 24h TTL per user)
 """
 
-import os
-
+from celery import Celery
 from app.config import settings
 
 # Configure Celery
