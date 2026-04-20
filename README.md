@@ -1,9 +1,9 @@
 # 🌌 Scentrix — v0.01
 ### *The World's First Atmospheric Fragrance Discovery Engine.*
 
-[![Production: Healthy](https://img.shields.io/badge/Production-Healthy-success?style=for-the-badge&logo=railway)](https://scentrix-api.up.railway.app/health)
-[![Deploy: Vercel](https://img.shields.io/badge/Frontend-Vercel-black?style=for-the-badge&logo=vercel)](https://scentrix.vercel.app)
-[![Engine: Neural](https://img.shields.io/badge/Engine-Neural_Sommelier-blueviolet?style=for-the-badge)](https://scentrix-api.up.railway.app/redoc)
+[![Production: Healthy](https://img.shields.io/badge/Production-Healthy-success?style=for-the-badge&logo=railway)](https://scentrix-one.vercel.app/api/health)
+[![Deploy: Vercel](https://img.shields.io/badge/Frontend-Vercel-black?style=for-the-badge&logo=vercel)](https://scentrix-one.vercel.app)
+[![Engine: Neural](https://img.shields.io/badge/Engine-Neural_Sommelier-blueviolet?style=for-the-badge)](https://scentrix-one.vercel.app/api/redoc)
 
 ---
 
