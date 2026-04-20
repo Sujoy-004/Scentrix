@@ -182,7 +182,7 @@ export default function Navbar() {
                 <>
                   <MobileNavLink icon={<Sparkles size={18} />} label="Discovery" onClick={() => { router.push('/recommendations'); setIsOpen(false); }} variants={itemVariants} />
                   <MobileNavLink icon={<Sparkles size={18} />} label="Personalized Quiz" onClick={() => { router.push('/quiz'); setIsOpen(false); }} variants={itemVariants} />
-                  <MobileNavLink icon={<Heart size={18} />} label="Wishlist" onClick={() => { router.push('/profile/wishlist'); setIsOpen(false); }} variants={itemVariants} />
+                  <MobileNavLink icon={<Heart size={18} />} label="Scent Shelf" onClick={() => { router.push('/collection'); setIsOpen(false); }} variants={itemVariants} />
                   <MobileNavLink icon={<Settings size={18} />} label="Account" onClick={() => { router.push('/profile'); setIsOpen(false); }} variants={itemVariants} />
 
                   <button className="mobile-logout" onClick={handleLogout}>
@@ -241,7 +241,7 @@ function ProfileDropdown({ handleLogout }: { handleLogout: () => void }) {
             transition={{ duration: 0.2 }}
           >
             <button onClick={() => router.push('/profile')}><User size={14} /> Profile</button>
-            <button onClick={() => router.push('/profile/wishlist')}><Heart size={14} /> Saved Scents</button>
+            <button onClick={() => router.push('/collection')}><Heart size={14} /> Scent Shelf</button>
             <div className="dropdown-divider" />
             <button className="logout-action" onClick={handleLogout}><LogOut size={14} /> Sign Out</button>
           </motion.div>

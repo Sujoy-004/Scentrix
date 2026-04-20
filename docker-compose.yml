@@ -83,7 +83,7 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ./ml:/app/ml:ro
+      - ./ml:/app/ml
       - ./backend:/app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -122,7 +122,7 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ./ml:/app/ml:ro
+      - ./ml:/app/ml
       - ./backend:/app
     healthcheck:
       disable: true

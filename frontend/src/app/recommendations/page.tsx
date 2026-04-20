@@ -15,6 +15,7 @@ import {
 import { useRecommendations } from '@/lib/hooks';
 import { useAppStore } from '@/stores/app-store';
 import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
+import { FragranceCard } from '@/components/FragranceCard';
 import { getFragrancePalette } from '@/lib/quizTheme';
 import './recommendations.css';
 
@@ -235,67 +236,11 @@ export default function RecommendationsPage() {
           className="recommendations-grid-elite"
         >
           {topMatches.map((fragrance, index) => (
-            <motion.div
+            <FragranceCard 
               key={fragrance.id || index}
-              variants={cardVariants}
-              whileHover={{ y: -8 }}
-              className="recommendation-card-elite"
-            >
-              <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem' }}>
-                <button
-                  onClick={() => addToWishlist(fragrance.id)}
-                  style={{ width: '2.5rem', height: '2.5rem', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', borderRadius: '50%', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <Heart size={16} />
-                </button>
-              </div>
-
-              <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-                <div style={{ fontSize: '5rem', position: 'absolute', top: '-1rem', left: '-1rem', fontFamily: 'var(--font-display)', fontStyle: 'italic', opacity: 0.05, color: '#fff' }}>
-                  #{index + 1}
-                </div>
-                <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-display)', fontStyle: 'italic', color: '#fff', marginBottom: '0.25rem' }}>{fragrance.name}</h3>
-                <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, color: 'rgba(255,255,255,0.5)' }}>{fragrance.brand}</p>
-              </div>
-
-              <div className="match-score-elite">
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', padding: '0 0.25rem' }}>
-                  <span style={{ fontSize: '0.6rem', fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>Neural Match</span>
-                  <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#f4bb92' }}>{fragrance.match_score}%</span>
-                </div>
-                <div className="score-track-elite">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    whileInView={{ width: `${fragrance.match_score || 85}%` }}
-                    transition={{ ...springConfig, delay: 0.5 }}
-                    className="score-fill-elite"
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '2.5rem' }}>
-                {fragrance.top_notes?.slice(0, 3).map((note: string) => (
-                  <span key={note} style={{ fontSize: '0.6rem', padding: '0.25rem 0.75rem', borderRadius: '100px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', fontWeight: 700 }}>
-                    {note}
-                  </span>
-                ))}
-              </div>
-
-              <div className="card-actions-elite">
-                <button
-                  onClick={() => router.push(`/fragrances/${fragrance.id}`)}
-                  className="btn-details-elite"
-                >
-                  Details
-                </button>
-                <button
-                  onClick={() => router.push(`/fragrances/${fragrance.id}?view=similar`)}
-                  className="btn-similar-elite"
-                >
-                  Similar
-                </button>
-              </div>
-            </motion.div>
+              frag={fragrance}
+              index={index}
+            />
           ))}
         </motion.div>
       </div>

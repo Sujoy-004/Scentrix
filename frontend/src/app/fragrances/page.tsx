@@ -8,6 +8,7 @@ import { getFamilyAsset } from '@/lib/family-mapping';
 import { VideoScrubber } from '@/components/VideoScrubber';
 import { ScentrixLogo } from '@/components/ScentrixLogo';
 import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
+import { FragranceCard } from '@/components/FragranceCard';
 import { AnimatePresence } from 'framer-motion';
 import './fragrances.css';
 
@@ -180,7 +181,7 @@ export default function FragrancesPage() {
           ) : (
             <div className="fragrances-grid" ref={gridRef}>
               {items.map((frag, idx) => (
-                <FragCard
+                <FragranceCard
                   key={frag.id}
                   frag={{
                     ...frag,
@@ -188,7 +189,6 @@ export default function FragrancesPage() {
                     match_score: frag.match_score || 82
                   }}
                   index={idx}
-                  onClick={() => router.push(`/fragrances/${frag.id}`)}
                 />
               ))}
             </div>
@@ -346,116 +346,3 @@ function BottleVisual({ id, color }: { id: string; color?: string }) {
   );
 }
 
-function FragCard({ frag, index, onClick }: { frag: any; index: number; onClick: () => void }) {
-  const cardRef = useRef<HTMLElement>(null);
-  const frameRef = useRef<number | null>(null);
-  const cursorFxEnabledRef = useRef(false);
-  const topNotes = frag.top_notes?.slice(0, 3) || [];
-  const midNotes = frag.middle_notes?.slice(0, 2) || [];
-  const baseNotes = frag.base_notes?.slice(0, 2) || [];
-  const accords = frag.accords?.slice(0, 2) || frag.top_accords?.slice(0, 2) || [];
-
-  const familyLookup = frag.family || (frag.accords && frag.accords[0]) || (frag.top_accords && frag.top_accords[0]) || 'all';
-  const familyAsset = getFamilyAsset(familyLookup);
-  const fallbackSrc = familyAsset.error ? '/assets/family/all.png' : familyAsset.src;
-
-  const updateCursorVars = (x: number, y: number) => {
-    const card = cardRef.current;
-    if (!card) return;
-    card.style.setProperty('--cursor-x', `${x}px`);
-    card.style.setProperty('--cursor-y', `${y}px`);
-  };
-
-  useEffect(() => {
-    cursorFxEnabledRef.current =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(pointer: fine)').matches &&
-      !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    return () => { if (frameRef.current !== null) cancelAnimationFrame(frameRef.current); };
-  }, []);
-
-  const handlePointerMove = (event: React.PointerEvent<HTMLElement>) => {
-    if (!cursorFxEnabledRef.current) return;
-    const card = cardRef.current;
-    if (!card) return;
-    const rect = card.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
-    frameRef.current = requestAnimationFrame(() => { updateCursorVars(x, y); frameRef.current = null; });
-  };
-
-  const handlePointerEnter = () => { if (cursorFxEnabledRef.current) cardRef.current?.setAttribute('data-cursor-active', '1'); };
-  const handlePointerLeave = () => {
-    if (!cursorFxEnabledRef.current) return;
-    const card = cardRef.current;
-    if (!card) return;
-    card.setAttribute('data-cursor-active', '0');
-    updateCursorVars(card.clientWidth * 0.5, card.clientHeight * 0.5);
-  };
-
-  return (
-    <article
-      ref={cardRef}
-      className="frag-list-card fragrance-card"
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && onClick()}
-      onPointerMove={handlePointerMove}
-      onPointerEnter={handlePointerEnter}
-      onPointerLeave={handlePointerLeave}
-      aria-label={`${frag.name} by ${frag.brand}`}
-      data-cursor-active="0"
-    >
-      <div className="frag-list-image">
-        <div className="glass-pillar" />
-        <div className="bottle-visual-wrapper" style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}>
-          {frag.image_url ? (
-            <img
-              src={frag.image_url}
-              alt={frag.name}
-              className="frag-card-img"
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = fallbackSrc || '/assets/family/all.png';
-              }}
-            />
-          ) : (
-            <img
-              src={fallbackSrc || '/assets/family/all.png'}
-              alt={frag.name}
-              className="frag-card-img fallback-family-img"
-              style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'saturate(0.9) brightness(0.8)' }}
-              loading="lazy"
-            />
-          )}
-        </div>
-        <div className="match-badge" aria-label={`${frag.match_score}% match`}>⚡ {frag.match_score}%</div>
-      </div>
-      <div className="frag-list-body">
-        <p className="frag-list-brand">{frag.brand || 'Unknown Brand'}</p>
-        <h3 className="frag-list-name">{frag.name}</h3>
-        {topNotes.length > 0 && (
-          <div className="frag-notes-row">
-            {topNotes.map((n: string, i: number) => <span key={`top-${n}-${i}`} className="note-pill note-pill-top">{n}</span>)}
-            {midNotes.map((n: string, i: number) => <span key={`mid-${n}-${i}`} className="note-pill note-pill-heart">{n}</span>)}
-            {baseNotes.map((n: string, i: number) => <span key={`base-${n}-${i}`} className="note-pill note-pill-base">{n}</span>)}
-          </div>
-        )}
-        {accords.length > 0 && (
-          <div className="frag-accords-row">
-            {accords.map((a: string, i: number) => <span key={`accord-${a}-${i}`} className="accord-badge">{a}</span>)}
-          </div>
-        )}
-        <div className="frag-list-footer">
-          <div className="frag-rating" aria-label={`Rated ${frag.rating}`}>
-            <span className="star">★</span>
-            <span className="frag-rating-value">{frag.rating?.toFixed(1)}</span>
-          </div>
-          <button className="frag-view-btn btn btn-primary" onClick={(e) => { e.stopPropagation(); onClick(); }} aria-label={`View ${frag.name}`}>View →</button>
-        </div>
-      </div>
-    </article>
-  );
-}

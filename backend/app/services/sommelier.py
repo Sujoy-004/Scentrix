@@ -1,10 +1,11 @@
 import json
 import logging
-from typing import Any
+from typing import Any, Dict
 
 import httpx
 
 from app.config import settings
+from app.services.prompt_loader import load_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +34,16 @@ class SommelierService:
                 "Aetheric Discovery",
             )
 
+        # Load external persona
+        persona = load_prompt("persona-aethera.md") or "You are 'Aethera', the Digital Sommelier for Scentrix."
+
         # Format fragrances for the prompt (Limited to top 8 for context window efficiency)
         frag_list = []
         for f in recommendations[:8]:
             # Handle both Pydantic objects and dicts
-            if hasattr(f, "dict"):
+            if hasattr(f, "model_dump"):
+                d = f.model_dump()
+            elif hasattr(f, "dict"):
                 d = f.dict()
             elif isinstance(f, dict):
                 d = f
@@ -50,8 +56,10 @@ class SommelierService:
             reason = d.get("reason", "")
             frag_list.append(f"- {brand} {name} (Match: {match}%, Reason: {reason})")
 
+        fragrance_summary = "\n".join(frag_list)
         prompt = f"""
-        You are 'Aethera', the Digital Sommelier for Scentrix. 
+        {persona}
+        
         Analyze the following curated list of fragrances recommended for a user.
         Provide a singular, atmospheric insight (exactly 2-3 sentences) that identifies 
         the 'soul' and narrative arc of this collection. 
@@ -59,7 +67,7 @@ class SommelierService:
         'Noir Avant-Garde', 'Solar Minimalism').
         
         Curated Collection:
-        {chr(10).join(frag_list)}
+        {fragrance_summary}
         
         Respond ONLY in valid JSON format:
         {{

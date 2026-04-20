@@ -51,35 +51,37 @@ export function HeroSection() {
           {/* Eyebrow */}
           <motion.p 
             variants={itemVariants}
-            className="hero-eyebrow flex items-center justify-center gap-2 mb-6"
+            className="hero-eyebrow flex items-center justify-center gap-3 mb-8"
           >
-            <motion.span
-              animate={{ rotate: [0, 360], scale: [1, 1.2, 1] }}
-              transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-            >
-              <Sparkles size={16} />
-            </motion.span>
-            <span className="tracking-[0.2em] uppercase font-bold text-[0.7rem] text-primary glow-amber">
-              The Digital Alchemist — AI Discovery
+            <motion.div
+              animate={{ opacity: [0.4, 1, 0.4], scale: [1, 1.1, 1] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="w-2 h-2 rounded-full bg-primary glow-amber"
+            />
+            <span className="tracking-[0.4em] uppercase font-bold text-[0.65rem] text-primary/80 glow-amber">
+              Neural Sommelier Protocol v1.0
             </span>
           </motion.p>
 
           {/* Cascading headline */}
           <motion.h1 
             variants={itemVariants}
-            className="hero-title mb-8"
+            className="hero-title mb-10 text-center"
           >
-            <span className="hero-title-main">Sculpted by intelligence.</span>
-            <span className="hero-title-sub glow-amber-strong">Worn by instinct.</span>
+            <span className="hero-title-main block mb-2 italic">Molecular Artistry.</span>
+            <span className="hero-title-sub glow-amber-strong block text-primary">Neural Instinct.</span>
           </motion.h1>
 
           {/* Subtitle */}
-          <motion.p 
+          <motion.div 
             variants={itemVariants}
-            className="hero-subtitle mb-12"
+            className="hero-subtitle mb-16 max-w-2xl mx-auto px-4"
           >
-            Discover your signature scent through a personalized discovery engine powered by neural graphs and elite curators.
-          </motion.p>
+            <p className="text-xl text-white/70 leading-relaxed font-light">
+              Aethera translates molecular data into evocative, cinematic experiences. 
+              Discover the <span className="text-primary italic font-medium">scent DNA</span> that defines your dimension.
+            </p>
+          </motion.div>
 
           {/* CTA Buttons */}
           <motion.div 

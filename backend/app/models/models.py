@@ -31,7 +31,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     supabase_user_id: Mapped[str | None] = mapped_column(String(128), unique=True, index=True, nullable=True)
     auth_provider: Mapped[str] = mapped_column(String(20), default="local", nullable=False)
-    full_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    encrypted_full_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     encrypted_email: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     email_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)

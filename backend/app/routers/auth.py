@@ -136,7 +136,7 @@ async def register(
         auth_provider="local",
         email_hash=email_hash,
         encrypted_email=vault.encrypt(normalized_email),
-        full_name=user_data.full_name,
+        encrypted_full_name=vault.encrypt(user_data.full_name) if user_data.full_name else None,
         hashed_password=hashed_password,
         is_active=True,
         opt_in_training=user_data.opt_in_training,
@@ -330,7 +330,7 @@ async def get_current_user(
     return UserProfile(
         id=user.id,
         email=email,
-        full_name=user.full_name,
+        full_name=vault.decrypt(user.encrypted_full_name) if user.encrypted_full_name else None,
         is_active=user.is_active,
         created_at=user.created_at,
         opt_in_training=user.opt_in_training,

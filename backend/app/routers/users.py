@@ -52,7 +52,7 @@ async def _build_user_profile(session: AsyncSession, user: User) -> UserProfile:
     return UserProfile(
         id=user.id,
         email=vault.decrypt(user.encrypted_email),
-        full_name=user.full_name,
+        full_name=vault.decrypt(user.encrypted_full_name) if user.encrypted_full_name else None,
         is_active=user.is_active,
         created_at=user.created_at,
         opt_in_training=user.opt_in_training,
@@ -342,3 +342,32 @@ async def request_data_deletion(
         "status": "deletion_requested",
         "message": "Your data deletion request has been submitted. All personal data will be deleted within 30 days.",
     }
+class UpdateNotesRequest(BaseModel):
+    notes: str
+
+@router.patch("/saved/{saved_id}/notes", response_model=SavedFragranceResponse)
+async def update_saved_fragrance_notes(
+    saved_id: int,
+    request: UpdateNotesRequest,
+    user_id: int = Depends(get_current_user_id),
+    session: AsyncSession = Depends(get_session),
+) -> SavedFragranceResponse:
+    """Update personal notes for a saved fragrance."""
+    stmt = select(SavedFragrance).where(
+        SavedFragrance.id == saved_id,
+        SavedFragrance.user_id == user_id,
+    )
+    result = await session.execute(stmt)
+    saved = result.scalar_one_or_none()
+
+    if not saved:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Saved fragrance not found",
+        )
+
+    saved.notes = request.notes
+    await session.commit()
+    await session.refresh(saved)
+    
+    return SavedFragranceResponse.model_validate(saved)

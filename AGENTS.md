@@ -5,6 +5,16 @@ This repo is a multi-service app:
 - `frontend/`: Next.js app (TypeScript)
 - `ml/`: ML + data pipeline code (invoked by backend/tasks or run manually)
 
+## 🛡️ Security & Privacy (Hardening v1.0)
+- **PII Encryption**: User `full_name` and `email` are encrypted at rest using AES-256 (via `backend/app/services/vault.py`).
+- **Data Policy**: Decryption happens on-the-fly in API routers (`auth.py`, `users.py`).
+- **Neural Timeouts**: All LLM-backed services have 10s circuit breakers and 5s timeouts.
+
+## 🏺 Feature Map
+- **Discovery Engine**: Adaptive neural quiz with "Aethera" atmospheric persona (`.github/prompts/persona-aethera.md`).
+- **Virtual Scent Shelf**: Collection management with personal olfactory notes and shelf-based visualization.
+- **Universal Context**: All session logic and user profile memory synchronized via `graphify-out/graph.json`.
+
 Prefer commands in the root `Makefile` for day-to-day dev.
 
 ## Quick commands (recommended)
