@@ -25,7 +25,7 @@ class CloudflareR2Pipeline:
         self.logger = logging.getLogger(self.__class__.__name__)
         
         # R2 configuration
-        self.bucket_name = settings.get("CLOUDFLARE_R2_BUCKET_NAME", "scentscape-raw")
+        self.bucket_name = settings.get("CLOUDFLARE_R2_BUCKET_NAME", "scentrix-raw")
         self.account_id = settings.get("CLOUDFLARE_R2_ACCOUNT_ID")
         self.access_key_id = settings.get(
             "CLOUDFLARE_R2_ACCESS_KEY_ID", os.getenv("CLOUDFLARE_R2_ACCESS_KEY_ID")

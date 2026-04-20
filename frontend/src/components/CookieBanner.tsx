@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 
-const COOKIE_KEY = 'scentscape_cookie_consent';
+const COOKIE_KEY = 'scentrix_cookie_consent';
 
 type ConsentState = 'accepted' | 'declined' | 'customized' | null;
 
@@ -101,7 +101,7 @@ export default function CookieBanner() {
 
       {/* Body text */}
       <p style={{ margin: '0 0 16px 0', fontSize: '0.85rem', color: '#d5c3b8', lineHeight: 1.65, fontWeight: 300 }}>
-        ScentScapeAI uses cookies to power personalized fragrance recommendations, remember your preferences, and improve our AI matching. You can choose which cookies to allow.{' '}
+        ScentrixAI uses cookies to power personalized fragrance recommendations, remember your preferences, and improve our AI matching. You can choose which cookies to allow.{' '}
         <a href="/privacy" style={{ color: '#f4bb92', textDecoration: 'underline', textDecorationColor: 'rgba(244,187,146,0.3)' }}>
           Privacy Policy
         </a>

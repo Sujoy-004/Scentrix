@@ -6,7 +6,7 @@ Subject: Data Licensing Request for Fragrance Metadata Feed
 
 Hello [Provider Team],
 
-I am reaching out on behalf of ScentScapeAI. We are building a fragrance recommendation system and would like to license a structured data feed from [Provider Name].
+I am reaching out on behalf of ScentrixAI. We are building a fragrance recommendation system and would like to license a structured data feed from [Provider Name].
 
 Requested scope:
 - Full fragrance catalog metadata (name, brand, year, concentration)

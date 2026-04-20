@@ -191,7 +191,7 @@ class FragranticaSpider(scrapy.Spider):
     @staticmethod
     def _extract_gender(response) -> str:
         """Extract gender label (male, female, unisex)."""
-        # Default to neutral per ScentScape requirements
+        # Default to neutral per Scentrix requirements
         gender_text = response.css("span.gender::text").get()
         if gender_text:
             gender = gender_text.lower().strip()

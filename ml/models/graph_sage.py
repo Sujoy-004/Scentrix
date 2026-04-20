@@ -32,7 +32,7 @@ class GraphEmbedder:
         pinecone_api_key = os.environ.get("PINECONE_API_KEY")
         if pinecone_api_key and pinecone_api_key != "your_pinecone_api_key_here":
             self.pc = Pinecone(api_key=pinecone_api_key)
-            self.index_name = "scentscape-graph"
+            self.index_name = "scentrix-graph"
             self._ensure_index()
         else:
             logger.warning("Pinecone API key not configured. Graph embeddings will not be uploaded.")

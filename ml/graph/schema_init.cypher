@@ -1,4 +1,4 @@
-// ScentScape Neo4j Graph Schema Initialization
+// Scentrix Neo4j Graph Schema Initialization
 // This script creates all constraints, indexes, and the graph structure
 // Run this ONCE when setting up a new Neo4j instance
 
@@ -87,7 +87,7 @@ FOR (s:SchemaVersion) REQUIRE s.version IS UNIQUE;
 // Record schema initialization
 MERGE (sv:SchemaVersion {version: "1.0"})
 SET sv.created_at = datetime(),
-    sv.description = "Initial ScentScape graph schema",
+    sv.description = "Initial Scentrix graph schema",
     sv.notes = [
       "Fragrance node: id, name, brand_id, year, concentration, gender_label, description",
       "Note node: id, name, category (top/middle/base)",

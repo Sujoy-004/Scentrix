@@ -28,7 +28,7 @@ export function FinalCTA() {
           className="final-cta-container"
         >
           <h2 className="final-cta-title">Manifest Your Presence.</h2>
-          <p className="final-cta-subtitle">Join the collective of collectors who navigate the ScentScape through architectural intelligence.</p>
+          <p className="final-cta-subtitle">Join the collective of collectors who navigate the Scentrix through architectural intelligence.</p>
 
           <motion.button 
             whileHover={{ scale: 1.05, y: -4 }}

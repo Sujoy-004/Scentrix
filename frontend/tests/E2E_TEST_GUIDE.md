@@ -1,4 +1,4 @@
-# E2E Test Suite Guide — ScentScape Frontend
+# E2E Test Suite Guide — Scentrix Frontend
 
 ## Overview
 

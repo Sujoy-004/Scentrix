@@ -1,4 +1,4 @@
-"""Neo4j driver and connection management for ScentScape.
+"""Neo4j driver and connection management for Scentrix.
 
 This module provides a singleton Neo4j driver with connection pooling,
 retry logic, and context managers for transactions.

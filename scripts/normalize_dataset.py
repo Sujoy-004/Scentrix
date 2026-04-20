@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 def normalize_csv_to_json(csv_path: str, output_path: str):
-    """Integrates CSV dataset into the ScentScape neural format."""
+    """Integrates CSV dataset into the Scentrix neural format."""
     print(f"Integrating dataset from {csv_path}...")
     
     normalized_records = []
@@ -41,7 +41,7 @@ def normalize_csv_to_json(csv_path: str, output_path: str):
                     if accord and accord.lower() != "unknown" and accord.strip():
                         accords.append(accord.strip())
 
-                # 5. Build ScentScape Schema
+                # 5. Build Scentrix Schema
                 record = {
                     "id": f"frag_{frag_id}",
                     "name": row.get("Perfume", "Unknown"),

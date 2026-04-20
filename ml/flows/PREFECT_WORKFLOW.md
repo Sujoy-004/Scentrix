@@ -24,7 +24,7 @@ pip install prefect>=2.14.0
 
 ### Run Locally (One-Time)
 ```bash
-cd "path/to/ScentScape"
+cd "path/to/Scentrix"
 python ml/flows/weekly_refresh.py
 ```
 
@@ -228,7 +228,7 @@ scheduler.start()
 ### Option 3: Cron Job (Linux/Mac)
 ```bash
 # Every Sunday at 2:00 AM UTC
-0 2 * * 0 cd /path/to/ScentScape && python ml/flows/weekly_refresh.py
+0 2 * * 0 cd /path/to/Scentrix && python ml/flows/weekly_refresh.py
 ```
 
 ## Monitoring & Logging

@@ -43,7 +43,7 @@ LOG_FORMAT = "%(asctime)s [%(name)s] %(levelname)s: %(message)s"
 LOG_DATEFORMAT = "%Y-%m-%d %H:%M:%S"
 
 # Storage settings
-CLOUDFLARE_R2_BUCKET_NAME = "scentscape-raw"
+CLOUDFLARE_R2_BUCKET_NAME = "scentrix-raw"
 CLOUDFLARE_R2_ACCOUNT_ID = ""  # Set via .env or environment variables
 CLOUDFLARE_R2_ACCESS_KEY_ID = ""
 CLOUDFLARE_R2_SECRET_ACCESS_KEY = ""

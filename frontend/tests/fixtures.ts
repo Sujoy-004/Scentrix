@@ -19,7 +19,7 @@ export const test = base.extend<AuthFixtures>({
       localStorage.setItem('auth_token', t);
       localStorage.setItem('user_id', u);
       localStorage.setItem(
-        'scentscape_cookie_consent',
+        'scentrix_cookie_consent',
         JSON.stringify({ state: 'accepted', timestamp: Date.now(), prefs: { analytics: true, marketing: true } })
       );
     }, { t: token, u: userId });
@@ -43,7 +43,7 @@ export const test = base.extend<AuthFixtures>({
     await page.evaluate(() => {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user_id');
-      localStorage.removeItem('scentscape_cookie_consent');
+      localStorage.removeItem('scentrix_cookie_consent');
     });
   },
 

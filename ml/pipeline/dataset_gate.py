@@ -176,7 +176,7 @@ def evaluate(records: list[dict[str, Any]], args: argparse.Namespace) -> int:
         )
 
     print("=" * 84)
-    print("ScentScape Dataset Production Readiness Report")
+    print("Scentrix Dataset Production Readiness Report")
     print("=" * 84)
     print(f"Rows: {total}")
     print(f"Year range: {min_year} - {max_year}" if min_year is not None else "Year range: N/A")

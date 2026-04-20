@@ -1,4 +1,4 @@
-"""ScentScape Fragrantica Web Scraper
+"""Scentrix Fragrantica Web Scraper
 
 Scrapy-based web scraper for extracting fragrance data from Fragrantica.
 Implements responsible crawling with rate limiting and user agent rotation.
@@ -133,7 +133,7 @@ CloudflareR2Pipeline
 - Items are batched in memory (default 100)
 - Adjust batch size in `pipelines.py` `_flush_items()` if needed
 
-## Integration with ScentScape Pipeline
+## Integration with Scentrix Pipeline
 
 After scraping, the raw JSONL data flows through:
 

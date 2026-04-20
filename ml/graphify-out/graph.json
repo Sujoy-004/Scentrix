@@ -310,13 +310,13 @@
       "norm_label": "close_neo4j()"
     },
     {
-      "label": "Neo4j driver and connection management for ScentScape.  This module provides a",
+      "label": "Neo4j driver and connection management for Scentrix.  This module provides a",
       "file_type": "rationale",
       "source_file": "ml\\graph\\neo4j_client.py",
       "source_location": "L1",
       "id": "neo4j_client_rationale_1",
       "community": 1,
-      "norm_label": "neo4j driver and connection management for scentscape.  this module provides a"
+      "norm_label": "neo4j driver and connection management for scentrix.  this module provides a"
     },
     {
       "label": "Neo4j client with connection pooling and transaction management.",
@@ -976,13 +976,13 @@
       "norm_label": "clean_fragrance_file()"
     },
     {
-      "label": "Data cleaning pipeline for ScentScape.  Validates raw fragrance data, deduplic",
+      "label": "Data cleaning pipeline for Scentrix.  Validates raw fragrance data, deduplic",
       "file_type": "rationale",
       "source_file": "ml\\pipeline\\clean.py",
       "source_location": "L1",
       "id": "clean_rationale_1",
       "community": 2,
-      "norm_label": "data cleaning pipeline for scentscape.  validates raw fragrance data, deduplic"
+      "norm_label": "data cleaning pipeline for scentrix.  validates raw fragrance data, deduplic"
     },
     {
       "label": "Cleans and validates fragrance data from raw scrapi or seed sources.",
@@ -2596,13 +2596,13 @@
       "norm_label": "validate_graph()"
     },
     {
-      "label": "Graph validation tests for ScentScape.  Validates Neo4j graph integrity and da",
+      "label": "Graph validation tests for Scentrix.  Validates Neo4j graph integrity and da",
       "file_type": "rationale",
       "source_file": "ml\\tests\\test_graph.py",
       "source_location": "L1",
       "id": "test_graph_rationale_1",
       "community": 0,
-      "norm_label": "graph validation tests for scentscape.  validates neo4j graph integrity and da"
+      "norm_label": "graph validation tests for scentrix.  validates neo4j graph integrity and da"
     },
     {
       "label": "Threshold bundle for a validation environment.",

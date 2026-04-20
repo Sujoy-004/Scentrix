@@ -24,7 +24,7 @@ class TextEncoder:
         pinecone_api_key = os.environ.get("PINECONE_API_KEY")
         if pinecone_api_key and pinecone_api_key != "your_pinecone_api_key_here":
             self.pc = Pinecone(api_key=pinecone_api_key)
-            self.index_name = os.environ.get("PINECONE_INDEX_NAME", "scentscape-fragrances")
+            self.index_name = os.environ.get("PINECONE_INDEX_NAME", "scentrix-fragrances")
             self._ensure_index()
         else:
             logger.warning("Pinecone API key not configured. Embeddings will not be uploaded.")

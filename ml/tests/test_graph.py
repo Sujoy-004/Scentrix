@@ -1,4 +1,4 @@
-"""Graph validation tests for ScentScape.
+"""Graph validation tests for Scentrix.
 
 Validates Neo4j graph integrity and data quality.
 """
@@ -430,7 +430,7 @@ if __name__ == "__main__":
     import json
     from ml.graph import init_neo4j
 
-    parser = argparse.ArgumentParser(description="Validate ScentScape Neo4j graph quality.")
+    parser = argparse.ArgumentParser(description="Validate Scentrix Neo4j graph quality.")
     parser.add_argument(
         "neo4j_uri",
         nargs="?",

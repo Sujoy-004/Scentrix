@@ -22,13 +22,13 @@
       "norm_label": "normalize_csv_to_json()"
     },
     {
-      "label": "Integrates CSV dataset into the ScentScape neural format.",
+      "label": "Integrates CSV dataset into the Scentrix neural format.",
       "file_type": "rationale",
       "source_file": "scripts\\normalize_dataset.py",
       "source_location": "L7",
       "id": "normalize_dataset_rationale_7",
       "community": 0,
-      "norm_label": "integrates csv dataset into the scentscape neural format."
+      "norm_label": "integrates csv dataset into the scentrix neural format."
     }
   ],
   "links": [

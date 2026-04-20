@@ -1,4 +1,4 @@
-"""Import licensed fragrance partner feeds into canonical ScentScape schema.
+"""Import licensed fragrance partner feeds into canonical Scentrix schema.
 
 Supports JSON, JSONL, and CSV source files and writes cleaned canonical JSON.
 """

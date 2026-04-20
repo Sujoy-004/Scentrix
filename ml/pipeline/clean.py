@@ -1,4 +1,4 @@
-"""Data cleaning pipeline for ScentScape.
+"""Data cleaning pipeline for Scentrix.
 
 Validates raw fragrance data, deduplicates records, normalizes note names,
 and ensures data quality before Neo4j ingestion.

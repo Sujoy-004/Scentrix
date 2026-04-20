@@ -29,7 +29,7 @@ class GraphEmbedder:
     def __init__(self, dim: int = 384):
         self.dim = dim
         self.pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-        self.index_name = "scentscape-graph"
+        self.index_name = "scentrix-graph"
         self._ensure_index()
 
     def _ensure_index(self):

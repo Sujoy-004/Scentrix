@@ -1,4 +1,4 @@
-# ScentScape ML Pipeline
+# Scentrix ML Pipeline
 
 Machine learning pipeline for fragrance embeddings, personalization, and recommendation ranking.
 
