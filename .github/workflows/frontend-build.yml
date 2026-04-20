@@ -15,7 +15,7 @@ jobs:
   lint-build:
     runs-on: ubuntu-latest
     
-    strategy:
+      strategy:
       matrix:
                 node-version: [20.x]
     
