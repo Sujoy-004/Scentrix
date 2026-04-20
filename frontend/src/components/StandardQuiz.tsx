@@ -246,7 +246,7 @@ export default function StandardQuiz() {
                   key="confirm"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={handleNext}
+                  onClick={() => handleNext()}
                   className="btn-quiz-primary"
                   style={{ 
                     background: `linear-gradient(135deg, ${palette.accent}, ${palette.accent}dd)`,

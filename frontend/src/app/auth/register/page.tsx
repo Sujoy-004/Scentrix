@@ -141,7 +141,7 @@ export default function RegisterPage() {
           if (store.wishlist && store.wishlist.length > 0) {
             await Promise.allSettled(
               store.wishlist.map((item) =>
-                api.addToWishlist(item.id)
+                api.addToWishlist(item)
               )
             );
             // We usually keep local wishlist as backup or clear it depending on strategy

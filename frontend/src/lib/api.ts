@@ -115,6 +115,19 @@ export const api = {
     return data;
   },
 
+  addToWishlist: async (fragranceId: string, notes?: string) => {
+    try {
+      const { data } = await apiInstance.post('/users/saved', {
+        fragrance_neo4j_id: fragranceId,
+        notes: notes || '',
+      });
+      return data;
+    } catch (e) {
+      console.warn('Wishlist sync failed:', e);
+      return null;
+    }
+  },
+
   getNextQuizQuestions: async (sessionId: string, count: number) => {
     const { data } = await apiInstance.get(`/fragrances/quiz/session/${sessionId}/next-questions`, {
       params: { count }
