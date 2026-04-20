@@ -86,7 +86,7 @@ progress.json
 progress_phase6.json
 .github/agents/
 todo.html
-graphify-out/
+# graphify-out/ is now tracked for cross-device context
 _brain/
 DEPLOYMENT_LEDGER.md
 

@@ -85,7 +85,17 @@ You’ll need env vars from `.env.example` (repo root) or `backend/.env`.
 
 ## When changing code
 
-- Keep PRs scoped: frontend changes in `frontend/`, backend in `backend/`, ML in `ml/`.
 - If you change API contracts, update both:
   - backend schemas/routes, and frontend client usage.
 - Add/adjust tests when behavior changes (pytest for backend; Playwright for e2e if UI flow changes).
+
+## 🦾 Universal AI Context (Portability)
+
+To maintain consistency across different devices and AI sessions, this repo follows a **Context Linkage** protocol:
+
+1.  **Codebase Map:** `graphify-out/graph.json` contains the structural mapping of the codebase. AI agents should load this to understand architecture.
+2.  **AI Instructions:** Always read `.github/prompts/` before implementing new features:
+    *   `persona-aethera.md`: Atmospheric brand voice.
+    *   `architect-neural.md`: Neural engine constraints.
+    *   `cinematic-ui.md`: WOW-factor design standards.
+3.  **Master Truth:** This file (`AGENTS.md`) is the final authority on project boundaries and dev workflows.
