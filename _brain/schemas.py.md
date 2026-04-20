@@ -23,7 +23,7 @@ tags:
 - [[FragranceRatingResponse]] - `contains` [EXTRACTED]
 - [[FragranceSearchResult]] - `contains` [EXTRACTED]
 - [[HealthCheck]] - `contains` [EXTRACTED]
-- [[Pydantic requestresponse schemas for ScentScape API.]] - `rationale_for` [EXTRACTED]
+- [[Pydantic requestresponse schemas for Scentrix API.]] - `rationale_for` [EXTRACTED]
 - [[QuizConfidenceComponents]] - `contains` [EXTRACTED]
 - [[QuizQuestion]] - `contains` [EXTRACTED]
 - [[QuizSessionEvaluateRequest]] - `contains` [EXTRACTED]

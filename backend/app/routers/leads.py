@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+import hashlib
+
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, EmailStr
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.database import get_session
 from app.models.models import User, UserInteractionEvent
 from app.services.vault import vault  # In case we want to encrypt the lead as per AGENTS.md
-import hashlib
 
 router = APIRouter(prefix="/leads", tags=["leads"])
 
@@ -24,11 +26,11 @@ async def capture_shadow_lead(
     Implements the 'Shadow Profile' logic.
     """
     email_hash = hashlib.sha256(request.email.lower().encode()).hexdigest()
-    
+
     # Check if we already have this lead or user
     existing_user = await db.execute(select(User).where(User.email_hash == email_hash))
     user = existing_user.scalar_one_or_none()
-    
+
     if not user:
         # Create a 'Ghost' user
         user = User(
@@ -41,7 +43,7 @@ async def capture_shadow_lead(
         )
         db.add(user)
         await db.flush() # Get user.id
-    
+
     # Log the capture event
     event = UserInteractionEvent(
         user_id=user.id,
@@ -51,7 +53,7 @@ async def capture_shadow_lead(
         source="quiz_intercept"
     )
     db.add(event)
-    
+
     await db.commit()
     return {"status": "synchronized", "lead_id": user.id}
 
@@ -66,10 +68,10 @@ async def get_intelligence_feed(
     """
     # Fetch recent users (including ghosts) and their last interaction
     query = text("""
-        SELECT 
-            u.id, 
-            u.email_hash, 
-            u.created_at, 
+        SELECT
+            u.id,
+            u.email_hash,
+            u.created_at,
             u.auth_provider,
             u.role,
             u.preferences_json,
@@ -80,7 +82,7 @@ async def get_intelligence_feed(
         ORDER BY u.created_at DESC
         LIMIT :limit
     """)
-    
+
     result = await db.execute(query, {"limit": limit})
     feed = []
     for row in result.fetchall():
@@ -94,5 +96,5 @@ async def get_intelligence_feed(
             "last_action": row[6],
             "activity_score": row[7]
         })
-        
+
     return feed

@@ -26,7 +26,7 @@ members: 42
 - [[RefreshToken]] - code - Scentrix\backend\app\models\models.py
 - [[Remove fragrance from user's collection.      Args         saved_id Saved f]] - rationale - Scentrix\backend\app\routers\users.py
 - [[Request GDPR data deletion (right to be forgotten).      Marks user account fo]] - rationale - Scentrix\backend\app\routers\users.py
-- [[SQLAlchemy ORM models for ScentScape.  Defines user authsession entities, rat]] - rationale - Scentrix\backend\app\models\models.py
+- [[SQLAlchemy ORM models for Scentrix.  Defines user authsession entities, rat]] - rationale - Scentrix\backend\app\models\models.py
 - [[SavedFragrance]] - code - Scentrix\backend\app\models\models.py
 - [[Submit or update a fragrance rating.      If user already rated this fragrance]] - rationale - Scentrix\backend\app\routers\users.py
 - [[T2.5 User management endpoints.  Provides endpoints for - Get user profile]] - rationale - Scentrix\backend\app\routers\users.py

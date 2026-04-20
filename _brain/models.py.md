@@ -15,7 +15,7 @@ tags:
 - [[Base]] - `contains` [EXTRACTED]
 - [[FragranceRating]] - `contains` [EXTRACTED]
 - [[RefreshToken]] - `contains` [EXTRACTED]
-- [[SQLAlchemy ORM models for ScentScape.  Defines user authsession entities, rat]] - `rationale_for` [EXTRACTED]
+- [[SQLAlchemy ORM models for Scentrix.  Defines user authsession entities, rat]] - `rationale_for` [EXTRACTED]
 - [[SavedFragrance]] - `contains` [EXTRACTED]
 - [[User]] - `contains` [EXTRACTED]
 - [[UserInteractionEvent]] - `contains` [EXTRACTED]

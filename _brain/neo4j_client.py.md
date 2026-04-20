@@ -12,7 +12,7 @@ tags:
 # neo4j_client.py
 
 ## Connections
-- [[Neo4j driver and connection management for ScentScape.  This module provides a]] - `rationale_for` [EXTRACTED]
+- [[Neo4j driver and connection management for Scentrix.  This module provides a]] - `rationale_for` [EXTRACTED]
 - [[Neo4jClient]] - `contains` [EXTRACTED]
 - [[async_session()]] - `contains` [EXTRACTED]
 - [[close_neo4j()]] - `contains` [EXTRACTED]

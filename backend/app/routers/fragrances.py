@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user_id, get_optional_user_id
 from app.celery_app import celery_app
+from app.config import settings
 from app.database import get_session
 from app.models.models import UserInteractionEvent
 from app.routers.recommendations import get_encoder
@@ -116,15 +117,15 @@ def _catalog_filtered_rows_from_list(
 
             # Calculate intersection depth
             match_count = sum(1 for term in query_terms if any(term in chunk for chunk in haystack))
-            
+
             # Exclusion: If nothing matches, skip
             if match_count == 0:
                 continue
-            
+
             # Fuzzy Logic: If multi-term, we allow partial matches but weight them lower
             # A 100% term match always wins.
             match_score = (match_count / len(query_terms)) * 100.0
-            
+
             # Update row data for sorting later
             row_match_score = match_score
         else:
@@ -209,7 +210,7 @@ def _parse_context_json(raw: str | None) -> dict[str, Any]:
     return {}
 
 
-from app.config import settings
+
 
 def get_graph_client():
     """Lazy initialize neo4j client"""

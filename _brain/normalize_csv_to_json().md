@@ -13,7 +13,7 @@ tags:
 
 ## Connections
 - [[.get()]] - `calls` [INFERRED]
-- [[Integrates CSV dataset into the ScentScape neural format.]] - `rationale_for` [EXTRACTED]
+- [[Integrates CSV dataset into the Scentrix neural format.]] - `rationale_for` [EXTRACTED]
 - [[normalize_dataset.py]] - `contains` [EXTRACTED]
 
 #graphify/code #graphify/EXTRACTED #community/Community_3

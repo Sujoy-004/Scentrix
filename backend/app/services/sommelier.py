@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict
+from typing import Any
 
 import httpx
 
@@ -59,16 +59,16 @@ class SommelierService:
         fragrance_summary = "\n".join(frag_list)
         prompt = f"""
         {persona}
-        
+
         Analyze the following curated list of fragrances recommended for a user.
-        Provide a singular, atmospheric insight (exactly 2-3 sentences) that identifies 
-        the 'soul' and narrative arc of this collection. 
-        Also provide a short 2-3 word category name for the vibe (e.g., 'Ethereal Moss', 
+        Provide a singular, atmospheric insight (exactly 2-3 sentences) that identifies
+        the 'soul' and narrative arc of this collection.
+        Also provide a short 2-3 word category name for the vibe (e.g., 'Ethereal Moss',
         'Noir Avant-Garde', 'Solar Minimalism').
-        
+
         Curated Collection:
         {fragrance_summary}
-        
+
         Respond ONLY in valid JSON format:
         {{
             "insight": "...",

@@ -15,7 +15,7 @@ members: 65
 - [[.parse_fragrance()]] - code - Scentrix\ml\scraper\scraper\spiders\fragrantica.py
 - [[FragranticaSpider]] - code - Scentrix\ml\scraper\scraper\spiders\fragrantica.py
 - [[Handle request errors for fragrance pages.]] - rationale - Scentrix\ml\scraper\scraper\spiders\fragrantica.py
-- [[Integrates CSV dataset into the ScentScape neural format.]] - rationale - Scentrix\scripts\normalize_dataset.py
+- [[Integrates CSV dataset into the Scentrix neural format.]] - rationale - Scentrix\scripts\normalize_dataset.py
 - [[Parse fragrance listing page and extract fragrance links.]] - rationale - Scentrix\ml\scraper\scraper\spiders\fragrantica.py
 - [[Parse individual fragrance page and extract data.]] - rationale - Scentrix\ml\scraper\scraper\spiders\fragrantica.py
 - [[Probe source accessibility and robots endpoints for data ingestion planning.]] - rationale - Scentrix\ml\scraper\source_probe.py

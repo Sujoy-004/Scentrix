@@ -6,7 +6,7 @@
     {
       "label": "diversity_audit.py",
       "file_type": "code",
-      "source_file": "Scentrix\\diversity_audit.py",
+      "source_file": "Scentrix\\internal\\tools\\diversity_audit.py",
       "source_location": "L1",
       "id": "scentrix_diversity_audit_py",
       "community": 33,
@@ -15,7 +15,7 @@
     {
       "label": "audit()",
       "file_type": "code",
-      "source_file": "Scentrix\\diversity_audit.py",
+      "source_file": "Scentrix\\internal\\tools\\diversity_audit.py",
       "source_location": "L17",
       "id": "diversity_audit_audit",
       "community": 33,
@@ -24,7 +24,7 @@
     {
       "label": "personality_test.py",
       "file_type": "code",
-      "source_file": "Scentrix\\personality_test.py",
+      "source_file": "Scentrix\\internal\\tools\\personality_test.py",
       "source_location": "L1",
       "id": "scentrix_personality_test_py",
       "community": 3,
@@ -33,7 +33,7 @@
     {
       "label": "find_fragment()",
       "file_type": "code",
-      "source_file": "Scentrix\\personality_test.py",
+      "source_file": "Scentrix\\internal\\tools\\personality_test.py",
       "source_location": "L70",
       "id": "personality_test_find_fragment",
       "community": 3,
@@ -42,7 +42,7 @@
     {
       "label": "simulate()",
       "file_type": "code",
-      "source_file": "Scentrix\\personality_test.py",
+      "source_file": "Scentrix\\internal\\tools\\personality_test.py",
       "source_location": "L80",
       "id": "personality_test_simulate",
       "community": 3,
@@ -1147,7 +1147,7 @@
       "norm_label": ".__repr__()"
     },
     {
-      "label": "SQLAlchemy ORM models for ScentScape.  Defines user auth/session entities, rat",
+      "label": "SQLAlchemy ORM models for Scentrix.  Defines user auth/session entities, rat",
       "file_type": "rationale",
       "source_file": "Scentrix\\backend\\app\\models\\models.py",
       "source_location": "L1",
@@ -2551,7 +2551,7 @@
       "norm_label": "errorresponse"
     },
     {
-      "label": "Pydantic request/response schemas for ScentScape API.",
+      "label": "Pydantic request/response schemas for Scentrix API.",
       "file_type": "rationale",
       "source_file": "Scentrix\\backend\\app\\schemas\\schemas.py",
       "source_location": "L1",
@@ -5647,7 +5647,7 @@
       "norm_label": "close_neo4j()"
     },
     {
-      "label": "Neo4j driver and connection management for ScentScape.  This module provides a",
+      "label": "Neo4j driver and connection management for Scentrix.  This module provides a",
       "file_type": "rationale",
       "source_file": "Scentrix\\ml\\graph\\neo4j_client.py",
       "source_location": "L1",
@@ -6313,7 +6313,7 @@
       "norm_label": "clean_fragrance_file()"
     },
     {
-      "label": "Data cleaning pipeline for ScentScape.  Validates raw fragrance data, deduplic",
+      "label": "Data cleaning pipeline for Scentrix.  Validates raw fragrance data, deduplic",
       "file_type": "rationale",
       "source_file": "Scentrix\\ml\\pipeline\\clean.py",
       "source_location": "L1",
@@ -7906,7 +7906,7 @@
       "norm_label": "validate_graph()"
     },
     {
-      "label": "Graph validation tests for ScentScape.  Validates Neo4j graph integrity and da",
+      "label": "Graph validation tests for Scentrix.  Validates Neo4j graph integrity and da",
       "file_type": "rationale",
       "source_file": "Scentrix\\ml\\tests\\test_graph.py",
       "source_location": "L1",
@@ -8158,7 +8158,7 @@
       "norm_label": "normalize_csv_to_json()"
     },
     {
-      "label": "Integrates CSV dataset into the ScentScape neural format.",
+      "label": "Integrates CSV dataset into the Scentrix neural format.",
       "file_type": "rationale",
       "source_file": "Scentrix\\scripts\\normalize_dataset.py",
       "source_location": "L7",

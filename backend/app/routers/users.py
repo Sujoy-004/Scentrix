@@ -11,6 +11,7 @@ import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -369,5 +370,5 @@ async def update_saved_fragrance_notes(
     saved.notes = request.notes
     await session.commit()
     await session.refresh(saved)
-    
+
     return SavedFragranceResponse.model_validate(saved)

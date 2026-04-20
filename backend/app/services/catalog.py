@@ -96,7 +96,7 @@ def _load_from_neo4j() -> list[dict[str, Any]]:
                     val = item.get(key)
                     if not val:
                         item[key] = []
-                        
+
                 # Un-slugify name
                 raw_name = item.get("name")
                 if raw_name and "-" in raw_name and " " not in raw_name:
@@ -124,21 +124,21 @@ def load_recommendation_catalog(force_reload: bool = False) -> list[dict[str, An
             return _catalog_cache
 
         neo4j_rows = _load_from_neo4j()
-    
+
     # -- Fallback to JSON SSOT if Neo4j is empty or down --
     if not neo4j_rows:
         logger.warning("Neo4j Catalog empty or offline. Falling back to local SSOT JSON.")
         try:
             # Try current working directory first (standard for Docker / local dev)
             json_path = os.path.abspath(os.path.join(os.getcwd(), "ml", "data", "fra_elite_24k.json"))
-            
+
             # If not found, try common repo structures
             if not os.path.exists(json_path):
                 json_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "ml", "data", "fra_elite_24k.json"))
 
             if os.path.exists(json_path):
                 import json
-                with open(json_path, "r", encoding="utf-8") as f:
+                with open(json_path, encoding="utf-8") as f:
                     neo4j_rows = json.load(f)
                 logger.info(f"Successfully loaded {len(neo4j_rows)} fragrances from local SSOT JSON: {json_path}")
             else:

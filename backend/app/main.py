@@ -12,7 +12,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.database import close_db, init_db
 from app.limiter import limiter
-from app.routers import auth, fragrances, quiz, recommendations, users, leads
+from app.routers import auth, fragrances, leads, quiz, recommendations, users
 from app.sentry_config import init_sentry
 
 # Initialize Sentry for error tracking (if configured)

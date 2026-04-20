@@ -33,7 +33,7 @@ members: 79
 - [[Close global Neo4j client.]] - rationale - Scentrix\ml\graph\neo4j_client.py
 - [[Execute a query and return results.          Args             query Cypher]] - rationale - Scentrix\ml\graph\neo4j_client.py
 - [[FragranceGraphIngestor]] - code - Scentrix\ml\pipeline\ingest.py
-- [[Graph validation tests for ScentScape.  Validates Neo4j graph integrity and da]] - rationale - Scentrix\ml\tests\test_graph.py
+- [[Graph validation tests for Scentrix.  Validates Neo4j graph integrity and da]] - rationale - Scentrix\ml\tests\test_graph.py
 - [[GraphValidator]] - code - Scentrix\ml\tests\test_graph.py
 - [[Ingest accord and create relationship.          Args             frag_id Fr]] - rationale - Scentrix\ml\pipeline\ingest.py
 - [[Ingest fragrance list into Neo4j.          Idempotent uses MERGE to avoid dup]] - rationale - Scentrix\ml\pipeline\ingest.py

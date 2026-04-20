@@ -136,7 +136,7 @@ def _select_seed_questions(rows: list[dict], count: int) -> list[dict]:
             accords = [str(a).lower() for a in (row.get("accords") or [])]
             notes = [str(n).lower() for n in (row.get("top_notes") or []) + (row.get("middle_notes") or []) + (row.get("base_notes") or [])]
             traits = accords + notes
-            
+
             # Check if this fragrance fits the kingdom and doesn't overlap too much with already filled ones
             if any(k in traits for k in keywords):
                 # Exclusive Selection: Does this row belong to ANY kingdom we already filled?
@@ -145,7 +145,7 @@ def _select_seed_questions(rows: list[dict], count: int) -> list[dict]:
                     if any(k in traits for k in KINGDOMS[prev_k]):
                         already_covered = True
                         break
-                
+
                 if not already_covered or len(selected) < 4:
                     selected.append(row)
                     used_ids.add(row_id)

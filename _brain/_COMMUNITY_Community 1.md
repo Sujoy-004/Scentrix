@@ -44,7 +44,7 @@ members: 77
 - [[Next adaptive extension questions.]] - rationale - Scentrix\backend\app\schemas\schemas.py
 - [[Optional filters for adaptive quiz session creation.]] - rationale - Scentrix\backend\app\schemas\schemas.py
 - [[Paginated catalog response.]] - rationale - Scentrix\backend\app\schemas\schemas.py
-- [[Pydantic requestresponse schemas for ScentScape API.]] - rationale - Scentrix\backend\app\schemas\schemas.py
+- [[Pydantic requestresponse schemas for Scentrix API.]] - rationale - Scentrix\backend\app\schemas\schemas.py
 - [[Quiz question card payload.]] - rationale - Scentrix\backend\app\schemas\schemas.py
 - [[QuizConfidenceComponents]] - code - Scentrix\backend\app\schemas\schemas.py
 - [[QuizQuestion]] - code - Scentrix\backend\app\schemas\schemas.py

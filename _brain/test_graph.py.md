@@ -12,7 +12,7 @@ tags:
 # test_graph.py
 
 ## Connections
-- [[Graph validation tests for ScentScape.  Validates Neo4j graph integrity and da]] - `rationale_for` [EXTRACTED]
+- [[Graph validation tests for Scentrix.  Validates Neo4j graph integrity and da]] - `rationale_for` [EXTRACTED]
 - [[GraphValidator]] - `contains` [EXTRACTED]
 - [[ValidationProfile]] - `contains` [EXTRACTED]
 - [[_env_bool()]] - `contains` [EXTRACTED]

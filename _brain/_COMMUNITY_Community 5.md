@@ -20,7 +20,7 @@ members: 45
 - [[Clean individual fragrance record.          Args             frag Raw fragr]] - rationale - Scentrix\ml\pipeline\clean.py
 - [[Clean list of fragrance records.          Args             fragrances Raw f]] - rationale - Scentrix\ml\pipeline\clean.py
 - [[Cleans and validates fragrance data from raw scrapi or seed sources.]] - rationale - Scentrix\ml\pipeline\clean.py
-- [[Data cleaning pipeline for ScentScape.  Validates raw fragrance data, deduplic]] - rationale - Scentrix\ml\pipeline\clean.py
+- [[Data cleaning pipeline for Scentrix.  Validates raw fragrance data, deduplic]] - rationale - Scentrix\ml\pipeline\clean.py
 - [[FragranceDataCleaner]] - code - Scentrix\ml\pipeline\clean.py
 - [[Get cleaning statistics.          Returns             Stats dict]] - rationale - Scentrix\ml\pipeline\clean.py
 - [[Initialize cleaner.          Args             strict_mode If True, reject r]] - rationale - Scentrix\ml\pipeline\clean.py

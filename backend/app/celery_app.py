@@ -9,6 +9,7 @@ Configures Celery for async recommendation job processing, including:
 import os
 
 from celery import Celery
+
 from app.config import settings
 
 # Configure Celery

@@ -38,8 +38,9 @@ async def _get_redis():
         return None  # already determined unavailable, skip
 
     try:
-        from app.config import settings
         from redis.asyncio import from_url
+
+        from app.config import settings
 
         if _redis_client is None:
             _redis_client = from_url(

@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import Any
 
 import numpy as np
@@ -106,16 +105,16 @@ class HybridRecommender:
                 query = """
                 MATCH (rec:Fragrance) WHERE rec.id IN $cids
                 MATCH (seed:Fragrance) WHERE seed.id IN $sids
-                
+
                 OPTIONAL MATCH (rec)-[:HAS_NOTE]->(n:Note)<-[:HAS_NOTE]-(seed)
                 OPTIONAL MATCH (rec)-[:BELONGS_TO_ACCORD]->(a:Accord)<-[:BELONGS_TO_ACCORD]-(seed)
                 OPTIONAL MATCH (rec)-[:IN_FAMILY]->(f:Family)<-[:IN_FAMILY]-(seed)
-                
-                WITH rec.id as id, 
-                     count(distinct n) as shared_notes, 
+
+                WITH rec.id as id,
+                     count(distinct n) as shared_notes,
                      count(distinct a) as shared_accords,
                      count(distinct f) as shared_family
-                
+
                 RETURN id, shared_notes, shared_accords, shared_family
                 """
                 result = session.run(query, {"cids": candidate_ids, "sids": user_rated_ids})
@@ -139,7 +138,7 @@ class HybridRecommender:
         candidates = self._query_vector_dna(user_profile_vec, limit=60)
         if not candidates:
             return []
-        
+
         c_ids = [c["id"] for c in candidates]
 
         # Step 2: Genetic Reranking (Graph)
@@ -153,7 +152,7 @@ class HybridRecommender:
         for c in candidates:
             c_id = c["id"]
             metadata = c["metadata"] or catalog_map.get(c_id, {})
-            
+
             # Genetic Weights
             g = genetic_data.get(c_id, {"notes": 0, "accords": 0, "family": 0})
             genetic_score = (g["notes"] * 1.0) + (g["accords"] * 2.0) + (g["family"] * 3.0)
@@ -161,8 +160,8 @@ class HybridRecommender:
 
             # RRF / Hybrid Scalar Fusion: 40% Text Vibe + 40% Graph DNA + 20% Genetic Match
             hybrid_score = (
-                (c["text_score"] * 0.4) + 
-                (c["graph_score"] * 0.4) + 
+                (c["text_score"] * 0.4) +
+                (c["graph_score"] * 0.4) +
                 (genetic_normalized * 0.2)
             )
 

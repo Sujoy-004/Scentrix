@@ -160,7 +160,7 @@ def _score_catalog(
             liked_accords.update(r.accords or [])
 
     seed_ids = {_normalize_id(r.fragrance_id) for r in user_ratings}
-    
+
     logger.info(f"Score Catalog: Received {len(user_ratings)} ratings. Matched {len(rated_items)} items against catalog.")
     logger.info(f"Successfully resolved {len(rated_items)} items against catalog for scoring out of {len(user_ratings)} provided.")
 
@@ -175,7 +175,7 @@ def _score_catalog(
             # Center weights so <5.5 pushes vector AWAY from the target, >5.5 pulls TOWARD the target.
             shifted_weights = [w - 5.5 for w in weights]
             total_w = sum(abs(w) for w in shifted_weights) or 1.0
-            
+
             dim = len(user_embeddings[0])
             user_vec = np.zeros(dim)
             for emb, w in zip(user_embeddings, shifted_weights, strict=False):
@@ -190,7 +190,7 @@ def _score_catalog(
             # Ensure catalog is normalized (it should be, but let's be safe)
             norms = np.linalg.norm(catalog_embs, axis=1, keepdims=True)
             catalog_embs = catalog_embs / np.where(norms > 0, norms, 1.0)
-            
+
             scores = catalog_embs.dot(user_vec).tolist()
 
             logger.info(f"Neural ML Computed {len(scores)} scores. Max score: {max(scores):.4f}")

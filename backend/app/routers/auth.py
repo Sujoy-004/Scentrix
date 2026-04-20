@@ -23,6 +23,13 @@ from app.auth.encryption import vault
 from app.database import get_session
 from app.limiter import limiter
 from app.models.models import RefreshToken, User
+from app.schemas.schemas import (
+    RefreshTokenRequest,
+    TokenResponse,
+    UserLogin,
+    UserProfile,
+    UserRegister,
+)
 from app.services.supabase_auth import (
     SupabaseAuthError,
     create_supabase_user,
@@ -32,13 +39,6 @@ from app.services.supabase_auth import (
     refresh_supabase_session,
     sign_in_supabase_user,
     sync_local_user_from_supabase,
-)
-from app.schemas.schemas import (
-    RefreshTokenRequest,
-    TokenResponse,
-    UserLogin,
-    UserProfile,
-    UserRegister,
 )
 
 logger = logging.getLogger(__name__)

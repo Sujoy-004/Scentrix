@@ -12,7 +12,7 @@ tags:
 # clean.py
 
 ## Connections
-- [[Data cleaning pipeline for ScentScape.  Validates raw fragrance data, deduplic]] - `rationale_for` [EXTRACTED]
+- [[Data cleaning pipeline for Scentrix.  Validates raw fragrance data, deduplic]] - `rationale_for` [EXTRACTED]
 - [[FragranceDataCleaner]] - `contains` [EXTRACTED]
 - [[clean_fragrance_file()]] - `contains` [EXTRACTED]
 

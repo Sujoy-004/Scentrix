@@ -29,7 +29,7 @@ members: 39
 - [[GraphSAGEModel_1]] - code - Scentrix\ml\models\graph_sage_v2.py
 - [[Initialize Neo4j client with connection pooling.          Args             u]] - rationale - Scentrix\ml\graph\neo4j_client.py
 - [[Neo4j client with connection pooling and transaction management.]] - rationale - Scentrix\ml\graph\neo4j_client.py
-- [[Neo4j driver and connection management for ScentScape.  This module provides a]] - rationale - Scentrix\ml\graph\neo4j_client.py
+- [[Neo4j driver and connection management for Scentrix.  This module provides a]] - rationale - Scentrix\ml\graph\neo4j_client.py
 - [[Neo4jClient]] - code - Scentrix\ml\graph\neo4j_client.py
 - [[RuntimeError]] - code
 - [[Singleton pattern to ensure only one client instance.]] - rationale - Scentrix\ml\graph\neo4j_client.py
