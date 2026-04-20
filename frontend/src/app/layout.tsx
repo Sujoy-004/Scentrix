@@ -6,6 +6,8 @@ import Providers from "@/components/Providers";
 import StringTuneManager from "@/components/StringTuneManager";
 import CookieBanner from "@/components/CookieBanner";
 import PageTransition from "@/components/PageTransition";
+import PostHogPageView from "@/components/PostHogPageView";
+import { Suspense } from "react";
 
 const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
@@ -44,6 +46,9 @@ export default function RootLayout({
       className={`${cormorant.variable}`}
     >
       <body className="antialiased">
+        <Suspense fallback={null}>
+          <PostHogPageView />
+        </Suspense>
         <StringTuneManager />
         <Providers>
           <Navbar />

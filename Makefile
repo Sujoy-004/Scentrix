@@ -48,6 +48,12 @@ lint:
 audit:
 	docker-compose exec backend python ml/pipeline/diversity_audit.py
 
+test-diversity:
+	python internal/tools/diversity_audit.py
+
+test-persona:
+	python internal/tools/personality_test.py
+
 enrich:
 	@echo "Enriching dataset with canonical vibes..."
 	docker-compose exec backend python ml/pipeline/clean.py ml/data/fra_elite_24k.json ml/data/fra_cleaned_canonical.json

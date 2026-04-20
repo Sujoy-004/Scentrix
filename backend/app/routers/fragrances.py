@@ -109,8 +109,26 @@ def _catalog_filtered_rows_from_list(
             haystack.extend([note.lower() for note in middle_notes])
             haystack.extend([note.lower() for note in base_notes])
             haystack.extend([accord.lower() for accord in accords])
-            if not any(query_norm in chunk for chunk in haystack):
+
+            query_terms = query_norm.split()
+            if not query_terms:
                 continue
+
+            # Calculate intersection depth
+            match_count = sum(1 for term in query_terms if any(term in chunk for chunk in haystack))
+            
+            # Exclusion: If nothing matches, skip
+            if match_count == 0:
+                continue
+            
+            # Fuzzy Logic: If multi-term, we allow partial matches but weight them lower
+            # A 100% term match always wins.
+            match_score = (match_count / len(query_terms)) * 100.0
+            
+            # Update row data for sorting later
+            row_match_score = match_score
+        else:
+            row_match_score = 0.0
 
         filtered.append(
             {
@@ -125,11 +143,12 @@ def _catalog_filtered_rows_from_list(
                 "base_notes": base_notes,
                 "accords": accords,
                 "rating": row.get("rating", 0.0),
-                "match_score": row.get("match_score", 0.0),
+                "match_score": row_match_score,
             }
         )
 
-    filtered.sort(key=lambda item: (item["brand"].lower(), item["name"].lower(), item["id"]))
+    # Sort: Prioritize match_score (weighted fuzzy), then brand/name
+    filtered.sort(key=lambda item: (-item["match_score"], item["brand"].lower(), item["name"].lower(), item["id"]))
     return filtered
 
 

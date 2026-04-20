@@ -88,7 +88,7 @@ progress_phase6.json
 todo.html
 # graphify-out/ is now tracked for cross-device context
 _brain/
-DEPLOYMENT_LEDGER.md
+docs/history/ledger.md
 
 # Keep frontend app library sources tracked.
 !frontend/src/lib/

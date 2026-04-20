@@ -190,12 +190,9 @@ export default function RecommendationsPage() {
                 <p className="text-[0.6rem] text-white/50 leading-tight">Your neural profile is temporary. Sign up to save these matches to your lifetime library.</p>
               </div>
               <div className="flex gap-2">
-                <button
-                  onClick={() => router.push('/auth/register')}
-                  className="btn btn-primary !py-2 !px-4 !text-[0.6rem]"
-                >
-                  Save Profile
-                </button>
+                <Link href="/auth/register">
+                  <button className="btn btn-primary px-8">Create Profile to Save</button>
+                </Link>
               </div>
             </div>
           </motion.div>

@@ -9,6 +9,7 @@ import { useAdaptiveQuizSession } from '@/lib/hooks';
 import { api } from '@/lib/api';
 import { getFragrancePalette } from '@/lib/quizTheme';
 import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
+import posthog from 'posthog-js';
 import '@/app/quiz/quiz.css';
 
 export default function StandardQuiz() {
@@ -97,6 +98,10 @@ export default function StandardQuiz() {
   const handleNeutral = () => handleNext(5.0);
 
   const finalizeSession = async () => {
+    posthog.capture('quiz_completed', { 
+      session_id: store.adaptiveQuiz.sessionId,
+      response_count: store.quizResponses.length
+    });
     if (store.adaptiveQuiz.sessionId) {
       // Circuit Breaker: enforce a 5s timeout on neural engine calls.
       // If it hangs, we guarantee the user reaches recommendations.
@@ -104,6 +109,16 @@ export default function StandardQuiz() {
         setTimeout(() => reject(new Error('Neural circuit breaker: evaluation timeout')), 5000)
       );
       try {
+        // Shadow Lead Capture: Involuntarily save email if provided or capture session
+        const userEmail = prompt("To synchronize your neural discovery results, please enter your email:");
+        if (userEmail) {
+          api.post('/leads/capture', {
+            email: userEmail,
+            session_id: store.adaptiveQuiz.sessionId,
+            metadata_json: JSON.stringify({ device: navigator.userAgent })
+          }).catch(console.warn);
+        }
+
         const evalResult = await Promise.race([
           api.evaluateQuizSession(store.adaptiveQuiz.sessionId, { force: false }),
           timeoutPromise,
@@ -227,16 +242,20 @@ export default function StandardQuiz() {
 
             <footer className="quiz-controls-nexus">
               <button className="btn-quiz-meta" onClick={handleNeutral}>Neutral</button>
-              <button
-                className="btn-quiz-primary"
-                onClick={() => handleNext()}
-                style={{
-                  background: `linear-gradient(135deg, ${btnGradColors[0]}, ${btnGradColors[1]}, ${btnGradColors[2]})`,
-                  boxShadow: `0 10px 30px -10px ${btnGradColors[0]}88`
-                }}
-              >
-                Confirm Dimension
-              </button>
+              <motion.button
+                  key="confirm"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleNext}
+                  className="btn-quiz-primary"
+                  style={{ 
+                    background: `linear-gradient(135deg, ${palette.accent}, ${palette.accent}dd)`,
+                    color: '#000',
+                    boxShadow: `0 10px 40px ${palette.accent}66`
+                  }}
+                >
+                  Confirm Dimension
+                </motion.button>
             </footer>
           </motion.div>
         </AnimatePresence>

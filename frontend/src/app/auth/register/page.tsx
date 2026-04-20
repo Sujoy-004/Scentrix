@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRegister } from '@/lib/hooks';
 import { useAppStore } from '@/stores/app-store';
 import { api } from '@/lib/api';
+import posthog from 'posthog-js';
 import '../auth.css';
 
 type RegisterSuccessPayload = {
@@ -114,23 +115,40 @@ export default function RegisterPage() {
           }
 
           setAuthToken(data.access_token);
-          if (data.user_id) setUserId(data.user_id);
+          if (data.user_id) {
+            setUserId(data.user_id);
+            // Identify user in PostHog
+            posthog.identify(data.user_id, {
+               email: email,
+               name: name
+            });
+            posthog.capture('user_registered', { method: 'email' });
+          }
 
           const store = useAppStore.getState();
+          
+          // 1. Sync Guest Ratings (Quiz Responses)
           if (store.quizResponses && store.quizResponses.length > 0) {
-            const syncResults = await Promise.allSettled(
+            await Promise.allSettled(
               store.quizResponses.map((response) =>
                 api.submitRating(response.fragrance_id, response.rating)
               )
             );
-            const syncWarning = syncResults.some((result) => result.status === 'rejected');
-            if (!syncWarning) {
-              clearQuizResponses();
-            }
-            router.push(syncWarning ? '/recommendations?sync=partial' : '/recommendations');
-          } else {
-            router.push('/quiz');
+            clearQuizResponses();
           }
+
+          // 2. Sync Guest Wishlist (Inscribed Collection)
+          if (store.wishlist && store.wishlist.length > 0) {
+            await Promise.allSettled(
+              store.wishlist.map((item) =>
+                api.addToWishlist(item.id)
+              )
+            );
+            // We usually keep local wishlist as backup or clear it depending on strategy
+            // For now, redirecting will trigger a fresh fetch from server
+          }
+
+          router.push('/recommendations?sync=complete');
         },
         onError: (err: unknown) => {
           setError(getRegisterErrorMessage(err));

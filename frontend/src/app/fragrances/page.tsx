@@ -167,17 +167,26 @@ export default function FragrancesPage() {
               <DiscoveryNeuralLoader title="Sequencing olfactory graph..." />
             </div>
           ) : items.length === 0 ? (
-            <div className="empty-state">
-              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '3rem', fontStyle: 'italic', fontWeight: 300 }}>Empty Strand</h2>
-              <p style={{ color: 'var(--color-muted)', marginTop: '12px', fontSize: '1rem' }}>No molecular signatures found in this spectrum.</p>
-              <button
-                className="btn-secondary-detail"
-                style={{ marginTop: '32px' }}
-                onClick={() => { setFilterFamily(''); setSearchQuery(''); }}
-              >
-                Reset Inversion
-              </button>
-            </div>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col items-center justify-center py-24 gap-6 text-center max-w-md mx-auto"
+            >
+              <div className="w-16 h-[1px] bg-primary/30 mb-2"></div>
+              <h2 className="display-sm text-white italic">Olfactive Void</h2>
+              <p className="text-white/50 text-sm leading-relaxed">
+                Specific combinations like <span className="text-primary italic">"{searchQuery}"</span> are rare masterpieces. 
+                Our 24k collection is vast, but this exact resonance hasn't been captured yet.
+              </p>
+              <div className="flex gap-4 mt-4">
+                <button 
+                  onClick={() => { setFilterFamily(''); setSearchQuery(''); }} 
+                  className="btn btn-primary px-8"
+                >
+                  Clear Resonance
+                </button>
+              </div>
+            </motion.div>
           ) : (
             <div className="fragrances-grid" ref={gridRef}>
               {items.map((frag, idx) => (

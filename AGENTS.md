@@ -46,6 +46,8 @@ See: [Makefile](Makefile) and [docker-compose.yml](docker-compose.yml).
 - Alembic migrations: `backend/app/migrations/` (configured in [backend/alembic.ini](backend/alembic.ini))
 - Frontend app code: `frontend/src/`
 - ML pipeline + graph logic: `ml/` (this is the canonical ML tree; `backend/ml/` is not used)
+- Internal Utilities: `internal/tools/` (integration tests, persona simulations)
+- Historical Records: `docs/history/` (deployment ledgers, audit logs)
 
 More detail:
 - Backend docs: [backend/README.md](backend/README.md)

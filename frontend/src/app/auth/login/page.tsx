@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useLogin } from '@/lib/hooks';
 import { useAppStore } from '@/stores/app-store';
 import { api } from '@/lib/api';
+import posthog from 'posthog-js';
 import '../auth.css';
 
 type LoginSuccessPayload = {
@@ -123,7 +124,14 @@ export default function LoginPage() {
           }
 
           setAuthToken(data.access_token);
-          if (data.user_id) setUserId(data.user_id);
+          if (data.user_id) {
+            setUserId(data.user_id);
+            // Identify user in PostHog
+            posthog.identify(data.user_id, {
+               email: email 
+            });
+            posthog.capture('user_login', { method: 'email' });
+          }
 
           let syncWarning = false;
           const store = useAppStore.getState();

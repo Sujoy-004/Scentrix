@@ -289,7 +289,7 @@ class QuizSessionStartFilters(BaseModel):
 class QuizSessionStartRequest(BaseModel):
     """Start adaptive quiz session request."""
 
-    seed_count: int = Field(8, ge=6, le=12)
+    seed_count: int = Field(10, ge=6, le=12)
     candidate_pool_size: int = Field(200, ge=50, le=5000)
     filters: QuizSessionStartFilters = QuizSessionStartFilters()
 

@@ -55,7 +55,7 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
   return (
     <motion.article
       ref={cardRef}
-      className="fragrance-card-elite flex flex-col"
+      className="fragrance-card-elite frag-list-card flex flex-col"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}

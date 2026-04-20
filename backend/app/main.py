@@ -12,7 +12,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.database import close_db, init_db
 from app.limiter import limiter
-from app.routers import auth, fragrances, quiz, recommendations, users
+from app.routers import auth, fragrances, quiz, recommendations, users, leads
 from app.sentry_config import init_sentry
 
 # Initialize Sentry for error tracking (if configured)
@@ -88,6 +88,7 @@ app.include_router(fragrances.router)
 app.include_router(users.router)
 app.include_router(recommendations.router)
 app.include_router(quiz.router)
+app.include_router(leads.router)
 
 
 @app.get("/health", tags=["system"])

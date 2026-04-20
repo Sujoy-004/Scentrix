@@ -98,19 +98,19 @@ export function getFamilyAsset(rawAccord: string | undefined | null): AssetResul
   
   // 1. Direct match with canonical list
   if (CANONICAL_FAMILIES.includes(normalized)) {
-    return { src: `/assets/family/${normalized}.png`, error: null };
+    return { src: `/assets/family/${normalized}.webp`, error: null };
   }
 
   // 2. Map through dictionary
   const mapped = ACCORD_MAP[normalized];
   if (mapped) {
-    return { src: `/assets/family/${mapped}.png`, error: null };
+    return { src: `/assets/family/${mapped}.webp`, error: null };
   }
 
   // 3. Fallback: Search for partial bits (e.g. "Woody Spicy")
   for (const [key, value] of Object.entries(ACCORD_MAP)) {
     if (normalized.includes(key)) {
-      return { src: `/assets/family/${value}.png`, error: null };
+      return { src: `/assets/family/${value}.webp`, error: null };
     }
   }
 
