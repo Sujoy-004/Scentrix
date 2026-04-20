@@ -179,7 +179,9 @@ async def login(
             supabase_user = extract_supabase_user_payload(session_data)
             user = await sync_local_user_from_supabase(session, supabase_user)
 
-            logger.info("User logged in via Supabase: %s (local ID: %s)", credentials.email, user.id)
+            logger.info(
+                "User logged in via Supabase: %s (local ID: %s)", credentials.email, user.id
+            )
 
             return _token_response(
                 session_data["access_token"],
@@ -201,7 +203,11 @@ async def login(
     result = await session.execute(stmt)
     user = result.scalar_one_or_none()
 
-    if not user or not user.hashed_password or not verify_password(credentials.password, user.hashed_password):
+    if (
+        not user
+        or not user.hashed_password
+        or not verify_password(credentials.password, user.hashed_password)
+    ):
         logger.warning(f"Login failed: invalid credentials for {credentials.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -246,7 +252,11 @@ async def refresh_token(
             supabase_user = extract_supabase_user_payload(session_data)
             user = await sync_local_user_from_supabase(session, supabase_user)
 
-            logger.info("Supabase session refreshed for user: %s (local ID: %s)", supabase_user.get("id"), user.id)
+            logger.info(
+                "Supabase session refreshed for user: %s (local ID: %s)",
+                supabase_user.get("id"),
+                user.id,
+            )
 
             return _token_response(
                 session_data["access_token"],

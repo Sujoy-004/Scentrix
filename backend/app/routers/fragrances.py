@@ -149,7 +149,14 @@ def _catalog_filtered_rows_from_list(
         )
 
     # Sort: Prioritize match_score (weighted fuzzy), then brand/name
-    filtered.sort(key=lambda item: (-item["match_score"], item["brand"].lower(), item["name"].lower(), item["id"]))
+    filtered.sort(
+        key=lambda item: (
+            -item["match_score"],
+            item["brand"].lower(),
+            item["name"].lower(),
+            item["id"],
+        )
+    )
     return filtered
 
 
@@ -210,8 +217,6 @@ def _parse_context_json(raw: str | None) -> dict[str, Any]:
     return {}
 
 
-
-
 def get_graph_client():
     """Lazy initialize neo4j client"""
     try:
@@ -221,9 +226,7 @@ def get_graph_client():
         try:
             return get_neo4j()
         except RuntimeError:
-            return init_neo4j(
-                settings.neo4j_uri, settings.neo4j_user, settings.neo4j_password
-            )
+            return init_neo4j(settings.neo4j_uri, settings.neo4j_user, settings.neo4j_password)
     except Exception as exc:
         logger.error(f"Neo4j client init failed: {exc}")
         return None

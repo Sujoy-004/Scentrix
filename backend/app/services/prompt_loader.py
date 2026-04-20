@@ -11,6 +11,7 @@ def get_prompts_dir() -> Path:
     prompts_path = root / ".github" / "prompts"
     return prompts_path
 
+
 def load_prompt(filename: str) -> str:
     """Loads a prompt file from the .github/prompts directory."""
     path = get_prompts_dir() / filename

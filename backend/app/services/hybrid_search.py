@@ -146,6 +146,7 @@ class HybridRecommender:
 
         # Step 3: Reciprocal Rank Fusion (RRF) & Metadata Hydration
         from app.routers.recommendations import load_recommendation_catalog
+
         catalog_map = {item["id"]: item for item in load_recommendation_catalog()}
 
         refined = []
@@ -160,9 +161,7 @@ class HybridRecommender:
 
             # RRF / Hybrid Scalar Fusion: 40% Text Vibe + 40% Graph DNA + 20% Genetic Match
             hybrid_score = (
-                (c["text_score"] * 0.4) +
-                (c["graph_score"] * 0.4) +
-                (genetic_normalized * 0.2)
+                (c["text_score"] * 0.4) + (c["graph_score"] * 0.4) + (genetic_normalized * 0.2)
             )
 
             # Generate reasoning string

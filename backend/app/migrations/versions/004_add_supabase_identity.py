@@ -50,9 +50,13 @@ def downgrade() -> None:
     except Exception:
         pass
 
-    if "auth_provider" in {column["name"] for column in sa.inspect(op.get_bind()).get_columns("users")}:
+    if "auth_provider" in {
+        column["name"] for column in sa.inspect(op.get_bind()).get_columns("users")
+    }:
         op.drop_column("users", "auth_provider")
 
-    if "supabase_user_id" in {column["name"] for column in sa.inspect(op.get_bind()).get_columns("users")}:
+    if "supabase_user_id" in {
+        column["name"] for column in sa.inspect(op.get_bind()).get_columns("users")
+    }:
         op.drop_index("ix_users_supabase_user_id", table_name="users")
         op.drop_column("users", "supabase_user_id")

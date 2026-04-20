@@ -35,7 +35,10 @@ class SommelierService:
             )
 
         # Load external persona
-        persona = load_prompt("persona-aethera.md") or "You are 'Aethera', the Digital Sommelier for Scentrix."
+        persona = (
+            load_prompt("persona-aethera.md")
+            or "You are 'Aethera', the Digital Sommelier for Scentrix."
+        )
 
         # Format fragrances for the prompt (Limited to top 8 for context window efficiency)
         frag_list = []

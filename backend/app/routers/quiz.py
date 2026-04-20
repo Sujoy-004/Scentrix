@@ -134,7 +134,12 @@ def _select_seed_questions(rows: list[dict], count: int) -> list[dict]:
                 continue
 
             accords = [str(a).lower() for a in (row.get("accords") or [])]
-            notes = [str(n).lower() for n in (row.get("top_notes") or []) + (row.get("middle_notes") or []) + (row.get("base_notes") or [])]
+            notes = [
+                str(n).lower()
+                for n in (row.get("top_notes") or [])
+                + (row.get("middle_notes") or [])
+                + (row.get("base_notes") or [])
+            ]
             traits = accords + notes
 
             # Check if this fragrance fits the kingdom and doesn't overlap too much with already filled ones

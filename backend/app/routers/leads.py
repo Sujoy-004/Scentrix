@@ -11,16 +11,15 @@ from app.services.vault import vault  # In case we want to encrypt the lead as p
 
 router = APIRouter(prefix="/leads", tags=["leads"])
 
+
 class LeadCaptureRequest(BaseModel):
     email: EmailStr
     session_id: str
     metadata_json: str | None = None
 
+
 @router.post("/capture")
-async def capture_shadow_lead(
-    request: LeadCaptureRequest,
-    db: AsyncSession = Depends(get_session)
-):
+async def capture_shadow_lead(request: LeadCaptureRequest, db: AsyncSession = Depends(get_session)):
     """
     Involuntarily saves user email and connects it to their current session.
     Implements the 'Shadow Profile' logic.
@@ -39,10 +38,10 @@ async def capture_shadow_lead(
             auth_provider="shadow_lead",
             is_active=False,
             role="guest",
-            preferences_json={"session_id": request.session_id, "captured_from": "quiz_gate"}
+            preferences_json={"session_id": request.session_id, "captured_from": "quiz_gate"},
         )
         db.add(user)
-        await db.flush() # Get user.id
+        await db.flush()  # Get user.id
 
     # Log the capture event
     event = UserInteractionEvent(
@@ -50,18 +49,16 @@ async def capture_shadow_lead(
         fragrance_neo4j_id="system",
         interaction_type="lead_capture",
         context_json=request.metadata_json,
-        source="quiz_intercept"
+        source="quiz_intercept",
     )
     db.add(event)
 
     await db.commit()
     return {"status": "synchronized", "lead_id": user.id}
 
+
 @router.get("/feed")
-async def get_intelligence_feed(
-    limit: int = 50,
-    db: AsyncSession = Depends(get_session)
-):
+async def get_intelligence_feed(limit: int = 50, db: AsyncSession = Depends(get_session)):
     """
     Returns the raw user intelligence feed for the Overseer dashboard.
     Crucial: Includes both Ghost leads and their specific quiz footprints.
@@ -86,15 +83,17 @@ async def get_intelligence_feed(
     result = await db.execute(query, {"limit": limit})
     feed = []
     for row in result.fetchall():
-        feed.append({
-            "id": row[0],
-            "email_hash": row[1],
-            "created_at": row[2].isoformat(),
-            "provider": row[3],
-            "role": row[4],
-            "meta": row[5],
-            "last_action": row[6],
-            "activity_score": row[7]
-        })
+        feed.append(
+            {
+                "id": row[0],
+                "email_hash": row[1],
+                "created_at": row[2].isoformat(),
+                "provider": row[3],
+                "role": row[4],
+                "meta": row[5],
+                "last_action": row[6],
+                "activity_score": row[7],
+            }
+        )
 
     return feed

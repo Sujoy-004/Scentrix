@@ -343,8 +343,11 @@ async def request_data_deletion(
         "status": "deletion_requested",
         "message": "Your data deletion request has been submitted. All personal data will be deleted within 30 days.",
     }
+
+
 class UpdateNotesRequest(BaseModel):
     notes: str
+
 
 @router.patch("/saved/{saved_id}/notes", response_model=SavedFragranceResponse)
 async def update_saved_fragrance_notes(

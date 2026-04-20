@@ -13,7 +13,7 @@ class VaultService:
         master_key = settings.data_encryption_key or "dev_fallback_key_change_in_production"
 
         # Derive a 32-byte key for Fernet
-        salt = b'scentrix_salt' # In production, use a persistent unique salt
+        salt = b"scentrix_salt"  # In production, use a persistent unique salt
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
@@ -36,5 +36,6 @@ class VaultService:
         except Exception:
             # Fallback for unencrypted legacy data or corruption
             return encrypted_data
+
 
 vault_service = VaultService()

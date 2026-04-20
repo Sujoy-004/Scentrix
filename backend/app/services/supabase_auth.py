@@ -60,12 +60,7 @@ async def _request_json(
         detail: Any = response.text
         try:
             body = response.json()
-            detail = (
-                body.get("msg")
-                or body.get("error_description")
-                or body.get("message")
-                or body
-            )
+            detail = body.get("msg") or body.get("error_description") or body.get("message") or body
         except ValueError:
             pass
 

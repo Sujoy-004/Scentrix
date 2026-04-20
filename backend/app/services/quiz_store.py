@@ -53,13 +53,16 @@ async def _get_redis():
 
         from collections.abc import Awaitable
         from typing import cast
+
         await cast(Awaitable[bool], _redis_client.ping())
         _redis_available = True
         return _redis_client
 
     except Exception as exc:
         if _redis_available is not False:
-            logger.warning(f"[QuizStore] Redis unavailable — falling back to in-memory store: {exc}")
+            logger.warning(
+                f"[QuizStore] Redis unavailable — falling back to in-memory store: {exc}"
+            )
         _redis_available = False
         _redis_client = None
         return None
@@ -102,4 +105,3 @@ async def save_quiz_session(*, session_id: str, payload: dict[str, Any]) -> None
         await cast(Awaitable[Any], client.expire(key, QUIZ_TTL_SECONDS))
     else:
         _memory_store[session_id] = payload
-

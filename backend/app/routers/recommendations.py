@@ -161,8 +161,12 @@ def _score_catalog(
 
     seed_ids = {_normalize_id(r.fragrance_id) for r in user_ratings}
 
-    logger.info(f"Score Catalog: Received {len(user_ratings)} ratings. Matched {len(rated_items)} items against catalog.")
-    logger.info(f"Successfully resolved {len(rated_items)} items against catalog for scoring out of {len(user_ratings)} provided.")
+    logger.info(
+        f"Score Catalog: Received {len(user_ratings)} ratings. Matched {len(rated_items)} items against catalog."
+    )
+    logger.info(
+        f"Successfully resolved {len(rated_items)} items against catalog for scoring out of {len(user_ratings)} provided."
+    )
 
     # -- ML path -----------------------------------------------------------
     if encoder and _catalog_embeddings_cache is not None and rated_items:
@@ -241,6 +245,7 @@ def _score_catalog(
         except Exception as e:
             logger.warning(f"ML scoring failed: {e}")
             import traceback
+
             logger.warning(traceback.format_exc())
 
     # -- Heuristic note-overlap path ----------------------------------------
@@ -304,9 +309,6 @@ def _score_catalog(
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
-
-
-
 
 
 @router.post("/rate", status_code=200)
