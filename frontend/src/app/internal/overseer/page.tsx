@@ -112,7 +112,7 @@ export default function OverseerDashboard() {
                   {lead.email_hash.substring(0, 16)}...
                 </div>
                 <div className="text-[10px] text-white/30 truncate max-w-sm mt-1">
-                  {lead.meta?.session_id || 'UNKNOWN_SESSION'} // {lead.meta?.browser || 'DIRECT'}
+                  {lead.meta?.session_id || 'UNKNOWN_SESSION'} {' // '} {lead.meta?.browser || 'DIRECT'}
                 </div>
               </div>
               <div className="w-32 text-xs uppercase text-white/40">{lead.provider}</div>

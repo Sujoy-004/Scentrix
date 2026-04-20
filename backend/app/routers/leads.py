@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 from app.database import get_session
 from app.models.models import User, UserInteractionEvent
 from app.services.vault import vault  # In case we want to encrypt the lead as per AGENTS.md
