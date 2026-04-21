@@ -13,7 +13,9 @@
 ├── frontend/             # Next.js 15 app
 │   ├── src/app/          # App router pages
 │   └── src/components/   # Shared UI components
+├── graphify-out/         # Universal Context (Codebase Map)
 ├── internal/             # Internal monitoring and personality tools
 ├── ml/                   # Primary ML logic and Neo4j ingestion
 └── scripts/              # Utility scripts for data normalization
+
 ```

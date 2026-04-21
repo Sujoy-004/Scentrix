@@ -4,6 +4,8 @@
 - **PostgreSQL**: Primary SQL store for users and ratings.
 - **Neo4j**: Knowledge Graph for fragrance relationships (notes, accords, brands).
 - **Redis**: Caching for Recommendation jobs and Quiz session state.
+- **NumPy**: (New) Essential for vector arithmetic in recommendation scoring; must be available in CI via `runtime` dependencies.
+
 
 ## Third-Party Services
 - **Supabase Auth**: External identity provider. Backend verifies JWTs and syncs profiles.

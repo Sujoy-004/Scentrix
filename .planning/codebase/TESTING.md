@@ -3,10 +3,12 @@
 ## Backend
 - **Framework**: `pytest` + `pytest-asyncio`
 - **Coverage**: Targets 80%+ on API routers and services.
-- **Types**: 
-  - Unit tests for services.
-  - Integration tests for Celery tasks and database workflows.
+- **Verification**: 
+  - Unit tests for services and Integration tests for Celery.
+  - CI Gates: `ruff format --check`, `ruff check`, and `mypy`.
+  - **Implicit Requirement**: `pip install -e ".[dev,runtime]"` must be run in CI.
 - **Running**: `make test-backend`
+
 
 ## Frontend
 - **Framework**: Playwright (E2E)
