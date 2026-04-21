@@ -14,13 +14,13 @@ COPY README.md .
 RUN pip install --no-cache-dir setuptools wheel && \
     pip install --no-cache-dir ".[runtime]"
 # Copy application code and config
-COPY app app
+COPY backend/app app
 COPY ml/data ml/data
 COPY ml/graph ml/graph
 COPY ml/__init__.py ml/__init__.py
-COPY alembic.ini .
-COPY railway.toml .
-COPY Procfile .
+COPY backend/alembic.ini .
+COPY backend/Procfile .
+
 
 # Change ownership
 RUN chown -R appuser:appuser /app

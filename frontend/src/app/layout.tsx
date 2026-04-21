@@ -46,11 +46,11 @@ export default function RootLayout({
       className={`${cormorant.variable}`}
     >
       <body className="antialiased">
-        <Suspense fallback={null}>
-          <PostHogPageView />
-        </Suspense>
         <StringTuneManager />
         <Providers>
+          <Suspense fallback={null}>
+            <PostHogPageView />
+          </Suspense>
           <Navbar />
           <main className="flex-1" style={{ paddingTop: "64px" }}>
             <PageTransition>
@@ -59,6 +59,7 @@ export default function RootLayout({
           </main>
           <CookieBanner />
         </Providers>
+
       </body>
     </html>
   );
