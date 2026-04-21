@@ -29,6 +29,7 @@ env/
 pip-log.txt
 pip-delete-this-directory.txt
 .mypy_cache/
+.ruff_cache/
 .dmypy.json
 dmypy.json
 .pytest_cache/

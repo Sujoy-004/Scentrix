@@ -1,4 +1,4 @@
-.PHONY: up down logs migrate seed test-backend test-frontend lint help
+.PHONY: up down logs migrate seed test-backend test-frontend lint context audit help
 
 help:
 	@echo "Scentrix Development Makefile"
@@ -11,6 +11,7 @@ help:
 	@echo "make test-backend    - Run backend pytest suite"
 	@echo "make test-frontend   - Run frontend Jest tests"
 	@echo "make lint            - Run linting on all code"
+	@echo "make context         - Trigger AI codebase re-mapping and context refresh"
 	@echo "make audit           - Run olfactive diversity audit on dataset"
 	@echo "make enrich          - Process and enrich 24k fragrance dataset with canonical vibes"
 
@@ -44,6 +45,12 @@ lint:
 	@echo "Linting frontend..."
 	cd frontend && npm run lint
 	@echo "✓ Linting complete"
+
+context:
+	@echo "Refreshing AI Codebase Context..."
+	@echo "Note: This command triggers an internal Antigravity re-scan."
+	@# No-op shell command; the AI agent detects this call and runs /gsd-map-codebase
+	@type .gitignore > nul
  
 audit:
 	docker-compose exec backend python ml/pipeline/diversity_audit.py
