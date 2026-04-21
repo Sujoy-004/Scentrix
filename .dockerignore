@@ -1,9 +1,4 @@
-# Development and build artifacts
-frontend/
-ml/
-docs/
-.github/
-.git/
+# Build context exclusions
 node_modules/
 .venv/
 .next/
@@ -11,15 +6,21 @@ node_modules/
 __pycache__/
 *.pyc
 *.pyo
+.git/
+.github/
+docs/
 
-# IDE and system files
-*.ps1
-*.bat
-.DS_Store
-.gitignore
-.env
-.env.local
-.env.*.local
+# Service exclusion
+frontend/
 
-# Documentation
-*.md
+# Deployment whitelist
+!ml/data/
+!ml/graph/
+!ml/__init__.py
+!backend/app/
+!backend/pyproject.toml
+!backend/README.md
+!backend/alembic.ini
+!backend/Procfile
+!backend/Dockerfile
+!railway.json

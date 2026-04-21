@@ -6,20 +6,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 # Create non-root user
 RUN useradd -m -u 1000 appuser
-# Copy pyproject for dependency installation
-COPY pyproject.toml .
-COPY README.md .
-# Install project dependencies for the API runtime only.
-# The ML extras are intentionally excluded here because they blow past Railway's image size limit.
+# Copy pyproject and code for dependency installation
+COPY backend/pyproject.toml .
+COPY backend/README.md .
+COPY backend/app app
+
+# Install project dependencies
 RUN pip install --no-cache-dir setuptools wheel && \
     pip install --no-cache-dir ".[runtime]"
-# Copy application code and config
-COPY backend/app app
+
+# Copy ML components and additional configs
 COPY ml/data ml/data
 COPY ml/graph ml/graph
 COPY ml/__init__.py ml/__init__.py
 COPY backend/alembic.ini .
 COPY backend/Procfile .
+
 
 
 # Change ownership
