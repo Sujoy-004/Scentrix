@@ -177,16 +177,16 @@ async def login(
         try:
             session_data = await sign_in_supabase_user(credentials.email, credentials.password)
             supabase_user = extract_supabase_user_payload(session_data)
-            user = await sync_local_user_from_supabase(session, supabase_user)
+            sb_user = await sync_local_user_from_supabase(session, supabase_user)
 
             logger.info(
-                "User logged in via Supabase: %s (local ID: %s)", credentials.email, user.id
+                "User logged in via Supabase: %s (local ID: %s)", credentials.email, sb_user.id
             )
 
             return _token_response(
                 session_data["access_token"],
                 session_data["refresh_token"],
-                user_id=user.id,
+                user_id=sb_user.id,
                 expires_in=int(session_data.get("expires_in", 30 * 60)),
             )
         except SupabaseAuthError as exc:
