@@ -3,6 +3,8 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    build-essential \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 # Create non-root user
 RUN useradd -m -u 1000 appuser
@@ -12,7 +14,7 @@ COPY backend/README.md .
 COPY backend/app app
 
 # Install project dependencies
-RUN pip install --no-cache-dir setuptools wheel && \
+RUN pip install --no-cache-dir hatchling setuptools wheel && \
     pip install --no-cache-dir ".[runtime]"
 
 # Copy ML components and additional configs
