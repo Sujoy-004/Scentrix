@@ -1,49 +1,62 @@
-FROM python:3.11-slim
-
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app \
-    RUNNING_IN_DOCKER=true
+# Stage 1: Builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    build-essential \
-    python3-dev \
-    && rm -rf /var/lib/apt/lists/*
+        build-essential \
+            python3-dev \
+                && rm -rf /var/lib/apt/lists/*
 
-# Install build dependencies
-RUN pip install --no-cache-dir --upgrade pip hatchling setuptools wheel
+                # Upgrade pip and install torch-cpu (saves ~2GB vs default torch)
+                RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+                    pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 
-# 1. Copy only requirements-related files for better caching
-COPY backend/pyproject.toml .
-COPY backend/README.md .
+                    # Copy only dependency files
+                    COPY backend/pyproject.toml .
+                    COPY backend/README.md .
 
-# 2. Install dependencies (including ML extras for production stability)
-# We install [runtime,ml] to ensure all neural components work
-RUN pip install --no-cache-dir ".[runtime,ml]"
+                    # Install dependencies
+                    RUN pip install --no-cache-dir --user ".[runtime,ml]"
 
-# 3. Copy the rest of the application code
-# Context is '.' (project root) as per railway.json
-COPY backend/app app/
-COPY ml/ ml/
-COPY backend/alembic.ini .
-COPY backend/Procfile .
+                    # Stage 2: Final Image
+                    FROM python:3.11-slim
 
-# Create non-root user and set permissions
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
-USER appuser
+                    WORKDIR /app
 
-# Expose port
-EXPOSE 8000
+                    # Set environment variables
+                    ENV PYTHONDONTWRITEBYTECODE=1 \
+                        PYTHONUNBUFFERED=1 \
+                            PYTHONPATH=/app \
+                                RUNNING_IN_DOCKER=true \
+                                    PATH="/root/.local/bin:$PATH"
 
-# Health check (30s start period to allow for heavy ML model loading)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+                                    # Install runtime dependencies (curl for healthcheck)
+                                    RUN apt-get update && apt-get install -y --no-install-recommends \
+                                        curl \
+                                            && rm -rf /var/lib/apt/lists/*
 
-# Start command is handled by railway.json, but we provide a robust default
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+                                            # Copy installed packages from builder
+                                            COPY --from=builder /root/.local /root/.local
+
+                                            # Copy application code
+                                            COPY backend/app app/
+                                            COPY ml/data/fra_elite_24k.json ml/data/
+                                            COPY ml/models ml/models
+                                            COPY backend/alembic.ini .
+                                            COPY backend/Procfile .
+
+                                            # Create non-root user
+                                            RUN useradd -m -u 1000 appuser && \
+                                                chown -R appuser:appuser /app
+                                                USER appuser
+
+                                                EXPOSE 8000
+
+                                                HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+                                                    CMD curl -f http://localhost:8000/api/health || exit 1
+
+                                                    CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+                                                    
