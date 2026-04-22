@@ -19,6 +19,11 @@ logger = logging.getLogger(__name__)
 
 # State and Warmup logic moved to app.services.hybrid_search
 
+def get_encoder():
+        """Neural Engine: Access the ML Encoder via the global recommender service."""
+        return recommender._get_encoder()
+
+
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
 
 
