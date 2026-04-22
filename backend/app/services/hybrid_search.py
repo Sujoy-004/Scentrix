@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Any, List, Optional
 import numpy as np
 from neo4j import GraphDatabase
@@ -66,11 +67,16 @@ class HybridRecommender:
             encoder = self._get_encoder()
 
             if catalog and encoder:
-                logger.info(f"Neural Engine: pre-caching {len(catalog)} fragrances …")
-                texts = [self._get_item_text(item) for item in catalog]
+                # RAM Safety: Limit in-memory cache to top 1000 items in production
+                # Full catalog search is handled via Pinecone.
+                warmup_limit = 1000 if os.getenv("RUNNING_IN_DOCKER") else len(catalog)
+                target_items = catalog[:warmup_limit]
+
+                logger.info(f"Neural Engine: pre-caching {len(target_items)} fragrances (Limit: {warmup_limit}) ...")
+                texts = [self._get_item_text(item) for item in target_items]
                 embeddings = encoder.generate_embeddings(texts)
                 _catalog_embeddings_cache = np.array(embeddings)
-                logger.info("Neural Engine: catalog indexed and ready.")
+                logger.info(f"Neural Engine: Partial catalog ({len(target_items)} items) indexed and ready.")
         except Exception as e:
             logger.error(f"Neural Engine: Warmup failed: {e}")
         finally:
