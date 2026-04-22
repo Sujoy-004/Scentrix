@@ -1,6 +1,5 @@
 import logging
 from typing import Any, List, Optional
-
 import numpy as np
 from neo4j import GraphDatabase
 from pinecone import Pinecone
@@ -13,7 +12,6 @@ logger = logging.getLogger(__name__)
 # Module-level cache for text embeddings to prevent re-computation
 _catalog_embeddings_cache: Optional[np.ndarray] = None
 _is_hydrating: bool = False
-
 
 class HybridRecommender:
     """Unified 'Aetheric' DNA Recommender (Text + Graph Fusion).
@@ -58,7 +56,7 @@ class HybridRecommender:
     def warmup(self):
         """Pre-cache catalog embeddings at startup."""
         global _catalog_embeddings_cache, _is_hydrating
-        
+
         if _catalog_embeddings_cache is not None or _is_hydrating:
             return
 
@@ -66,7 +64,7 @@ class HybridRecommender:
         try:
             catalog = load_recommendation_catalog()
             encoder = self._get_encoder()
-            
+
             if catalog and encoder:
                 logger.info(f"Neural Engine: pre-caching {len(catalog)} fragrances …")
                 texts = [self._get_item_text(item) for item in catalog]
@@ -236,6 +234,5 @@ class HybridRecommender:
 
     def close(self):
         self.driver.close()
-
 
 recommender = HybridRecommender()
