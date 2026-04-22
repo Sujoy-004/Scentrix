@@ -11,37 +11,13 @@ from app.auth.dependencies import get_current_user_id, get_optional_user_id
 from app.cache import cache
 from app.database import get_session
 from app.models.models import FragranceRating as DBFragranceRating
+from app.services.hybrid_search import _catalog_embeddings_cache, _is_hydrating, recommender
 from app.services.catalog import load_recommendation_catalog
-from app.services.hybrid_search import recommender
-
-try:
-    from ml.models.text_encoder import TextEncoder
-except ImportError:
-    TextEncoder = None
 
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 logger = logging.getLogger(__name__)
 
-# Circuit breaker: in production, never return mock/fake data
-_TESTING_MODE = os.environ.get("TESTING_MODE", "false").lower() == "true"
-
-# ── Module-level caches ───────────────────────────────────────────────────────
-_encoder = None
-_catalog_embeddings_cache = None
-_is_hydrating = False
-
-
-def get_encoder():
-    global _encoder
-    if _encoder is None and TextEncoder is not None:
-        try:
-            _encoder = TextEncoder()
-            logger.info("Semantic ML Encoder activated.")
-        except Exception as e:
-            logger.error(f"Failed to activate ML Encoder: {e}")
-            _encoder = None
-    return _encoder
-
+# State and Warmup logic moved to app.services.hybrid_search
 
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
 
@@ -83,17 +59,6 @@ def _normalize_id(raw_id: str) -> str:
     return raw_id.replace("frag_syn_", "").replace("frag_", "")
 
 
-def _get_item_text(item: dict[str, Any]) -> str:
-    parts = [
-        str(item.get("name", "")),
-        str(item.get("brand", "")),
-        str(item.get("description", "")),
-        " ".join(item.get("top_notes", []) or []),
-        " ".join(item.get("accords", []) or []),
-    ]
-    return " ".join(filter(None, parts))
-
-
 def _cosine_similarity(v1: list[float], v2: list[float]) -> float:
     if not v1 or not v2 or len(v1) != len(v2):
         return 0.0
@@ -101,21 +66,8 @@ def _cosine_similarity(v1: list[float], v2: list[float]) -> float:
 
 
 def warmup_neural_engine():
-    """Pre-cache catalog embeddings at startup."""
-    global _catalog_embeddings_cache
-    catalog = load_recommendation_catalog()
-    encoder = get_encoder()
-    if catalog and encoder and _catalog_embeddings_cache is None:
-        global _is_hydrating
-        _is_hydrating = True
-        try:
-            logger.info(f"Neural Engine: pre-caching {len(catalog)} fragrances …")
-            texts = [_get_item_text(item) for item in catalog]
-            _catalog_embeddings_cache = encoder.generate_embeddings(texts)
-            logger.info("Neural Engine: catalog indexed and ready.")
-        finally:
-            _is_hydrating = False
-    return _catalog_embeddings_cache
+    """Proxy for the recommender service warmup."""
+    return recommender.warmup()
 
 
 # ── Score engine ──────────────────────────────────────────────────────────────
@@ -169,35 +121,37 @@ def _score_catalog(
     )
 
     # -- ML path -----------------------------------------------------------
-    if encoder and _catalog_embeddings_cache is not None and rated_items:
+    if not _is_hydrating and _catalog_embeddings_cache is not None and rated_items:
         try:
             import numpy as np
 
-            user_texts = [_get_item_text(item) for item in rated_items]
-            user_embeddings = encoder.generate_embeddings(user_texts)
+            encoder = recommender._get_encoder()
+            if encoder:
+                user_texts = [recommender._get_item_text(item) for item in rated_items]
+                user_embeddings = encoder.generate_embeddings(user_texts)
 
-            # Center weights so <5.5 pushes vector AWAY from the target, >5.5 pulls TOWARD the target.
-            shifted_weights = [w - 5.5 for w in weights]
-            total_w = sum(abs(w) for w in shifted_weights) or 1.0
+                # Center weights so <5.5 pushes vector AWAY from the target, >5.5 pulls TOWARD the target.
+                shifted_weights = [w - 5.5 for w in weights]
+                total_w = sum(abs(w) for w in shifted_weights) or 1.0
 
-            dim = len(user_embeddings[0])
-            user_vec = np.zeros(dim)
-            for emb, w in zip(user_embeddings, shifted_weights, strict=False):
-                user_vec += np.array(emb) * (w / total_w)
+                dim = len(user_embeddings[0])
+                user_vec = np.zeros(dim)
+                for emb, w in zip(user_embeddings, shifted_weights, strict=False):
+                    user_vec += np.array(emb) * (w / total_w)
 
-            # Normalize user vector to ensure unit length
-            user_v_norm = np.linalg.norm(user_vec)
-            if user_v_norm > 0:
-                user_vec = user_vec / user_v_norm
+                # Normalize user vector to ensure unit length
+                user_v_norm = np.linalg.norm(user_vec)
+                if user_v_norm > 0:
+                    user_vec = user_vec / user_v_norm
 
-            catalog_embs = np.array(_catalog_embeddings_cache)
-            # Ensure catalog is normalized (it should be, but let's be safe)
-            norms = np.linalg.norm(catalog_embs, axis=1, keepdims=True)
-            catalog_embs = catalog_embs / np.where(norms > 0, norms, 1.0)
+                catalog_embs = np.array(_catalog_embeddings_cache)
+                # Ensure catalog is normalized (it should be, but let's be safe)
+                norms = np.linalg.norm(catalog_embs, axis=1, keepdims=True)
+                catalog_embs = catalog_embs / np.where(norms > 0, norms, 1.0)
 
-            scores = catalog_embs.dot(user_vec).tolist()
+                scores = catalog_embs.dot(user_vec).tolist()
 
-            logger.info(f"Neural ML Computed {len(scores)} scores. Max score: {max(scores):.4f}")
+                logger.info(f"Neural ML Computed {len(scores)} scores. Max score: {max(scores):.4f}")
 
             results = []
             nid_set = seed_ids  # already a set of normalized IDs to exclude

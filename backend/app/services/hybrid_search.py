@@ -1,13 +1,18 @@
 import logging
-from typing import Any
+from typing import Any, List, Optional
 
 import numpy as np
 from neo4j import GraphDatabase
 from pinecone import Pinecone
 
 from app.config import settings
+from app.services.catalog import load_recommendation_catalog
 
 logger = logging.getLogger(__name__)
+
+# Module-level cache for text embeddings to prevent re-computation
+_catalog_embeddings_cache: Optional[np.ndarray] = None
+_is_hydrating: bool = False
 
 
 class HybridRecommender:
@@ -21,13 +26,57 @@ class HybridRecommender:
         # 1. Vector Client
         self.pc = Pinecone(api_key=settings.pinecone_api_key) if settings.pinecone_api_key else None
         self.text_index = self.pc.Index(settings.pinecone_index_name) if self.pc else None
-        # Note: Scentrix-graph is hardcoded but we should verify if it's in settings
         self.graph_index = self.pc.Index("Scentrix-graph") if self.pc else None
 
         # 2. Graph Client
         self.driver = GraphDatabase.driver(
             settings.neo4j_uri, auth=(settings.neo4j_user, settings.neo4j_password)
         )
+        self._encoder = None
+
+    def _get_encoder(self):
+        if self._encoder is None:
+            try:
+                from ml.models.text_encoder import TextEncoder
+                self._encoder = TextEncoder()
+                logger.info("Neural Engine: ML Encoder activated.")
+            except Exception as e:
+                logger.error(f"Neural Engine: Failed to activate ML Encoder: {e}")
+                self._encoder = None
+        return self._encoder
+
+    def _get_item_text(self, item: dict[str, Any]) -> str:
+        parts = [
+            str(item.get("name", "")),
+            str(item.get("brand", "")),
+            str(item.get("description", "")),
+            " ".join(item.get("top_notes", []) or []),
+            " ".join(item.get("accords", []) or []),
+        ]
+        return " ".join(filter(None, parts))
+
+    def warmup(self):
+        """Pre-cache catalog embeddings at startup."""
+        global _catalog_embeddings_cache, _is_hydrating
+        
+        if _catalog_embeddings_cache is not None or _is_hydrating:
+            return
+
+        _is_hydrating = True
+        try:
+            catalog = load_recommendation_catalog()
+            encoder = self._get_encoder()
+            
+            if catalog and encoder:
+                logger.info(f"Neural Engine: pre-caching {len(catalog)} fragrances …")
+                texts = [self._get_item_text(item) for item in catalog]
+                embeddings = encoder.generate_embeddings(texts)
+                _catalog_embeddings_cache = np.array(embeddings)
+                logger.info("Neural Engine: catalog indexed and ready.")
+        except Exception as e:
+            logger.error(f"Neural Engine: Warmup failed: {e}")
+        finally:
+            _is_hydrating = False
 
     def _query_vector_dna(
         self, user_vec: list[float], limit: int = 100, use_graph_dna: bool = True
@@ -70,11 +119,7 @@ class HybridRecommender:
 
         # 3. Local Semantic Fallback (if no results from Pinecone)
         if not candidates_map:
-            from app.routers.recommendations import (  # noqa: E402
-                _catalog_embeddings_cache,
-                _is_hydrating,
-                load_recommendation_catalog,
-            )
+            global _catalog_embeddings_cache, _is_hydrating
 
             if not _is_hydrating and _catalog_embeddings_cache is not None:
                 catalog = load_recommendation_catalog()
