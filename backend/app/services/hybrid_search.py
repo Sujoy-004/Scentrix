@@ -1,8 +1,9 @@
 import logging
 import os
 from typing import Any
-import numpy as np
+
 from neo4j import GraphDatabase
+import numpy as np
 from pinecone import Pinecone
 
 from app.config import settings
