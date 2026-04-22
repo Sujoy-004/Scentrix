@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Any, List, Optional
+from typing import Any
 import numpy as np
 from neo4j import GraphDatabase
 from pinecone import Pinecone
@@ -11,7 +11,7 @@ from app.services.catalog import load_recommendation_catalog
 logger = logging.getLogger(__name__)
 
 # Module-level cache for text embeddings to prevent re-computation
-_catalog_embeddings_cache: Optional[np.ndarray] = None
+_catalog_embeddings_cache: np.ndarray | None = None
 _is_hydrating: bool = False
 
 class HybridRecommender:
