@@ -18,8 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
                     COPY backend/pyproject.toml .
                     COPY backend/README.md .
 
-                    # Install dependencies
-                    RUN pip install --no-cache-dir --user ".[runtime,ml]"
+                    # Install dependencies into /usr/local
+                    RUN pip install --no-cache-dir ".[runtime,ml]"
 
                     # Stage 2: Final Image
                     FROM python:3.11-slim
@@ -30,33 +30,35 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
                     ENV PYTHONDONTWRITEBYTECODE=1 \
                         PYTHONUNBUFFERED=1 \
                             PYTHONPATH=/app \
-                                RUNNING_IN_DOCKER=true \
-                                    PATH="/root/.local/bin:$PATH"
+                                RUNNING_IN_DOCKER=true
 
-                                    # Install runtime dependencies (curl for healthcheck)
-                                    RUN apt-get update && apt-get install -y --no-install-recommends \
-                                        curl \
-                                            && rm -rf /var/lib/apt/lists/*
+                                # Install runtime dependencies (curl for healthcheck)
+                                RUN apt-get update && apt-get install -y --no-install-recommends \
+                                    curl \
+                                        && rm -rf /var/lib/apt/lists/*
 
-                                            # Copy installed packages from builder
-                                            COPY --from=builder /root/.local /root/.local
+                                        # Copy installed packages from builder (system-wide location)
+                                        COPY --from=builder /usr/local /usr/local
 
-                                            # Copy application code
-                                            COPY backend/app app/
-                                            COPY ml/data/fra_elite_24k.json ml/data/
-                                            COPY ml/models ml/models
-                                            COPY backend/alembic.ini .
-                                            COPY backend/Procfile .
+                                        # Copy application code
+                                        COPY backend/app app/
+                                        COPY ml/data/fra_elite_24k.json ml/data/
+                                        COPY ml/models ml/models
+                                        COPY backend/alembic.ini .
+                                        COPY backend/Procfile .
 
-                                            # Create non-root user
-                                            RUN useradd -m -u 1000 appuser && \
-                                                chown -R appuser:appuser /app
-                                                USER appuser
+                                        # Ensure all files are world-readable/executable where needed
+                                        RUN chmod -R 755 /usr/local/bin
 
-                                                EXPOSE 8000
+                                        # Create non-root user
+                                        RUN useradd -m -u 1000 appuser && \
+                                            chown -R appuser:appuser /app
+                                            USER appuser
 
-                                                HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-                                                    CMD curl -f http://localhost:8000/api/health || exit 1
+                                            EXPOSE 8000
 
-                                                    CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
-                                                    
+                                            HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+                                                CMD curl -f http://localhost:8000/api/health || exit 1
+
+                                                CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+                                                
