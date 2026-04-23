@@ -71,9 +71,9 @@ class HybridRecommender:
             encoder = self._get_encoder()
 
             if catalog and encoder:
-                # RAM Safety: Limit in-memory cache to top 5000 items in production
+                # RAM Safety: Limit in-memory cache to top 250 items in production
                 # Full catalog search is handled via Pinecone.
-                warmup_limit = 5000 if os.getenv("RUNNING_IN_DOCKER") else len(catalog)
+                warmup_limit = 250 if os.getenv("RUNNING_IN_DOCKER") else len(catalog)
                 target_items = catalog[:warmup_limit]
 
                 logger.info(
