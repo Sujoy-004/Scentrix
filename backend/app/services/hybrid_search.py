@@ -37,8 +37,8 @@ class HybridRecommender:
     def _get_encoder(self):
         if self._encoder is None:
             try:
-                from ml.models.text_encoder import TextEncoder
-                self._encoder = TextEncoder()
+                from ml.models.text_encoder import TextEncoder  # noqa: F821
+                self._encoder = TextEncoder()  # noqa: F821
                 logger.info("Neural Engine: ML Encoder activated.")
             except Exception as e:
                 logger.error(f"Neural Engine: Failed to activate ML Encoder: {e}")
