@@ -3,8 +3,8 @@ import logging
 import os
 from typing import Any
 
-from neo4j import GraphDatabase
 import numpy as np
+from neo4j import GraphDatabase
 from pinecone import Pinecone
 
 from app.config import settings
@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 # Module-level cache for text embeddings to prevent re-computation
 _catalog_embeddings_cache: np.ndarray | None = None
 _is_hydrating: bool = False
+
 
 class HybridRecommender:
     """Unified 'Aetheric' DNA Recommender (Text + Graph Fusion).
@@ -39,6 +40,7 @@ class HybridRecommender:
         if self._encoder is None:
             try:
                 from ml.models.text_encoder import TextEncoder  # noqa: F821
+
                 self._encoder = TextEncoder()  # noqa: F821
                 logger.info("Neural Engine: ML Encoder activated.")
             except Exception as e:
@@ -69,16 +71,20 @@ class HybridRecommender:
             encoder = self._get_encoder()
 
             if catalog and encoder:
-                # RAM Safety: Limit in-memory cache to top 1000 items in production
+                # RAM Safety: Limit in-memory cache to top 5000 items in production
                 # Full catalog search is handled via Pinecone.
-                warmup_limit = 1000 if os.getenv("RUNNING_IN_DOCKER") else len(catalog)
+                warmup_limit = 5000 if os.getenv("RUNNING_IN_DOCKER") else len(catalog)
                 target_items = catalog[:warmup_limit]
 
-                logger.info(f"Neural Engine: pre-caching {len(target_items)} fragrances (Limit: {warmup_limit}) ...")
+                logger.info(
+                    f"Neural Engine: pre-caching {len(target_items)} fragrances (Limit: {warmup_limit}) ..."
+                )
                 texts = [self._get_item_text(item) for item in target_items]
                 embeddings = encoder.generate_embeddings(texts)
                 _catalog_embeddings_cache = np.array(embeddings)
-                logger.info(f"Neural Engine: Partial catalog ({len(target_items)} items) indexed and ready.")
+                logger.info(
+                    f"Neural Engine: Partial catalog ({len(target_items)} items) indexed and ready."
+                )
         except Exception as e:
             logger.error(f"Neural Engine: Warmup failed: {e}")
         finally:
@@ -242,5 +248,6 @@ class HybridRecommender:
 
     def close(self):
         self.driver.close()
+
 
 recommender = HybridRecommender()

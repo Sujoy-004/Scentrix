@@ -7,7 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
 from app.models.models import User, UserInteractionEvent
-from app.services.vault import vault_service as vault  # In case we want to encrypt the lead as per AGENTS.md
+from app.services.vault import (
+    vault_service as vault,  # In case we want to encrypt the lead as per AGENTS.md
+)
 
 router = APIRouter(prefix="/leads", tags=["leads"])
 

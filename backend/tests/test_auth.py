@@ -26,12 +26,12 @@ async def test_register_user(client: AsyncClient, db_session: AsyncSession):
 
     # Verify in DB — User model uses email_hash for GDPR privacy, not plain email
     import hashlib
+
     email_hash = hashlib.sha256("test@example.com".lower().strip().encode()).hexdigest()
     result = await db_session.execute(select(User).where(User.email_hash == email_hash))
     user = result.scalar_one()
     assert user is not None
     assert verify_password("SecurePassword123!", user.hashed_password)
-
 
 
 async def test_register_duplicate_user(client: AsyncClient):

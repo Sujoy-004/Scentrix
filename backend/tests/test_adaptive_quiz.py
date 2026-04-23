@@ -156,7 +156,6 @@ async def test_quiz_start_accessible_without_auth(client: AsyncClient):
     assert response.status_code in (200, 503)
 
 
-
 async def test_quiz_start_submit_and_evaluate_flow(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ):

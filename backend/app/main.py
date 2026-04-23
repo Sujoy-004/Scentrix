@@ -31,8 +31,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Lifespan context manager for startup and shutdown events."""
     # Startup
     logger.info("Initializing Scentrix API...")
-    
-    # In production, we rely on Alembic migrations. 
+
+    # In production, we rely on Alembic migrations.
     # Only run init_db() if we are in debug mode and want auto-creation.
     if settings.debug:
         logger.info("Debug mode detected: Running init_db() for auto-schema creation...")

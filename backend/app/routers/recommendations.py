@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,13 +10,14 @@ from app.auth.dependencies import get_current_user_id, get_optional_user_id
 from app.cache import cache
 from app.database import get_session
 from app.models.models import FragranceRating as DBFragranceRating
-from app.services.hybrid_search import _catalog_embeddings_cache, _is_hydrating, recommender
 from app.services.catalog import load_recommendation_catalog
+from app.services.hybrid_search import _catalog_embeddings_cache, _is_hydrating, recommender
 
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 logger = logging.getLogger(__name__)
 
 # State and Warmup logic moved to app.services.hybrid_search
+
 
 def get_encoder():
     """Neural Engine: Access the ML Encoder via the global recommender service."""
@@ -161,7 +161,9 @@ def _score_catalog(
 
                 scores = catalog_embs.dot(user_vec).tolist()
 
-                logger.info(f"Neural ML Computed {len(scores)} scores. Max score: {max(scores):.4f}")
+                logger.info(
+                    f"Neural ML Computed {len(scores)} scores. Max score: {max(scores):.4f}"
+                )
 
             results = []
             nid_set = seed_ids  # already a set of normalized IDs to exclude
