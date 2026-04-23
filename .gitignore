@@ -87,7 +87,8 @@ progress.json
 progress_phase6.json
 .github/agents/
 todo.html
-# graphify-out/ is now tracked for cross-device context
+# graphify-out/ master graph is tracked, but ephemeral cache is ignored
+graphify-out/cache/
 _brain/
 docs/history/ledger.md
 
