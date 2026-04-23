@@ -55,12 +55,12 @@ def audit_dataset(dataset_path: Path):
     deserts = [f for f, c in family_counts.items() if c < threshold and f != 'Unknown']
     
     if deserts:
-        print("\n[⚠ Warning: Potential Data Deserts]")
+        print("\n[Warning: Potential Data Deserts]")
         print("The following families may be under-represented (<1%):")
         for f in deserts:
             print(f"  - {f} ({family_counts[f]} items)")
     else:
-        print("\n[✓ Health Check: Kingdoms are well-balanced]")
+        print("\n[Health Check: Kingdoms are well-balanced]")
 
     # 4. Neural Ready Check
     avg_notes = sum(len(row.get('top_notes', [])) + len(row.get('middle_notes', [])) + len(row.get('base_notes', [])) for row in data) / total
@@ -71,7 +71,7 @@ def audit_dataset(dataset_path: Path):
     print(f"Neural-Ready Coverage: {neural_ready} ({nr_pct:.1f}%)")
     
     if nr_pct < 80:
-        print("⚠ Low neural-ready coverage. Enrichment recommended.")
+        print("Warning: Low neural-ready coverage. Enrichment recommended.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
