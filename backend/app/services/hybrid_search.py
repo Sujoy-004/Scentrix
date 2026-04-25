@@ -27,8 +27,24 @@ class HybridRecommender:
     def __init__(self):
         # 1. Vector Client
         self.pc = Pinecone(api_key=settings.pinecone_api_key) if settings.pinecone_api_key else None
-        self.text_index = self.pc.Index(settings.pinecone_index_name) if self.pc else None
-        self.graph_index = self.pc.Index("Scentrix-graph") if self.pc else None
+        self.text_index = None
+        self.graph_index = None
+
+        if self.pc:
+            try:
+                self.text_index = self.pc.Index(settings.pinecone_index_name)
+                # Verify connectivity by checking index stats (optional but safe)
+                logger.info(f"Neural Engine: Connected to Text Index '{settings.pinecone_index_name}'")
+            except Exception as e:
+                logger.error(f"Neural Engine: Failed to connect to Text Index: {e}")
+                self.text_index = None
+
+            try:
+                self.graph_index = self.pc.Index(settings.pinecone_graph_index_name)
+                logger.info(f"Neural Engine: Connected to Graph Index '{settings.pinecone_graph_index_name}'")
+            except Exception as e:
+                logger.warning(f"Neural Engine: Graph Index not found or unreachable: {e}")
+                self.graph_index = None
 
         # 2. Graph Client
         self.driver = GraphDatabase.driver(

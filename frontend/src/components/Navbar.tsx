@@ -28,6 +28,12 @@ export default function Navbar() {
   const [isClientSide, setIsClientSide] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const handleSearch = () => {
+    const val = searchRef.current?.value;
+    router.push(`/fragrances${val ? `?q=${encodeURIComponent(val)}` : ''}`);
+  };
 
   // Prevent hydration mismatch
   useEffect(() => {
@@ -98,16 +104,26 @@ export default function Navbar() {
           </MagneticLink>
 
           <div className="nav-search-portal">
-            <Search className="nav-search-icon" size={14} />
+            <button 
+              className="nav-search-button p-1 hover:opacity-100 transition-opacity"
+              onClick={handleSearch}
+              aria-label="Submit search"
+              type="submit"
+            >
+              <Search 
+                className="nav-search-icon" 
+                size={14} 
+              />
+            </button>
             <input 
+              ref={searchRef}
               type="text" 
               placeholder="Search scents..."
               className="nav-search-input"
               defaultValue={typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('q') || '' : ''}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  const val = (e.target as HTMLInputElement).value;
-                  router.push(`/fragrances${val ? `?q=${encodeURIComponent(val)}` : ''}`);
+                  handleSearch();
                 }
               }}
             />

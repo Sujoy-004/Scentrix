@@ -49,7 +49,7 @@ export function HeroSection() {
       >
         <div className="hero-content max-w-6xl mx-auto">
           {/* Eyebrow */}
-          <motion.p 
+          <motion.div 
             variants={itemVariants}
             className="hero-eyebrow flex items-center justify-center gap-3 mb-8"
           >
@@ -59,9 +59,9 @@ export function HeroSection() {
               className="w-2 h-2 rounded-full bg-primary glow-amber"
             />
             <span className="tracking-[0.4em] uppercase font-bold text-[0.65rem] text-primary/80 glow-amber">
-              Neural Sommelier Protocol v1.0
+              Neural Sommelier Protocol v2.0-REWIRED
             </span>
-          </motion.p>
+          </motion.div>
 
           {/* Cascading headline */}
           <motion.h1 

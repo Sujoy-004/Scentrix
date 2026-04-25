@@ -143,9 +143,19 @@
   box-shadow: 0 0 15px rgba(244, 187, 146, 0.15);
 }
 
-.nav-search-icon {
+.nav-search-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--color-primary-container);
   opacity: 0.7;
+}
+
+.nav-search-icon {
+  pointer-events: none;
 }
 
 .nav-search-input {

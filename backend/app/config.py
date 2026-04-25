@@ -104,6 +104,9 @@ class Settings(BaseSettings):
     pinecone_index_name: str = Field(
         default="Scentrix-fragrances", validation_alias=AliasChoices("PINECONE_INDEX_NAME")
     )
+    pinecone_graph_index_name: str = Field(
+        default="Scentrix-graph", validation_alias=AliasChoices("PINECONE_GRAPH_INDEX_NAME")
+    )
 
     # Google (Gemini) - For Digital Sommelier
     google_api_key: str | None = Field(

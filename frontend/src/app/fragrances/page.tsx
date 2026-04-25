@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, useScroll, useSpring } from 'framer-motion';
 import { api, type FragranceCatalogItem } from '@/lib/api';
 import { getFamilyAsset } from '@/lib/family-mapping';
@@ -10,6 +10,7 @@ import { ScentrixLogo } from '@/components/ScentrixLogo';
 import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
 import { FragranceCard } from '@/components/FragranceCard';
 import { AnimatePresence } from 'framer-motion';
+import { Suspense } from 'react';
 import './fragrances.css';
 
 const FAMILIES = [
@@ -33,7 +34,16 @@ const BOTTLE_COLORS: Record<string, string> = {
 const PER_PAGE = 20;
 
 export default function FragrancesPage() {
+  return (
+    <Suspense fallback={<DiscoveryNeuralLoader title="Loading Archive..." />}>
+      <FragrancesContent />
+    </Suspense>
+  );
+}
+
+function FragrancesContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const gridRef = useRef<HTMLDivElement>(null);
 
   const [items, setItems] = useState<FragranceCatalogItem[]>([]);
@@ -45,9 +55,9 @@ export default function FragrancesPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get('q') || '';
+    const q = searchParams.get('q') || '';
     setSearchQuery(q);
-  }, []);
+  }, [searchParams]);
 
   const [page, setPage] = useState(1);
   const [jumpPage, setJumpPage] = useState('');

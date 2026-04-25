@@ -1,9 +1,9 @@
 # Build context exclusions
-node_modules/
-.venv/
-.next/
-.pytest_cache/
-__pycache__/
+**/node_modules/
+**/.venv/
+**/.next/
+**/.pytest_cache/
+**/__pycache__/
 *.pyc
 *.pyo
 .git/
@@ -11,16 +11,9 @@ __pycache__/
 docs/
 
 # Service exclusion
-frontend/
+# Removed frontend/ from ignore list to support root-context builds
 
-# Deployment whitelist
-!ml/data/
-!ml/graph/
-!ml/__init__.py
-!backend/app/
-!backend/pyproject.toml
-!backend/README.md
-!backend/alembic.ini
-!backend/Procfile
-!backend/Dockerfile
+!backend/
+!frontend/
+!ml/
 !railway.json
