@@ -426,3 +426,9 @@ class StandardResponse(BaseModel):
     status: Literal["success", "error"]
     data: Any | None = None
     error: str | None = None
+
+
+class FragranceRecommendation(BaseModel):
+    id: str
+    name: str
+    match_score: float

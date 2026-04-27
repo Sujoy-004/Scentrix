@@ -1,0 +1,17 @@
+---
+source_file: "Scentrix\frontend\src\components\PostHogPageView.tsx"
+type: "code"
+community: "Community 49"
+location: "L1"
+tags:
+  - graphify/code
+  - graphify/EXTRACTED
+  - community/Community_49
+---
+
+# PostHogPageView.tsx
+
+## Connections
+- [[PostHogPageView()]] - `contains` [EXTRACTED]
+
+#graphify/code #graphify/EXTRACTED #community/Community_49

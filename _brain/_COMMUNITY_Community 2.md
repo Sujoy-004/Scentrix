@@ -1,0 +1,101 @@
+---
+type: community
+members: 71
+---
+
+# Community 2
+
+**Members:** 71 nodes
+
+## Members
+- [[.__repr__()]] - code - Scentrix\backend\app\models\models.py
+- [[.encrypt()_1]] - code - Scentrix\backend\app\services\vault.py
+- [[Authentication dependencies for FastAPI.  Provides dependency injections for u]] - rationale - Scentrix\backend\app\auth\dependencies.py
+- [[Create a JWT access token.      Args         user_id User ID to encode in t]] - rationale - Scentrix\backend\app\auth\auth.py
+- [[Create a JWT refresh token.      Args         user_id User ID to encode in]] - rationale - Scentrix\backend\app\auth\auth.py
+- [[Create or update the local user record from a Supabase auth payload.]] - rationale - Scentrix\backend\app\services\supabase_auth.py
+- [[Decode and validate a Supabase JWT access token.]] - rationale - Scentrix\backend\app\services\supabase_auth.py
+- [[Dependency Extract and verify user ID from Bearer token.      Args]] - rationale - Scentrix\backend\app\auth\dependencies.py
+- [[Dependency Optionally extract user ID from Bearer token.]] - rationale - Scentrix\backend\app\auth\dependencies.py
+- [[Extract user ID from JWT token.      Args         token JWT token string]] - rationale - Scentrix\backend\app\auth\auth.py
+- [[Hash a password using bcrypt.]] - rationale - Scentrix\backend\app\auth\auth.py
+- [[Involuntarily saves user email and connects it to their current session.     Im]] - rationale - Scentrix\backend\app\routers\leads.py
+- [[Login with email and password.]] - rationale - Scentrix\backend\app\routers\auth.py
+- [[Logout by revoking all refresh tokens for this user.]] - rationale - Scentrix\backend\app\routers\auth.py
+- [[Navbar.tsx]] - code - Scentrix\frontend\src\components\Navbar.tsx
+- [[Normalize the user shape returned by Supabase endpoints.]] - rationale - Scentrix\backend\app\services\supabase_auth.py
+- [[Raised when the Supabase auth API rejects a request.]] - rationale - Scentrix\backend\app\services\supabase_auth.py
+- [[Refresh access token using a valid refresh token.]] - rationale - Scentrix\backend\app\routers\auth.py
+- [[Register a new user account.]] - rationale - Scentrix\backend\app\routers\auth.py
+- [[Supabase auth integration helpers.]] - rationale - Scentrix\backend\app\services\supabase_auth.py
+- [[SupabaseAuthError]] - code - Scentrix\backend\app\services\supabase_auth.py
+- [[T2.3 Authentication API endpoints.  Provides user registration, login, token]] - rationale - Scentrix\backend\app\routers\auth.py
+- [[TokenPayload]] - code - Scentrix\backend\app\auth\auth.py
+- [[User]] - code - Scentrix\backend\app\models\models.py
+- [[User account model.      Stores authentication, GDPR preferences, and account]] - rationale - Scentrix\backend\app\models\models.py
+- [[Verify a plain password against a hashed password.]] - rationale - Scentrix\backend\app\auth\auth.py
+- [[Verify and decode a JWT token.      Args         token JWT token string]] - rationale - Scentrix\backend\app\auth\auth.py
+- [[_base_url()]] - code - Scentrix\backend\app\services\supabase_auth.py
+- [[_build_headers()]] - code - Scentrix\backend\app\services\supabase_auth.py
+- [[_extract_email()]] - code - Scentrix\backend\app\services\supabase_auth.py
+- [[_extract_full_name()]] - code - Scentrix\backend\app\services\supabase_auth.py
+- [[_extract_opt_in_training()]] - code - Scentrix\backend\app\services\supabase_auth.py
+- [[_hash_email()]] - code - Scentrix\backend\app\routers\auth.py
+- [[_hash_email()_1]] - code - Scentrix\backend\app\services\supabase_auth.py
+- [[_request_json()]] - code - Scentrix\backend\app\services\supabase_auth.py
+- [[_token_response()]] - code - Scentrix\backend\app\routers\auth.py
+- [[_utc_now_naive()]] - code - Scentrix\backend\app\routers\auth.py
+- [[auth.py]] - code - Scentrix\backend\app\auth\auth.py
+- [[auth.py_1]] - code - Scentrix\backend\app\routers\auth.py
+- [[capture_shadow_lead()]] - code - Scentrix\backend\app\routers\leads.py
+- [[create_access_token()]] - code - Scentrix\backend\app\auth\auth.py
+- [[create_refresh_token()]] - code - Scentrix\backend\app\auth\auth.py
+- [[create_supabase_user()]] - code - Scentrix\backend\app\services\supabase_auth.py
+- [[decode_supabase_access_token()]] - code - Scentrix\backend\app\services\supabase_auth.py
+- [[dependencies.py]] - code - Scentrix\backend\app\auth\dependencies.py
+- [[extract_supabase_user_payload()]] - code - Scentrix\backend\app\services\supabase_auth.py
+- [[get_current_user_id()]] - code - Scentrix\backend\app\auth\dependencies.py
+- [[get_optional_user_id()]] - code - Scentrix\backend\app\auth\dependencies.py
+- [[get_user_id_from_token()]] - code - Scentrix\backend\app\auth\auth.py
+- [[handleLogout()]] - code - Scentrix\frontend\src\components\Navbar.tsx
+- [[handleScroll()]] - code - Scentrix\frontend\src\components\Navbar.tsx
+- [[hash_password()]] - code - Scentrix\backend\app\auth\auth.py
+- [[is_supabase_configured()]] - code - Scentrix\backend\app\services\supabase_auth.py
+- [[is_supabase_registration_enabled()]] - code - Scentrix\backend\app\services\supabase_auth.py
+- [[login()]] - code - Scentrix\backend\app\routers\auth.py
+- [[logout()]] - code - Scentrix\backend\app\routers\auth.py
+- [[refresh_supabase_session()]] - code - Scentrix\backend\app\services\supabase_auth.py
+- [[refresh_token()]] - code - Scentrix\backend\app\routers\auth.py
+- [[register()]] - code - Scentrix\backend\app\routers\auth.py
+- [[sign_in_supabase_user()]] - code - Scentrix\backend\app\services\supabase_auth.py
+- [[sign_out_supabase_user()]] - code - Scentrix\backend\app\services\supabase_auth.py
+- [[supabase_auth.py]] - code - Scentrix\backend\app\services\supabase_auth.py
+- [[sync_local_user_from_supabase()]] - code - Scentrix\backend\app\services\supabase_auth.py
+- [[test_auth.py]] - code - Scentrix\backend\tests\test_auth.py
+- [[test_get_current_user()]] - code - Scentrix\backend\tests\test_auth.py
+- [[test_login_invalid_password()]] - code - Scentrix\backend\tests\test_auth.py
+- [[test_login_success()]] - code - Scentrix\backend\tests\test_auth.py
+- [[test_register_duplicate_user()]] - code - Scentrix\backend\tests\test_auth.py
+- [[test_register_user()]] - code - Scentrix\backend\tests\test_auth.py
+- [[verify_password()]] - code - Scentrix\backend\app\auth\auth.py
+- [[verify_token()]] - code - Scentrix\backend\app\auth\auth.py
+
+## Live Query (requires Dataview plugin)
+
+```dataview
+TABLE source_file, type FROM #community/Community_2
+SORT file.name ASC
+```
+
+## Connections to other communities
+- 11 edges to [[_COMMUNITY_Community 0]]
+- 7 edges to [[_COMMUNITY_Community 6]]
+- 3 edges to [[_COMMUNITY_Community 1]]
+- 1 edge to [[_COMMUNITY_Community 3]]
+
+## Top bridge nodes
+- [[register()]] - degree 18, connects to 3 communities
+- [[login()]] - degree 14, connects to 2 communities
+- [[capture_shadow_lead()]] - degree 5, connects to 2 communities
+- [[sync_local_user_from_supabase()]] - degree 14, connects to 1 community
+- [[refresh_token()]] - degree 10, connects to 1 community

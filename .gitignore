@@ -1,101 +1,10 @@
-# Python
-__pycache__/
-*.pyc
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-venv/
-ENV/
-env/
-.venv/
-pip-log.txt
-pip-delete-this-directory.txt
-.mypy_cache/
-.ruff_cache/
-.dmypy.json
-dmypy.json
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Node.js
-node_modules/
-npm-debug.log
-yarn-error.log
-.next/
-out/
-.nuxt/
-dist/
-build/
-
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-*.iml
 .env
 .env.*
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-logs/
-*.log
-
-# Local runtime databases
-backend/local_dev.db
-backend/local_test.db
-backend/scentrix.db
-backend/.env
-backend/.env.cloud
-*.db
-
-# Git
-.git/
-
-# Playwright & Test Artifacts
-test-results/
-playwright-report/
-frontend/tests/visual-regression.spec.ts-snapshots/
-
-# Agent & Knowledge Artifacts
-progress.json
-progress_phase6.json
-.github/agents/
-todo.html
-# graphify-out/ master graph is tracked, but ephemeral cache is ignored
-graphify-out/cache/
-_brain/
-docs/history/ledger.md
-
-# ML Data (Explicitly Included)
+__pycache__/
+*.pyc
+node_modules/
+.next/
+.venv/
+dist/
+build/
 !ml/data/fra_elite_24k.json
-
-# Keep frontend app library sources tracked.
-!frontend/src/lib/
-!frontend/src/lib/**
-

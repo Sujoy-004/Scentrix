@@ -1,0 +1,280 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - button "Scentrix" [ref=e5] [cursor=pointer]:
+        - img [ref=e6]
+        - generic [ref=e16]: Scentrix
+      - generic [ref=e17]:
+        - button "Browse" [ref=e18] [cursor=pointer]
+        - generic [ref=e19]:
+          - img [ref=e20]
+          - textbox "Search scents..." [ref=e23]
+        - button "Log In" [ref=e24] [cursor=pointer]
+        - button "Sign Up" [ref=e25] [cursor=pointer]
+  - main [ref=e26]:
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - generic [ref=e30]:
+          - paragraph [ref=e31]:
+            - img [ref=e33]
+            - generic [ref=e38]: The Digital Alchemist — AI Discovery
+          - heading "Sculpted by intelligence. Worn by instinct." [level=1] [ref=e39]:
+            - generic [ref=e40]: Sculpted by intelligence.
+            - generic [ref=e41]: Worn by instinct.
+          - paragraph [ref=e42]: Discover your signature scent through a personalized discovery engine powered by neural graphs and elite curators.
+          - generic [ref=e43]:
+            - button "Start Discovery" [ref=e44] [cursor=pointer]:
+              - text: Start Discovery
+              - img [ref=e45]
+            - button "Browse Library" [ref=e47] [cursor=pointer]:
+              - text: Browse Library
+              - img [ref=e48]
+          - generic [ref=e51]:
+            - generic [ref=e52]:
+              - img [ref=e54]
+              - generic [ref=e58]: 5,130+
+              - generic [ref=e59]: Elite Scents
+            - generic [ref=e60]:
+              - img [ref=e62]
+              - generic [ref=e64]: 91.5%
+              - generic [ref=e65]: Match Accuracy
+            - generic [ref=e66]:
+              - img [ref=e68]
+              - generic [ref=e73]: 50K+
+              - generic [ref=e74]: Critics & Collectors
+        - generic:
+          - generic: Scroll to descend
+      - generic [ref=e76]:
+        - generic [ref=e77]:
+          - heading "Architectural Process" [level=2] [ref=e78]
+          - paragraph [ref=e79]: Three pillars of the Scentrix elite discovery engine
+        - generic [ref=e80]:
+          - generic [ref=e81]:
+            - generic: "01"
+            - img [ref=e83]
+            - heading "Archetypal Discovery" [level=3] [ref=e85]
+            - paragraph [ref=e86]: Reveal your olfactory preferences through our high-fidelity rating interface, masking complexity with elegant interaction design.
+          - generic [ref=e89]:
+            - generic: "02"
+            - img [ref=e91]
+            - heading "Neural Graph Mapping" [level=3] [ref=e94]
+            - paragraph [ref=e95]: Our proprietary GraphSAGE engine scans 5,130 elite masterpieces, identifying latent patterns in your taste architecture.
+          - generic [ref=e98]:
+            - generic: "03"
+            - img [ref=e100]
+            - heading "Elite Curation" [level=3] [ref=e102]
+            - paragraph [ref=e103]: Receive a distilled collection of architectural fragrances, synchronized across your profile for a seamless, cinematic encounter.
+      - generic [ref=e107]:
+        - heading "Discovery Families" [level=2] [ref=e109]
+        - generic [ref=e110]:
+          - generic [ref=e111] [cursor=pointer]:
+            - img "Floral" [ref=e113]
+            - generic [ref=e115]:
+              - heading "Floral" [level=3] [ref=e116]
+              - paragraph [ref=e117]: Delicate Petals
+              - generic [ref=e118]: Explore Collection
+          - generic [ref=e119] [cursor=pointer]:
+            - img "Woody" [ref=e121]
+            - generic [ref=e123]:
+              - heading "Woody" [level=3] [ref=e124]
+              - paragraph [ref=e125]: Ancient Forests
+              - generic [ref=e126]: Explore Collection
+          - generic [ref=e127] [cursor=pointer]:
+            - img "Citrus" [ref=e129]
+            - generic [ref=e131]:
+              - heading "Citrus" [level=3] [ref=e132]
+              - paragraph [ref=e133]: Zesty Vibrance
+              - generic [ref=e134]: Explore Collection
+          - generic [ref=e135] [cursor=pointer]:
+            - img "Oriental" [ref=e137]
+            - generic [ref=e139]:
+              - heading "Oriental" [level=3] [ref=e140]
+              - paragraph [ref=e141]: Exotic Splendor
+              - generic [ref=e142]: Explore Collection
+          - generic [ref=e143] [cursor=pointer]:
+            - img "Amber" [ref=e145]
+            - generic [ref=e147]:
+              - heading "Amber" [level=3] [ref=e148]
+              - paragraph [ref=e149]: Resinous Warmth
+              - generic [ref=e150]: Explore Collection
+          - generic [ref=e151] [cursor=pointer]:
+            - img "Smoky" [ref=e153]
+            - generic [ref=e155]:
+              - heading "Smoky" [level=3] [ref=e156]
+              - paragraph [ref=e157]: Incense & Embers
+              - generic [ref=e158]: Explore Collection
+          - generic [ref=e159] [cursor=pointer]:
+            - img "Fruity" [ref=e161]
+            - generic [ref=e163]:
+              - heading "Fruity" [level=3] [ref=e164]
+              - paragraph [ref=e165]: Sun-Drenched
+              - generic [ref=e166]: Explore Collection
+          - generic [ref=e167] [cursor=pointer]:
+            - img "Gourmand" [ref=e169]
+            - generic [ref=e171]:
+              - heading "Gourmand" [level=3] [ref=e172]
+              - paragraph [ref=e173]: Divine Sweets
+              - generic [ref=e174]: Explore Collection
+          - generic [ref=e175] [cursor=pointer]:
+            - img "Leather" [ref=e177]
+            - generic [ref=e179]:
+              - heading "Leather" [level=3] [ref=e180]
+              - paragraph [ref=e181]: Tanned Elegance
+              - generic [ref=e182]: Explore Collection
+          - generic [ref=e183] [cursor=pointer]:
+            - img "Spicy" [ref=e185]
+            - generic [ref=e187]:
+              - heading "Spicy" [level=3] [ref=e188]
+              - paragraph [ref=e189]: Warm Sands
+              - generic [ref=e190]: Explore Collection
+        - button "Explore More" [ref=e192] [cursor=pointer]
+      - generic [ref=e194]:
+        - heading "Loved by the Collection" [level=2] [ref=e196]
+        - generic [ref=e197]:
+          - generic [ref=e198]:
+            - img [ref=e200]
+            - generic [ref=e205]: 5,130
+            - generic [ref=e206]: Elite Members
+          - generic [ref=e207]:
+            - img [ref=e209]
+            - generic [ref=e211]: 91.5%
+            - generic [ref=e212]: Satisfaction
+          - generic [ref=e213]:
+            - img [ref=e215]
+            - generic [ref=e217]: 2K+
+            - generic [ref=e218]: Masterpieces
+        - generic [ref=e219]:
+          - generic [ref=e220]:
+            - img [ref=e221]
+            - generic [ref=e224]:
+              - img [ref=e225]
+              - img [ref=e227]
+              - img [ref=e229]
+              - img [ref=e231]
+              - img [ref=e233]
+            - paragraph [ref=e235]: "\"Finally found a fragrance that matches my personality perfectly. The AI recommendations are incredibly accurate!\""
+            - generic [ref=e236]:
+              - generic [ref=e237]: Sarah M.
+              - generic [ref=e238]: 92% Match
+          - generic [ref=e239]:
+            - img [ref=e240]
+            - generic [ref=e243]:
+              - img [ref=e244]
+              - img [ref=e246]
+              - img [ref=e248]
+              - img [ref=e250]
+              - img [ref=e252]
+            - paragraph [ref=e254]: "\"Best discovery platform for fragrances. I've found three new signatures in just a month.\""
+            - generic [ref=e255]:
+              - generic [ref=e256]: James L.
+              - generic [ref=e257]: 88% Match
+          - generic [ref=e258]:
+            - img [ref=e259]
+            - generic [ref=e262]:
+              - img [ref=e263]
+              - img [ref=e265]
+              - img [ref=e267]
+              - img [ref=e269]
+              - img [ref=e271]
+            - paragraph [ref=e273]: "\"Love the community ratings and detailed notes breakdowns. Makes choosing so much easier.\""
+            - generic [ref=e274]:
+              - generic [ref=e275]: Emma R.
+              - generic [ref=e276]: 95% Match
+      - generic [ref=e279]:
+        - heading "Manifest Your Presence." [level=2] [ref=e280]
+        - paragraph [ref=e281]: Join the collective of collectors who navigate the Scentrix through architectural intelligence.
+        - button "Start Your Protocol" [ref=e282] [cursor=pointer]:
+          - text: Start Your Protocol
+          - img [ref=e283]
+        - generic [ref=e285]:
+          - generic [ref=e286]:
+            - img [ref=e287]
+            - text: Elite Provenance
+          - generic [ref=e290]:
+            - img [ref=e291]
+            - text: Neural Graph Security
+          - generic [ref=e294]:
+            - img [ref=e295]
+            - text: Verified Critics
+          - generic [ref=e298]:
+            - img [ref=e299]
+            - text: Concierge Support
+  - generic [active]:
+    - generic [ref=e304]:
+      - generic [ref=e305]:
+        - generic [ref=e306]:
+          - navigation [ref=e307]:
+            - button "previous" [disabled] [ref=e308]:
+              - img "previous" [ref=e309]
+            - generic [ref=e311]:
+              - generic [ref=e312]: 1/
+              - text: "1"
+            - button "next" [disabled] [ref=e313]:
+              - img "next" [ref=e314]
+          - img
+        - generic [ref=e316]:
+          - link "Next.js 16.2.1 (stale) Turbopack" [ref=e317] [cursor=pointer]:
+            - /url: https://nextjs.org/docs/messages/version-staleness
+            - img [ref=e318]
+            - generic "There is a newer version (16.2.3) available, upgrade recommended!" [ref=e320]: Next.js 16.2.1 (stale)
+            - generic [ref=e321]: Turbopack
+          - img
+      - dialog "Build Error" [ref=e323]:
+        - generic [ref=e326]:
+          - generic [ref=e327]:
+            - generic [ref=e328]:
+              - generic [ref=e330]: Build Error
+              - generic [ref=e331]:
+                - button "Copy Error Info" [ref=e332] [cursor=pointer]:
+                  - img [ref=e333]
+                - button "No related documentation found" [disabled] [ref=e335]:
+                  - img [ref=e336]
+                - button "Attach Node.js inspector" [ref=e338] [cursor=pointer]:
+                  - img [ref=e339]
+            - generic [ref=e348]: "Expected ';', '}' or <eof>"
+          - generic [ref=e350]:
+            - generic [ref=e352]:
+              - img [ref=e354]
+              - generic [ref=e357]: ./src/app/fragrances/[id]/page.tsx (164:12)
+              - button "Open in editor" [ref=e358] [cursor=pointer]:
+                - img [ref=e360]
+            - generic [ref=e363]:
+              - generic [ref=e364]: "Expected ';', '}' or <eof>"
+              - generic [ref=e365]: 162 |
+              - generic [ref=e366]: "};"
+              - generic [ref=e367]: 163 |
+              - text: ">"
+              - generic [ref=e368]: 164 |
+              - text: "'Green'"
+              - generic [ref=e369]: ":"
+              - generic [ref=e370]: "'rgba(26, 74, 26, 0.15)'"
+              - generic [ref=e371]: ","
+              - generic [ref=e372]: "|"
+              - text: ^
+              - generic [ref=e373]: 165 |
+              - text: "'Musky'"
+              - generic [ref=e374]: ":"
+              - generic [ref=e375]: "'rgba(74, 74, 74, 0.15)'"
+              - generic [ref=e376]: ","
+              - generic [ref=e377]: 166 |
+              - text: "'Unknown'"
+              - generic [ref=e378]: ":"
+              - generic [ref=e379]: "'rgba(244, 187, 146, 0.15)'"
+              - generic [ref=e380]: ","
+              - generic [ref=e381]: 167 |
+              - generic [ref=e382]: "}; Parsing ecmascript source code failed"
+        - generic [ref=e383]: "1"
+        - generic [ref=e384]: "2"
+    - generic [ref=e389] [cursor=pointer]:
+      - button "Open Next.js Dev Tools" [ref=e390]:
+        - img [ref=e391]
+      - button "Open issues overlay" [ref=e395]:
+        - generic [ref=e396]:
+          - generic [ref=e397]: "0"
+          - generic [ref=e398]: "1"
+        - generic [ref=e399]: Issue
+  - alert [ref=e400]
+```
