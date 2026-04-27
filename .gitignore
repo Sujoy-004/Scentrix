@@ -5,6 +5,9 @@ __pycache__/
 node_modules/
 .next/
 .venv/
+venv/
+backend/venv/
+env/
 dist/
 build/
 !ml/data/fra_elite_24k.json
