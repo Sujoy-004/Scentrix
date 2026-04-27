@@ -217,6 +217,10 @@ def _score_catalog(
             top = results[:12]
             if top and top[0]["match_score"] > 0:
                 return top
+        except Exception as e:
+            logger.error(f"ML scoring path failed: {e}")
+            pass
+
     # -- ML path failed or incomplete --
     return []
 
