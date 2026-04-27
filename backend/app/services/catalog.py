@@ -134,11 +134,10 @@ def load_recommendation_catalog(force_reload: bool = False) -> list[dict[str, An
                 os.path.join(os.getcwd(), "ml", "data", "fra_elite_24k.json")
             )
 
-            # If not found, try common repo structures
             if not os.path.exists(json_path):
                 json_path = os.path.abspath(
                     os.path.join(
-                        os.path.dirname(__file__), "..", "..", "ml", "data", "fra_elite_24k.json"
+                        os.path.dirname(__file__), "..", "..", "..", "ml", "data", "fra_elite_24k.json"
                     )
                 )
 

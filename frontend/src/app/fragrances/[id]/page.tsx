@@ -81,7 +81,13 @@ export default function FragranceDetailPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const apiBase = process.env.NODE_ENV === 'production' ? '/api' : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const apiBase = process.env.NEXT_PUBLIC_API_URL;
+    if (!apiBase) {
+      console.error("NEXT_PUBLIC_API_URL is not defined");
+      setLoadError("System configuration error: API base not defined.");
+      setIsLoading(false);
+      return;
+    }
 
     const loadFragrance = async () => {
       if (!id) {

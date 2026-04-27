@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-const BASE_URL = typeof window === 'undefined' 
-  ? process.env.INTERNAL_API_URL || 'http://backend:8000'
-  : process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:8000');
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!BASE_URL) {
+  throw new Error("NEXT_PUBLIC_API_URL is not defined");
+}
 
 const apiInstance = axios.create({
   baseURL: BASE_URL,
@@ -20,6 +22,14 @@ apiInstance.interceptors.request.use((config) => {
   }
   return config;
 });
+
+export const VALID_IDS = [
+  "frag_success",
+  "frag_chic-blossom",
+  "frag_sweet-sin",
+  "frag_tutti-twilly-d-hermes",
+  "frag_celebre-ice"
+];
 
 export const api = {
   get: apiInstance.get.bind(apiInstance),
@@ -87,7 +97,15 @@ export const api = {
     }
   },
 
-  getGuestRecommendations: async (ratings: { fragrance_id: string; rating: number; top_notes?: string[]; accords?: string[]; name?: string; brand?: string }[]) => {
+  getGuestRecommendations: async (ratings: { 
+    fragrance_id: string; 
+    rating: number; 
+    top_notes?: string[]; 
+    accords?: string[]; 
+    description?: string;
+    name?: string; 
+    brand?: string 
+  }[]) => {
     const { data } = await apiInstance.post('/recommendations/guest', { ratings });
     return data;
   },

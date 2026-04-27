@@ -38,6 +38,7 @@ from app.schemas.schemas import (
     RecommendationResult,
     RecommendationWeeklyMetrics,
     TextRecommendationRequest,
+    StandardResponse,
 )
 from app.services.catalog import load_recommendation_catalog
 from app.services.hybrid_search import recommender
@@ -232,7 +233,7 @@ def get_graph_client():
         return None
 
 
-@router.get("/catalog", response_model=FragranceCatalogPage)
+@router.get("/catalog", response_model=StandardResponse)
 async def get_catalog(
     q: str | None = Query(None, min_length=1, max_length=100),
     brand: str | None = Query(None),
@@ -299,22 +300,23 @@ async def get_catalog(
             )
         )
 
-    return FragranceCatalogPage(items=items, total=total, limit=limit, offset=offset)
+    data = FragranceCatalogPage(items=items, total=total, limit=limit, offset=offset)
+    return {"status": "success", "data": data}
 
 
-@router.get("", response_model=list[FragranceSearchResult])
+@router.get("", response_model=StandardResponse)
 async def list_fragrances(
     limit: int = Query(10, ge=1, le=50),
     offset: int = Query(0, ge=0),
     brand: str | None = Query(None),
     user_id: int | None = Depends(get_optional_user_id),
-) -> list[FragranceSearchResult]:
+) -> StandardResponse:
     """List fragrances with lightweight pagination and optional brand filter."""
     client = get_graph_client()
     if not client:
         fallback_rows = _catalog_filtered_rows(brand=brand)
         page_rows = fallback_rows[offset : offset + limit]
-        return [
+        data = [
             FragranceSearchResult(
                 id=row["id"],
                 name=row["name"],
@@ -325,6 +327,7 @@ async def list_fragrances(
             )
             for row in page_rows
         ]
+        return {"status": "success", "data": data}
 
     where_clause = ""
     params: dict[str, Any] = {"limit": limit, "offset": offset}
@@ -344,7 +347,7 @@ async def list_fragrances(
     try:
         results = client.execute_query(query, params)
         if results:
-            return [
+            data = [
                 FragranceSearchResult(
                     id=r["f"].get("id"),
                     name=r["f"].get("name"),
@@ -355,10 +358,11 @@ async def list_fragrances(
                 )
                 for r in results
             ]
+            return {"status": "success", "data": data}
 
         fallback_rows = _catalog_filtered_rows(brand=brand)
         page_rows = fallback_rows[offset : offset + limit]
-        return [
+        data = [
             FragranceSearchResult(
                 id=row["id"],
                 name=row["name"],
@@ -369,11 +373,12 @@ async def list_fragrances(
             )
             for row in page_rows
         ]
+        return {"status": "success", "data": data}
     except Exception as e:
         logger.error(f"List fragrances query failed: {e}")
         fallback_rows = _catalog_filtered_rows(brand=brand)
         page_rows = fallback_rows[offset : offset + limit]
-        return [
+        data = [
             FragranceSearchResult(
                 id=row["id"],
                 name=row["name"],
@@ -384,21 +389,22 @@ async def list_fragrances(
             )
             for row in page_rows
         ]
+        return {"status": "success", "data": data}
 
 
-@router.get("/search", response_model=list[FragranceSearchResult])
+@router.get("/search", response_model=StandardResponse)
 async def search_fragrances(
     q: str | None = Query(None, min_length=1, max_length=100),
     brand: str | None = Query(None),
     accord: str | None = Query(None),
     limit: int = Query(10, ge=1, le=50),
     user_id: int | None = Depends(get_optional_user_id),
-) -> list[FragranceSearchResult]:
+) -> StandardResponse:
     """Search fragrances by name, brand, or accord."""
     client = get_graph_client()
     if not client:
         fallback_rows = _catalog_filtered_rows(query=q, brand=brand, family=accord)
-        return [
+        data = [
             FragranceSearchResult(
                 id=row["id"],
                 name=row["name"],
@@ -409,6 +415,7 @@ async def search_fragrances(
             )
             for row in fallback_rows[:limit]
         ]
+        return {"status": "success", "data": data}
 
     # Simplified graph search
     conditions = []
@@ -478,11 +485,11 @@ async def search_fragrances(
     combined = keyword_results + semantic_results
 
     if combined:
-        return combined[:limit]
+        return {"status": "success", "data": combined[:limit]}
 
     # Extreme Fallback for Cold Cache
     fallback_rows = _catalog_filtered_rows(query=q, brand=brand, family=accord)
-    return [
+    data = [
         FragranceSearchResult(
             id=row["id"],
             name=row["name"],
@@ -494,13 +501,14 @@ async def search_fragrances(
         )
         for row in fallback_rows[:limit]
     ]
+    return {"status": "success", "data": data}
 
 
-@router.post("/recommend/text", response_model=RecommendationJob)
+@router.post("/recommend/text", response_model=StandardResponse)
 async def recommend_by_text(
     request: TextRecommendationRequest,
     user_id: int = Depends(get_current_user_id),
-) -> RecommendationJob:
+) -> StandardResponse:
     """Generate recommendation from text description (async job).
 
     Uses Sentence-BERT to encode the text query and returns top-10 similar fragrances
@@ -550,23 +558,24 @@ async def recommend_by_text(
             detail="Recommendation queue unavailable",
         ) from exc
 
-    return RecommendationJob(
+    data = RecommendationJob(
         job_id=job_id,
         status="processing",
         message="Recommendation generation started",
     )
+    return {"status": "success", "data": data}
 
 
 @router.post(
     "/recommend/interactions",
-    response_model=RecommendationInteractionBatchResponse,
+    response_model=StandardResponse,
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def ingest_recommendation_interactions(
     request: RecommendationInteractionBatchRequest,
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
-) -> RecommendationInteractionBatchResponse:
+) -> StandardResponse:
     """Ingest recommendation interaction events for learning and analytics loops."""
     accepted = 0
 
@@ -600,10 +609,11 @@ async def ingest_recommendation_interactions(
         accepted += 1
 
     await session.commit()
-    return RecommendationInteractionBatchResponse(accepted=accepted, rejected=0)
+    data = RecommendationInteractionBatchResponse(accepted=accepted, rejected=0)
+    return {"status": "success", "data": data}
 
 
-@router.get("/{fragrance_id}", response_model=FragranceDetail)
+@router.get("/{fragrance_id}", response_model=StandardResponse)
 async def get_fragrance_detail(
     fragrance_id: str,
     user_id: int | None = Depends(get_optional_user_id),
@@ -615,7 +625,8 @@ async def get_fragrance_detail(
             (row for row in _catalog_filtered_rows() if row["id"] == fragrance_id), None
         )
         if fallback_match is not None:
-            return _catalog_row_to_detail(fallback_match, fragrance_id)
+            data = _catalog_row_to_detail(fallback_match, fragrance_id)
+            return {"status": "success", "data": data}
         raise HTTPException(status_code=404, detail="Fragrance not found")
 
     query = """
@@ -636,7 +647,8 @@ async def get_fragrance_detail(
                 (row for row in _catalog_filtered_rows() if row["id"] == fragrance_id), None
             )
             if fallback_match is not None:
-                return _catalog_row_to_detail(fallback_match, fragrance_id)
+                data = _catalog_row_to_detail(fallback_match, fragrance_id)
+                return {"status": "success", "data": data}
             raise HTTPException(status_code=404, detail="Fragrance not found")
 
         record = results[0]
@@ -671,7 +683,7 @@ async def get_fragrance_detail(
                     )
                 )
 
-        return FragranceDetail(
+        data = FragranceDetail(
             id=f_node.get("id", fragrance_id),
             name=f_node.get("name", "Unknown"),
             brand=f_node.get("brand", "Unknown"),
@@ -686,6 +698,7 @@ async def get_fragrance_detail(
             neighbors=neighbors,
             similarity_score=None,
         )
+        return {"status": "success", "data": data}
     except HTTPException:
         raise
     except Exception as exc:
@@ -694,15 +707,16 @@ async def get_fragrance_detail(
             (row for row in _catalog_filtered_rows() if row["id"] == fragrance_id), None
         )
         if fallback_match is not None:
-            return _catalog_row_to_detail(fallback_match, fragrance_id)
+            data = _catalog_row_to_detail(fallback_match, fragrance_id)
+            return {"status": "success", "data": data}
         raise HTTPException(status_code=500, detail="Database error") from exc
 
 
-@router.get("/recommend/metrics/weekly", response_model=RecommendationWeeklyMetrics)
+@router.get("/recommend/metrics/weekly", response_model=StandardResponse)
 async def get_recommendation_weekly_metrics(
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
-) -> RecommendationWeeklyMetrics:
+) -> StandardResponse:
     """Return a 7-day recommendation quality dashboard for the current user."""
     cutoff_naive = (datetime.now(UTC) - timedelta(days=7)).replace(tzinfo=None)
 
@@ -772,7 +786,7 @@ async def get_recommendation_weekly_metrics(
     high_ctr = _safe_pct(high_clicks, high_impressions)
     low_ctr = _safe_pct(low_clicks, low_impressions)
 
-    return RecommendationWeeklyMetrics(
+    data = RecommendationWeeklyMetrics(
         window_days=7,
         impressions=impression_count,
         detail_clicks=detail_clicks,
@@ -787,13 +801,14 @@ async def get_recommendation_weekly_metrics(
         stock_coverage_pct=_safe_pct(stock_known_impressions, impression_count),
         high_vs_low_ctr_delta_pct=round(high_ctr - low_ctr, 1),
     )
+    return {"status": "success", "data": data}
 
 
-@router.get("/recommend/{job_id}", response_model=RecommendationResult | RecommendationJob)
+@router.get("/recommend/{job_id}", response_model=StandardResponse)
 async def get_recommendation_result(
     job_id: str,
     user_id: int | None = Depends(get_optional_user_id),
-) -> RecommendationResult | RecommendationJob:
+) -> StandardResponse:
     """Poll async recommendation job result.
 
     Args:
@@ -868,11 +883,12 @@ async def get_recommendation_result(
                 job = await get_job(job_id) or job
 
     if job["status"] in {"processing", "queued"}:
-        return RecommendationJob(
+        data = RecommendationJob(
             job_id=job_id,
             status=job["status"],
             message=job.get("message") or "Still generating recommendations...",
         )
+        return {"status": "success", "data": data}
     elif job["status"] == "completed":
         generated_at = job.get("generated_at")
         if isinstance(generated_at, str) and generated_at:
@@ -883,13 +899,14 @@ async def get_recommendation_result(
         else:
             parsed_generated_at = datetime.now(UTC)
 
-        return RecommendationResult(
+        data = RecommendationResult(
             job_id=job_id,
             status="completed",
             fragrances=job["results"] or [],
             generated_at=parsed_generated_at,
             message=job.get("message") or "",
         )
+        return {"status": "success", "data": data}
     elif job["status"] in {"failed", "timed_out", "expired"}:
         error_status = (
             status.HTTP_504_GATEWAY_TIMEOUT
@@ -907,12 +924,13 @@ async def get_recommendation_result(
     )
 
 
-@router.post("/recommend/profile", response_model=RecommendationJob)
+@router.post("/recommend/profile", response_model=StandardResponse)
 async def recommend_by_profile(
     limit: int = Query(10, ge=1, le=50),
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
-) -> RecommendationJob:
+) -> StandardResponse:
+
     """Generate recommendations based on user's fragrance ratings (async job).
 
     Requires authentication. Uses user's taste vector built from their ratings
@@ -966,8 +984,9 @@ async def recommend_by_profile(
             detail="Recommendation queue unavailable",
         ) from exc
 
-    return RecommendationJob(
+    data = RecommendationJob(
         job_id=job_id,
         status="processing",
         message="Generating personalized recommendations...",
     )
+    return {"status": "success", "data": data}

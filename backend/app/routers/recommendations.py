@@ -12,6 +12,12 @@ from app.database import get_session
 from app.models.models import FragranceRating as DBFragranceRating
 from app.services.catalog import load_recommendation_catalog
 from app.services.hybrid_search import _catalog_embeddings_cache, _is_hydrating, recommender
+from app.schemas.schemas import (
+    FragranceRecommendation,
+    StandardResponse,
+    RecommendationResult,
+    RecommendationJob,
+)
 
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 logger = logging.getLogger(__name__)
@@ -95,9 +101,12 @@ def _score_catalog(
     2. Note/accord overlap heuristic (always available)
     3. Trending fallback (when no ratings match catalogue)
     """
-    if _is_hydrating:
-        logger.info("Score Engine: Neural engine is still hydrating. Aborting scoring early.")
-        return []
+    if _is_hydrating or _catalog_embeddings_cache is None:
+        logger.error("ML_NOT_READY")
+        raise HTTPException(
+            status_code=503,
+            detail="ML system is initializing. Please try again shortly."
+        )
 
     encoder = get_encoder()
     catalog_by_norm_id = {_normalize_id(str(item.get("id", ""))): item for item in catalog}
@@ -208,70 +217,8 @@ def _score_catalog(
             top = results[:12]
             if top and top[0]["match_score"] > 0:
                 return top
-        except Exception as e:
-            logger.warning(f"ML scoring failed: {e}")
-            import traceback
-
-            logger.warning(traceback.format_exc())
-
-    # -- Heuristic note-overlap path ----------------------------------------
-    if liked_notes or liked_accords:
-        results = []
-        l_notes = {str(n).lower() for n in liked_notes}
-        l_accords = {str(a).lower() for a in liked_accords}
-
-        for item in catalog:
-            nid = _normalize_id(str(item.get("id", "")))
-            if nid in seed_ids:
-                continue
-
-            # Use pre-cached sets if available, otherwise fallback (to handle synthetic adds)
-            item_notes = item.get("_notes_set")
-            if item_notes is None:
-                item_notes = {
-                    str(n).lower()
-                    for n in (item.get("top_notes") or [])
-                    + (item.get("middle_notes") or [])
-                    + (item.get("base_notes") or [])
-                }
-
-            item_accords = item.get("_accords_set")
-            if item_accords is None:
-                item_accords = {str(a).lower() for a in (item.get("accords") or [])}
-
-            note_overlap = len(item_notes & l_notes)
-            accord_overlap = len(item_accords & l_accords)
-
-            total_overlap = note_overlap * 2 + accord_overlap
-            max_possible = max(len(l_notes) * 2 + len(l_accords), 1)
-            score = min(total_overlap / max_possible, 1.0)
-
-            results.append(
-                {
-                    "id": str(item.get("id", "")),
-                    "name": str(item.get("name", "Unknown")),
-                    "brand": str(item.get("brand", "Unknown")),
-                    "match_score": round(score * 100, 1),
-                    "reason": f"{note_overlap} shared notes, {accord_overlap} shared accords",
-                }
-            )
-
-        results.sort(key=lambda x: x["match_score"], reverse=True)
-        top = [r for r in results[:12] if r["match_score"] > 0]
-        if top:
-            return top
-
-    # -- Trending fallback --------------------------------------------------
-    return [
-        {
-            "id": str(catalog[i].get("id", "")),
-            "name": str(catalog[i].get("name", "Unknown")),
-            "brand": str(catalog[i].get("brand", "Unknown")),
-            "match_score": round((len(catalog) - i) / len(catalog) * 60, 1),
-            "reason": "Trending pick",
-        }
-        for i in range(min(12, len(catalog)))
-    ]
+    # -- ML path failed or incomplete --
+    return []
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -282,13 +229,13 @@ async def submit_fragrance_rating(
     request: FragranceRatingInput,
     user_id: int | None = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_session),
-) -> dict[str, Any]:
+) -> StandardResponse:
     """
     Persist a quiz rating for authenticated users.
     For guests this is a silent 200 no-op — ratings live in localStorage.
     """
     if not user_id:
-        return {"status": "guest_local"}
+        return {"status": "success", "data": {"status": "guest_local"}}
 
     try:
         # Use fragrance_neo4j_id (the actual DB column name)
@@ -318,11 +265,11 @@ async def submit_fragrance_rating(
         # Invalidate recommendation cache
         await cache.delete(f"rec:user:{user_id}")
 
-        return {"status": "saved"}
+        return {"status": "success", "data": {"status": "saved"}}
 
     except Exception as e:
         logger.error(f"Rating persist error for user {user_id}: {e}")
-        return {"status": "error", "detail": str(e)}
+        raise HTTPException(status_code=500, detail="Failed to save rating") from e
 
 
 @router.post("/batch-rate", status_code=200)
@@ -330,7 +277,7 @@ async def submit_batch_ratings(
     request: BatchRatingRequest,
     user_id: int = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_session),
-) -> dict[str, Any]:
+) -> StandardResponse:
     """
     Persist multiple quiz ratings at once. Used during Guest -> User conversion.
     """
@@ -364,22 +311,26 @@ async def submit_batch_ratings(
         # Invalidate recommendation cache
         await cache.delete(f"rec:user:{user_id}")
 
-        return {"status": "saved", "count": count}
+        return {"status": "success", "data": {"status": "saved", "count": count}}
     except Exception as e:
         logger.error(f"Batch rating persist error for user {user_id}: {e}")
         await db.rollback()
         raise HTTPException(status_code=500, detail="Failed to sync batch ratings") from e
 
 
-@router.post("/guest", response_model=list[FragranceRecommendation])
+@router.post("/guest", response_model=StandardResponse)
 async def get_guest_recommendations(
     request: GuestRecommendationRequest,
-) -> list[FragranceRecommendation]:
-    """
-    Return neural recommendations for guest users using the Hybrid Engine.
-    """
+) -> StandardResponse:
+    if _is_hydrating or _catalog_embeddings_cache is None:
+        logger.error("ML_NOT_READY")
+        raise HTTPException(
+            status_code=503,
+            detail="ML system is initializing. Please try again shortly.",
+        )
+
     if not request.ratings:
-        return []
+        return {"status": "success", "data": []}
 
     catalog = load_recommendation_catalog()
     if not catalog:
@@ -387,7 +338,11 @@ async def get_guest_recommendations(
 
     encoder = get_encoder()
     if not encoder:
-        return [FragranceRecommendation(**r) for r in _score_catalog(request.ratings, catalog)]
+        logger.error("ML_NOT_READY: Encoder missing")
+        raise HTTPException(
+            status_code=503,
+            detail="ML system is initializing. Please try again shortly.",
+        )
 
     try:
         # Generate profile vector from guest ratings
@@ -402,7 +357,8 @@ async def get_guest_recommendations(
                 weights.append(r.rating)
 
         if not rated_items:
-            return [FragranceRecommendation(**r) for r in _score_catalog(request.ratings, catalog)]
+            # If no items matched catalog, we can't do ML inference
+            return {"status": "success", "data": []}
 
         user_embeddings = encoder.generate_embeddings(rated_items)
         total_w = sum(weights) or 1.0
@@ -414,39 +370,47 @@ async def get_guest_recommendations(
 
         seed_ids = [_normalize_id(r.fragrance_id) for r in request.ratings]
         results = recommender.get_recommendations(user_vec, seed_ids)
-        return [FragranceRecommendation(**r) for r in results]
+        data = [FragranceRecommendation(**r) for r in results]
+        return {"status": "success", "data": data}
 
     except Exception as e:
         logger.error(f"Guest hybrid discovery failed: {e}")
-        results = _score_catalog(request.ratings, catalog)
-        return [FragranceRecommendation(**r) for r in results]
+        raise HTTPException(
+            status_code=500,
+            detail="Recommendation engine encountered a fault.",
+        ) from e
 
 
-@router.get("/personalized", response_model=list[FragranceRecommendation])
+@router.get("/personalized", response_model=StandardResponse)
 async def get_personalized_recommendations(
     user_id: int | None = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_session),
-) -> list[FragranceRecommendation]:
-    """
-    Return personalized recommendations for an authenticated user.
-    """
+) -> StandardResponse:
     if not user_id:
-        return []
+        return {"status": "success", "data": []}
 
     cached_recs = await cache.get(f"rec:user:{user_id}")
     if cached_recs:
-        return [FragranceRecommendation(**r) for r in cached_recs]
+        data = [FragranceRecommendation(**r) for r in cached_recs]
+        return {"status": "success", "data": data}
 
     stmt = select(DBFragranceRating).where(DBFragranceRating.user_id == user_id)
     result = await db.execute(stmt)
     saved_ratings = result.scalars().all()
 
     if not saved_ratings:
-        return []
+        return {"status": "success", "data": []}
+
+    if _is_hydrating or _catalog_embeddings_cache is None:
+        logger.error("ML_NOT_READY")
+        raise HTTPException(
+            status_code=503,
+            detail="ML system is initializing. Please try again shortly.",
+        )
 
     catalog = load_recommendation_catalog()
     if not catalog:
-        return []
+        return {"status": "success", "data": []}
 
     guest_ratings = [
         FragranceRatingInput(
@@ -458,40 +422,48 @@ async def get_personalized_recommendations(
 
     encoder = get_encoder()
     if not encoder:
-        results = _score_catalog(guest_ratings, catalog)
-    else:
-        try:
-            rated_items = []
-            weights = []
-            catalog_by_id = {_normalize_id(str(i.get("id", ""))): i for i in catalog}
+        logger.error("ML_NOT_READY: Encoder missing")
+        raise HTTPException(
+            status_code=503,
+            detail="ML system is initializing. Please try again shortly.",
+        )
 
-            for r in guest_ratings:
-                item = catalog_by_id.get(_normalize_id(r.fragrance_id))
-                if item:
-                    rated_items.append(_get_item_text(item))
-                    weights.append(r.rating)
+    try:
+        rated_items = []
+        weights = []
+        catalog_by_id = {_normalize_id(str(i.get("id", ""))): i for i in catalog}
 
-            if not rated_items:
-                return []
+        for r in guest_ratings:
+            item = catalog_by_id.get(_normalize_id(r.fragrance_id))
+            if item:
+                rated_items.append(_get_item_text(item))
+                weights.append(r.rating)
 
-            user_embeddings = encoder.generate_embeddings(rated_items)
-            total_w = sum(weights) or 1.0
-            dim = len(user_embeddings[0])
-            user_vec = [0.0] * dim
-            for emb, w in zip(user_embeddings, weights, strict=False):
-                for i in range(dim):
-                    user_vec[i] += emb[i] * (w / total_w)
+        if not rated_items:
+            return {"status": "success", "data": []}
 
-            seed_ids = [_normalize_id(r.fragrance_id) for r in guest_ratings]
-            results = recommender.get_recommendations(user_vec, seed_ids)
-        except Exception as e:
-            logger.error(f"Hybrid discovery hit a critical fault: {e}")
-            results = _score_catalog(guest_ratings, catalog)
+        user_embeddings = encoder.generate_embeddings(rated_items)
+        total_w = sum(weights) or 1.0
+        dim = len(user_embeddings[0])
+        user_vec = [0.0] * dim
+        for emb, w in zip(user_embeddings, weights, strict=False):
+            for i in range(dim):
+                user_vec[i] += emb[i] * (w / total_w)
+
+        seed_ids = [_normalize_id(r.fragrance_id) for r in guest_ratings]
+        results = recommender.get_recommendations(user_vec, seed_ids)
+    except Exception as e:
+        logger.error(f"Hybrid discovery hit a critical fault: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Recommendation engine encountered a fault.",
+        ) from e
 
     if results:
         await cache.set(f"rec:user:{user_id}", results, expire=3600)
 
-    return [FragranceRecommendation(**r) for r in results]
+    data = [FragranceRecommendation(**r) for r in results]
+    return {"status": "success", "data": data}
 
 
 class SommelierInsightRequest(BaseModel):
@@ -504,10 +476,10 @@ class SommelierInsightResponse(BaseModel):
     sommelier_name: str = "Aethera"
 
 
-@router.post("/sommelier/insight", response_model=SommelierInsightResponse)
+@router.post("/sommelier/insight", response_model=StandardResponse)
 async def get_sommelier_insight(
     request: SommelierInsightRequest,
-) -> SommelierInsightResponse:
+) -> StandardResponse:
     """
     Generate an atmospheric, AI-powered insight for a collection of recommendations.
     """
@@ -515,10 +487,12 @@ async def get_sommelier_insight(
 
     try:
         insight, category = await sommelier_service.generate_insight(request.fragrances)
-        return SommelierInsightResponse(insight=insight, vibe_category=category)
+        data = SommelierInsightResponse(insight=insight, vibe_category=category)
+        return {"status": "success", "data": data}
     except Exception as e:
         logger.error(f"Sommelier Service failed: {e}")
-        return SommelierInsightResponse(
+        data = SommelierInsightResponse(
             insight="Your collection resonates with a unique, elusive frequency. There is a deep, structural harmony between your choices that suggests a preference for complex, narrative-driven olfactive profiles.",
             vibe_category="Aetheric Discovery",
         )
+        return {"status": "success", "data": data}

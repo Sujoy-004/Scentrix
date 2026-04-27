@@ -416,3 +416,13 @@ class ErrorResponse(BaseModel):
     error: str
     detail: str | None = None
     code: int
+
+
+class StandardResponse(BaseModel):
+    """Global API response wrapper.
+    
+    Standardizes all successful and failed responses into a common structure.
+    """
+    status: Literal["success", "error"]
+    data: Any | None = None
+    error: str | None = None

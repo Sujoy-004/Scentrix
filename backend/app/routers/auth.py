@@ -5,7 +5,7 @@ Provides user registration, login, token refresh, and logout functionality.
 
 import hashlib
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -25,6 +25,7 @@ from app.limiter import limiter
 from app.models.models import RefreshToken, User
 from app.schemas.schemas import (
     RefreshTokenRequest,
+    StandardResponse,
     TokenResponse,
     UserLogin,
     UserProfile,
@@ -47,7 +48,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 def _utc_now_naive() -> datetime:
     # DB columns are TIMESTAMP WITHOUT TIME ZONE.
-    return datetime.utcnow()
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def _hash_email(email: str) -> str:
@@ -73,12 +74,12 @@ def _token_response(
 
 
 @limiter.limit("5/minute")
-@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=StandardResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     request: Request,
     user_data: UserRegister,
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> StandardResponse:
     """Register a new user account."""
     email_hash = _hash_email(user_data.email)
 
@@ -88,7 +89,7 @@ async def register(
     existing_user = result.scalar_one_or_none()
 
     if existing_user:
-        logger.warning(f"Registration failed: email already exists: {user_data.email}")
+        logger.warning(f"Registration failed: email already exists: {email_hash}")
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email already registered",
@@ -112,16 +113,19 @@ async def register(
 
             logger.info(
                 "User registered via Supabase: %s (local ID: %s)",
-                user_data.email,
+                email_hash,
                 user.id,
             )
 
-            return _token_response(
-                session_data["access_token"],
-                session_data["refresh_token"],
-                user_id=user.id,
-                expires_in=int(session_data.get("expires_in", 30 * 60)),
-            )
+            return {
+                "status": "success",
+                "data": _token_response(
+                    session_data["access_token"],
+                    session_data["refresh_token"],
+                    user_id=user.id,
+                    expires_in=int(session_data.get("expires_in", 30 * 60)),
+                ),
+            }
         except SupabaseAuthError as exc:
             logger.exception("Supabase registration failed: %s", exc)
             raise HTTPException(
@@ -156,22 +160,26 @@ async def register(
     session.add(refresh_token_obj)
 
     await session.commit()
-    logger.info(f"User registered: {user_data.email} (ID: {user_id})")
+    logger.info(f"User registered: {email_hash} (ID: {user_id})")
 
     # Generate tokens
     access_token = create_access_token(user_id)
 
-    return _token_response(access_token, refresh_token, user_id=user_id)
+    return {
+        "status": "success",
+        "data": _token_response(access_token, refresh_token, user_id=user_id),
+    }
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=StandardResponse)
 @limiter.limit("5/minute")
 async def login(
     request: Request,
     credentials: UserLogin,
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> StandardResponse:
     """Login with email and password."""
+    email_hash = _hash_email(credentials.email)
 
     if is_supabase_configured():
         try:
@@ -180,23 +188,24 @@ async def login(
             sb_user = await sync_local_user_from_supabase(session, supabase_user)
 
             logger.info(
-                "User logged in via Supabase: %s (local ID: %s)", credentials.email, sb_user.id
+                "User logged in via Supabase: %s (local ID: %s)", email_hash, sb_user.id
             )
 
-            return _token_response(
-                session_data["access_token"],
-                session_data["refresh_token"],
-                user_id=sb_user.id,
-                expires_in=int(session_data.get("expires_in", 30 * 60)),
-            )
+            return {
+                "status": "success",
+                "data": _token_response(
+                    session_data["access_token"],
+                    session_data["refresh_token"],
+                    user_id=sb_user.id,
+                    expires_in=int(session_data.get("expires_in", 30 * 60)),
+                ),
+            }
         except SupabaseAuthError as exc:
-            logger.warning("Supabase login failed for %s: %s", credentials.email, exc)
+            logger.warning("Supabase login failed for %s: %s", email_hash, exc)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password",
             ) from exc
-
-    email_hash = _hash_email(credentials.email)
 
     # Find user by email_hash
     stmt = select(User).where(User.email_hash == email_hash)
@@ -208,14 +217,14 @@ async def login(
         or not user.hashed_password
         or not verify_password(credentials.password, user.hashed_password)
     ):
-        logger.warning(f"Login failed: invalid credentials for {credentials.email}")
+        logger.warning(f"Login failed: invalid credentials for {email_hash}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
 
     if not user.is_active:
-        logger.warning(f"Login failed: inactive user {credentials.email}")
+        logger.warning(f"Login failed: inactive user {email_hash}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive",
@@ -234,16 +243,19 @@ async def login(
     session.add(refresh_token_obj)
     await session.commit()
 
-    logger.info(f"User logged in: {credentials.email} (ID: {user.id})")
+    logger.info(f"User logged in: {email_hash} (ID: {user.id})")
 
-    return _token_response(access_token, refresh_token, user_id=user.id)
+    return {
+        "status": "success",
+        "data": _token_response(access_token, refresh_token, user_id=user.id),
+    }
 
 
-@router.post("/refresh", response_model=TokenResponse)
+@router.post("/refresh", response_model=StandardResponse)
 async def refresh_token(
     request: RefreshTokenRequest,
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> StandardResponse:
     """Refresh access token using a valid refresh token."""
 
     if is_supabase_configured():
@@ -258,12 +270,15 @@ async def refresh_token(
                 user.id,
             )
 
-            return _token_response(
-                session_data["access_token"],
-                session_data.get("refresh_token", request.refresh_token),
-                user_id=user.id,
-                expires_in=int(session_data.get("expires_in", 30 * 60)),
-            )
+            return {
+                "status": "success",
+                "data": _token_response(
+                    session_data["access_token"],
+                    session_data.get("refresh_token", request.refresh_token),
+                    user_id=user.id,
+                    expires_in=int(session_data.get("expires_in", 30 * 60)),
+                ),
+            }
         except SupabaseAuthError as exc:
             logger.warning("Supabase refresh failed: %s", exc)
             raise HTTPException(
@@ -292,14 +307,17 @@ async def refresh_token(
 
     logger.info(f"Token refreshed for user: {user_id}")
 
-    return _token_response(access_token, request.refresh_token, user_id=user_id)
+    return {
+        "status": "success",
+        "data": _token_response(access_token, request.refresh_token, user_id=user_id),
+    }
 
 
-@router.post("/logout", response_model=dict)
+@router.post("/logout", response_model=StandardResponse)
 async def logout(
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> StandardResponse:
     """Logout by revoking all refresh tokens for this user."""
     # Revoke all active refresh tokens for this user
     stmt = select(RefreshToken).where(
@@ -315,14 +333,17 @@ async def logout(
     await session.commit()
     logger.info(f"User logged out: {user_id}")
 
-    return {"status": "logged_out", "message": "All sessions revoked"}
+    return {
+        "status": "success",
+        "data": {"message": "All sessions revoked"},
+    }
 
 
-@router.get("/me", response_model=UserProfile)
+@router.get("/me", response_model=StandardResponse)
 async def get_current_user(
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
-) -> UserProfile:
+) -> StandardResponse:
     """Get current authenticated user's profile."""
     stmt = select(User).where(User.id == user_id)
     result = await session.execute(stmt)
@@ -334,14 +355,25 @@ async def get_current_user(
             detail="User not found",
         )
 
-    # Decrypt email for profile response
-    email = vault.decrypt(user.encrypted_email)
+    # Safely decrypt PII for profile response
+    try:
+        email = vault.decrypt(user.encrypted_email)
+    except ValueError:
+        logger.error(f"DECRYPTION_FAILURE: Failed to decrypt email for user {user.id}")
+        email = None
+        
+    try:
+        full_name = vault.decrypt(user.encrypted_full_name) if user.encrypted_full_name else None
+    except ValueError:
+        logger.error(f"DECRYPTION_FAILURE: Failed to decrypt full_name for user {user.id}")
+        full_name = None
 
-    return UserProfile(
+    profile = UserProfile(
         id=user.id,
-        email=email,
-        full_name=vault.decrypt(user.encrypted_full_name) if user.encrypted_full_name else None,
+        email=email or "Unknown",
+        full_name=full_name,
         is_active=user.is_active,
         created_at=user.created_at,
         opt_in_training=user.opt_in_training,
     )
+    return {"status": "success", "data": profile}

@@ -6,7 +6,7 @@ This repo is a multi-service app:
 - `ml/`: ML + data pipeline code (invoked by backend/tasks or run manually)
 
 ## 🛡️ Security & Privacy (Hardening v1.0)
-- **PII Encryption**: User `full_name` and `email` are encrypted at rest using AES-256 (via `backend/app/services/vault.py`).
+- **PII Encryption**: User `full_name` and `email` are encrypted at rest using AES-256 (via `backend/app/auth/encryption.py`).
 - **Data Policy**: Decryption happens on-the-fly in API routers (`auth.py`, `users.py`).
 - **Neural Timeouts**: All LLM-backed services have 10s circuit breakers and 5s timeouts.
 
@@ -82,7 +82,7 @@ Note: the root `Makefile` target `make test-frontend` runs `npm test`, but `fron
 When you need to run the backend directly (e.g., faster iteration than Docker):
 
 - Install:
-  - `cd backend && pip install -e ".[dev]"`
+  - `cd backend && pip install -e ".[dev,runtime,ml]"`
 - Run:
   - `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
 

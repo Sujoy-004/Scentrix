@@ -2,37 +2,41 @@
 
 All notable changes to this project will be documented in this file in real-time, following the **Rewired Senior Architect** protocol.
 
-## [2026-04-25] - Initial Session
-### 🏗️ Architectural Mapping
-- Completed full codebase audit (Backend, Frontend, ML clusters).
-- Ingested Context Engines (`_brain/`, `.planning/`, `graphify-out/`).
-- Calibrated to **Workspace Sovereignty Manifest v2.1.0**.
-- Initialized real-time `CHANGELOG.md`.
+## [2026-04-27] - Render Migration & Configuration Hardening
+- [INFRA] Render Readiness: Created `backend/requirements.txt` and purged Railway-specific `railway.json` and `Procfile`.
+- [CONFIG] Environment Lockdown: Enforced strict `DATABASE_URL`, `JWT_SECRET_KEY`, and `DATA_ENCRYPTION_KEY` requirement with no fallbacks.
+- [API] Health Check: Standardized `GET /health` to flat `{"status": "ok"}` for Render compatibility.
+- [DATA] Path Optimization: Fixed ML dataset pathing in `catalog.py` to correctly traverse from `backend/app/services` to project root.
+- [AUTH] Protocol Synchronization: Activated **Rewired Senior Architect** persona (Mythos-GSD-Graphify).
+- [CONTEXT] Codebase Ingestion: Completed deep read of `SOVEREIGNTY.md`, `README.md`, `AGENTS.md`, and `CHANGELOG.md`.
+- [GRAPH] Brain Synchronization: Verified `_brain` and `graphify-out/graph.json` structural integrity for neural context linkage.
+- [STATUS] Scentrix Neural Engine synchronized. Initialized and standing by for Socratic Specification.
 
-## [2026-04-25] - Production Audit
-### 🔴 Critical Issues Identified
-- **Backend Domain Failure**: `scentrix-api.up.railway.app` is returning **NXDOMAIN**. Core features (Adaptive Quiz, Neural Search) are completely broken in production.
-- **Frontend Integration Error**: The discovery quiz fails with "Neural link lost" immediately upon starting due to the backend connectivity issue.
+## [2026-04-27] - Global Error Handling & API Standardization
+- [API] Unified Response Format: Converted all remaining manual error returns in routers (especially `recommendations.py`) to `raise HTTPException`, relying on the global handler for formatting.
+- [ML] Deterministic ML Readiness: Enforced `503 Service Unavailable` with a clear initialization message when the Neural Engine or Embeddings cache is not ready.
+- [ML] Strict Path Enforcement: Removed all heuristic (note-overlap) and trending fallbacks. The system now strictly follows the `Quiz → Embeddings → Similarity → Response` path.
+- [CLEANUP] Python Standardization: Replaced all legacy `null` literals with Python `None` and fixed code duplication in `auth.py`.
 
-### 🟡 UX/DX Polish Required
-- **Missing Assets**: `favicon.ico` is missing (404).
-- **Navbar Friction**: Search bar in `Navbar.tsx` only triggers on `Enter` key; lacks a clickable search action/icon button.
-- **Dead Search Element**: The subagent identified a non-functional search-like element in the Hero section (needs investigation to see if it's a z-index issue or a layout artifact).
+## [2026-04-27] - Global API Contract & Safety Enforcement
+- [API] Global Response Contract: Enforced unified `{status, data, error}` format across ALL routers (`auth`, `users`, `leads`, `quiz`, `fragrances`, `recommendations`).
+- [API] Type Hint Unification: Standardized all router function signatures to `-> StandardResponse` for documentation and validation consistency.
+- [SECURITY] Decryption Safety: Hardened `auth.py` and `users.py` to handle decryption failures gracefully without leaking sensitive details.
+- [INFRA] Validation Format: Verified `main.py` global handlers correctly intercept `HTTPException` and generic `Exception` into the standard contract.
 
-### 🟢 Aesthetic Verification
-- **Cinematic Standards**: Visual audit confirms high-fidelity dark mode, elegant typography, and smooth transitions (Framer Motion) align with "Quiet Luxury" standards.
-- **Neural Loader**: The discovery loading sequence is functional and visually premium.
+## [2026-04-27] - System Stabilization & Response Standardization
+- [SECURITY] Hardened Decryption: All `DataVault.decrypt` calls now wrapped in safety blocks with proper fallbacks.
+- [INFRA] Fail-Fast Configuration: Validated that `config.py` correctly raises errors at startup if critical secrets are missing.
+- [API] Standardized Responses: Updated `/leads/capture`, `/leads/feed`, `/users/ratings`, and `/users/saved` to use a consistent `{status, data}` JSON structure.
 
-### 🛠️ Implementation (Phase 1)
-- [BACKEND] Hardened `hybrid_search.py` to handle Pinecone failures gracefully with semantic fallback.
-- [BACKEND] Corrected environment variable disparity: Updated Pinecone index names from `Scentrix-*` to `scentscape-*`.
-- [FIX] Resolved 'div' nested in 'p' hydration error in `HeroSection.tsx`.
-- [INFRA] Synchronized Docker build context to repository root.
-- [INFRA] Optimized `.dockerignore` for 90% faster build transfers.
-- [INFRA] Fixed redundant backend paths in `Dockerfile`.
-- [VERIFY] Forcing fresh container build to ensure code-browser parity.
-- [FRONTEND] Fixed Search Persistence bug in `fragrances/page.tsx` by using `useSearchParams` hook and dynamic effects.
-- [FRONTEND] Temporarily suppressed PostHog telemetry to unblock local environment verification.
+## [2026-04-27] - Production Hardening & Security Fixes
+- [SECURITY] Env Hardening: `JWT_SECRET_KEY` and `DATA_ENCRYPTION_KEY` no longer have default values; system fails fast if missing.
+- [SECURITY] Encryption Safety: Updated `decrypt` to raise `ValueError` on failure instead of returning raw input.
+- [SECURITY] PII Logging Removal: Removed raw email logging in `auth.py` to prevent PII exposure in logs.
+- [AUTH] JWT Performance: Fixed double-decode issue in `dependencies.py`; payload is now decoded once and passed through.
+- [TIME] Temporal Consistency: Global migration from `datetime.utcnow()` to `datetime.now(UTC)` for future-proofing.
 
----
-**Status:** IMPLEMENTING - Addressing search persistence and cookie banner dismissal logic.
+## [2026-04-27] - Backend Production Audit
+- Completed a strict backend audit covering `auth/`, `routers/`, `schemas/`, and `database.py`.
+- Identified critical security risks (default keys, decryption leakage, PII logging).
+- Flagged inconsistent response formats and missing Pydantic strictness.

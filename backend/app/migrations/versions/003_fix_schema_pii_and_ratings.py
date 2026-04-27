@@ -1,7 +1,7 @@
 """003: Fix schema - PII fields, ratings simplification, user role.
 
 Brings the live DB in line with the current ORM models:
-- users: add email_hash, encrypted_email, full_name, role; drop old email column
+- users: add email_hash, encrypted_email, encrypted_full_name, role; drop old email column
 - fragrance_ratings: add quiz_rating (simple 1-10 float) so the quiz recommendation
   engine can persist and retrieve ratings without requiring all 5 perceptual dims.
 """
@@ -26,8 +26,8 @@ def upgrade() -> None:
     inspector = sa.inspect(conn)
     user_cols = {c["name"] for c in inspector.get_columns("users")}
 
-    if "full_name" not in user_cols:
-        op.add_column("users", sa.Column("full_name", sa.String(100), nullable=True))
+    if "encrypted_full_name" not in user_cols:
+        op.add_column("users", sa.Column("encrypted_full_name", sa.Text(), nullable=True))
 
     if "role" not in user_cols:
         op.add_column(
@@ -122,7 +122,7 @@ def downgrade() -> None:
     op.drop_constraint("uq_users_encrypted_email", "users", type_="unique")
     op.drop_column("users", "email_hash")
     op.drop_column("users", "encrypted_email")
-    op.drop_column("users", "full_name")
+    op.drop_column("users", "encrypted_full_name")
     op.drop_column("users", "role")
 
     # Restore legacy email column

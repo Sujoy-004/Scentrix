@@ -16,10 +16,17 @@ class DataVault:
         return self.fernet.encrypt(data.encode()).decode()
 
     def decrypt(self, encrypted_data: str) -> str:
-        """Decrypt string data from DB storage."""
+        """Decrypt string data from DB storage.
+        
+        Raises:
+            ValueError: If decryption fails.
+        """
         if not encrypted_data:
             return encrypted_data
-        return self.fernet.decrypt(encrypted_data.encode()).decode()
+        try:
+            return self.fernet.decrypt(encrypted_data.encode()).decode()
+        except Exception as exc:
+            raise ValueError("Decryption failed: Data is corrupt or key is invalid") from exc
 
 
 vault = DataVault()

@@ -75,8 +75,9 @@ async def get_current_user_id(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user_id = get_user_id_from_token(token)
-    if not user_id:
+    try:
+        user_id = int(token_payload.sub)
+    except (ValueError, TypeError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token: missing user ID",

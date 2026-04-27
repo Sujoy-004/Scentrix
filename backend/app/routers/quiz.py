@@ -30,8 +30,10 @@ from app.schemas.schemas import (
     QuizSessionRules,
     QuizSessionStartRequest,
     QuizSessionStartResponse,
+    QuizSessionStartResponse,
     QuizSessionSubmitResponseRequest,
     QuizSessionSubmitResponseResponse,
+    StandardResponse,
 )
 from app.services.catalog import load_recommendation_catalog
 from app.services.quiz_store import (
@@ -271,14 +273,14 @@ def _require_owned_session(session_payload: dict | None, session_id: str, user_i
     return session_payload
 
 
-@router.post("/start", response_model=QuizSessionStartResponse)
+@router.post("/start", response_model=StandardResponse)
 @limiter.limit("30/minute")
 async def start_quiz_session(
     quiz_data: QuizSessionStartRequest,
     request: Request,
     user_id: int | None = Depends(get_optional_user_id),
     session: AsyncSession = Depends(get_session),
-) -> QuizSessionStartResponse:
+) -> StandardResponse:
     effective_user_id = user_id if user_id is not None else 0
     catalog = load_recommendation_catalog()
     if not catalog:
@@ -342,15 +344,16 @@ async def start_quiz_session(
             detail=f"Quiz session store unavailable: {exc}",
         ) from exc
 
-    return QuizSessionStartResponse(
+    data = QuizSessionStartResponse(
         session_id=session_id,
         seed_questions=seed_questions,
         rules=rules,
         expires_at=quiz_expiry_utc(),
     )
+    return {"status": "success", "data": data}
 
 
-@router.post("/{session_id}/answer", response_model=QuizSessionSubmitResponseResponse)
+@router.post("/{session_id}/answer", response_model=StandardResponse)
 @limiter.limit("20/minute")
 async def submit_quiz_answer(
     session_id: str,
@@ -358,7 +361,7 @@ async def submit_quiz_answer(
     request: Request,
     user_id: int | None = Depends(get_optional_user_id),
     db_session: AsyncSession = Depends(get_session),
-) -> QuizSessionSubmitResponseResponse:
+) -> StandardResponse:
     effective_user_id = user_id if user_id is not None else 0
     session_payload = _require_owned_session(
         await get_quiz_session(session_id), session_id, effective_user_id
@@ -426,14 +429,15 @@ async def submit_quiz_answer(
             detail=f"Quiz session store unavailable: {exc}",
         ) from exc
 
-    return QuizSessionSubmitResponseResponse(
+    data = QuizSessionSubmitResponseResponse(
         accepted=True,
         normalized_rating_0_to_5=normalized,
         answers_count=len(responses),
     )
+    return {"status": "success", "data": data}
 
 
-@router.post("/{session_id}/finalize")
+@router.post("/{session_id}/finalize", response_model=StandardResponse)
 async def finalize_quiz_session(
     session_id: str,
     user_id: int = Depends(get_current_user_id),
@@ -446,7 +450,7 @@ async def finalize_quiz_session(
     responses = session_payload.get("responses") or []
 
     if not responses:
-        return {"status": "no_data"}
+        return {"status": "success", "data": {"message": "No data to sync"}}
 
     from sqlalchemy.dialects.postgresql import insert
 
@@ -469,15 +473,15 @@ async def finalize_quiz_session(
     logger.info(
         f"Quiz Session {session_id} finalized for user {user_id}. {len(responses)} ratings synced."
     )
-    return {"status": "synced", "count": len(responses)}
+    return {"status": "success", "data": {"count": len(responses), "message": "Quiz data synced to profile"}}
 
 
-@router.post("/{session_id}/evaluate", response_model=QuizSessionEvaluateResponse)
+@router.post("/{session_id}/evaluate", response_model=StandardResponse)
 async def evaluate_quiz_session(
     session_id: str,
     request: QuizSessionEvaluateRequest,
     user_id: int | None = Depends(get_optional_user_id),
-) -> QuizSessionEvaluateResponse:
+) -> StandardResponse:
     effective_user_id = user_id if user_id is not None else 0
     session_payload = _require_owned_session(
         await get_quiz_session(session_id), session_id, effective_user_id
@@ -548,7 +552,7 @@ async def evaluate_quiz_session(
             detail=f"Quiz session store unavailable: {exc}",
         ) from exc
 
-    return QuizSessionEvaluateResponse(
+    data = QuizSessionEvaluateResponse(
         confidence_score=confidence_score,
         confidence_band=confidence_band,
         extension_required=extension_required,
@@ -557,14 +561,15 @@ async def evaluate_quiz_session(
         stop_reason=stop_reason,
         components=components,
     )
+    return {"status": "success", "data": data}
 
 
-@router.get("/{session_id}/next-questions", response_model=QuizSessionNextQuestionsResponse)
+@router.get("/{session_id}/next-questions", response_model=StandardResponse)
 async def get_next_quiz_questions(
     session_id: str,
     count: int = Query(3, ge=1, le=5),
     user_id: int | None = Depends(get_optional_user_id),
-) -> QuizSessionNextQuestionsResponse:
+) -> StandardResponse:
     effective_user_id = user_id if user_id is not None else 0
     session_payload = _require_owned_session(
         await get_quiz_session(session_id), session_id, effective_user_id
@@ -572,7 +577,8 @@ async def get_next_quiz_questions(
 
     catalog = load_recommendation_catalog()
     if not catalog:
-        return QuizSessionNextQuestionsResponse(questions=[], count=0)
+        data = QuizSessionNextQuestionsResponse(questions=[], count=0)
+        return {"status": "success", "data": data}
 
     responses = [
         item for item in (session_payload.get("responses") or []) if isinstance(item, dict)
@@ -662,4 +668,5 @@ async def get_next_quiz_questions(
             # Silently log errors for guests (Quiz Session store is non-critical for guest flow)
             logger.error(f"Quiz Pulse Error: {exc}")
 
-    return QuizSessionNextQuestionsResponse(questions=questions, count=len(questions))
+    data = QuizSessionNextQuestionsResponse(questions=questions, count=len(questions))
+    return {"status": "success", "data": data}

@@ -18,8 +18,17 @@ logger = logging.getLogger(__name__)
 class TextEncoder:
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
         """Initialize SentenceTransformer and Pinecone client."""
-        logger.info(f"Loading sentence transformer model: {model_name}")
-        self.model = SentenceTransformer(model_name)
+        logger.info(f"Loading sentence transformer model (local-only): {model_name}")
+        try:
+            # local_files_only prevents network calls; if not cached, we fail fast.
+            self.model = SentenceTransformer(model_name, local_files_only=True)
+        except Exception as exc:
+            logger.warning(
+                "Local model '%s' not found. Skipping encoder initialization: %s",
+                model_name,
+                exc,
+            )
+            raise RuntimeError(f"Local model '{model_name}' is unavailable") from exc
         
         pinecone_api_key = os.environ.get("PINECONE_API_KEY")
         if pinecone_api_key and pinecone_api_key != "your_pinecone_api_key_here":

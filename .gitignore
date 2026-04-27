@@ -1,5 +1,6 @@
 # Python
 __pycache__/
+*.pyc
 *.py[cod]
 *$py.class
 *.so
@@ -25,7 +26,7 @@ MANIFEST
 venv/
 ENV/
 env/
-.venv
+.venv/
 pip-log.txt
 pip-delete-this-directory.txt
 .mypy_cache/
@@ -55,8 +56,7 @@ build/
 .DS_Store
 *.iml
 .env
-.env.local
-.env.*.local
+.env.*
 
 # OS
 .DS_Store
@@ -92,6 +92,10 @@ graphify-out/cache/
 _brain/
 docs/history/ledger.md
 
+# ML Data (Explicitly Included)
+!ml/data/fra_elite_24k.json
+
 # Keep frontend app library sources tracked.
 !frontend/src/lib/
 !frontend/src/lib/**
+

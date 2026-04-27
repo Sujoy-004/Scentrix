@@ -7,9 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
 from app.models.models import User, UserInteractionEvent
-from app.services.vault import (
-    vault_service as vault,  # In case we want to encrypt the lead as per AGENTS.md
-)
+from app.auth.encryption import vault
+from app.schemas.schemas import StandardResponse
 
 router = APIRouter(prefix="/leads", tags=["leads"])
 
@@ -20,8 +19,8 @@ class LeadCaptureRequest(BaseModel):
     metadata_json: str | None = None
 
 
-@router.post("/capture")
-async def capture_shadow_lead(request: LeadCaptureRequest, db: AsyncSession = Depends(get_session)):
+@router.post("/capture", response_model=StandardResponse)
+async def capture_shadow_lead(request: LeadCaptureRequest, db: AsyncSession = Depends(get_session)) -> StandardResponse:
     """
     Involuntarily saves user email and connects it to their current session.
     Implements the 'Shadow Profile' logic.
@@ -56,11 +55,11 @@ async def capture_shadow_lead(request: LeadCaptureRequest, db: AsyncSession = De
     db.add(event)
 
     await db.commit()
-    return {"status": "synchronized", "lead_id": user.id}
+    return {"status": "success", "data": {"lead_id": user.id}}
 
 
-@router.get("/feed")
-async def get_intelligence_feed(limit: int = 50, db: AsyncSession = Depends(get_session)):
+@router.get("/feed", response_model=StandardResponse)
+async def get_intelligence_feed(limit: int = 50, db: AsyncSession = Depends(get_session)) -> StandardResponse:
     """
     Returns the raw user intelligence feed for the Overseer dashboard.
     Crucial: Includes both Ghost leads and their specific quiz footprints.
@@ -98,4 +97,4 @@ async def get_intelligence_feed(limit: int = 50, db: AsyncSession = Depends(get_
             }
         )
 
-    return feed
+    return {"status": "success", "data": feed}

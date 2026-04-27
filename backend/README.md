@@ -15,7 +15,7 @@ FastAPI-based REST API for the Scentrix fragrance discovery platform.
 
 ```bash
 # Install dependencies
-pip install -e ".[dev]"
+pip install -e ".[dev,runtime,ml]"
 
 # Run dev server
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

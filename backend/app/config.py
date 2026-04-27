@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     )
 
     # Database
-    database_url: str = "postgresql+asyncpg://scentrix:scentrix_password@localhost:5432/scentrix"
+    database_url: str
 
     # Neo4j
     neo4j_uri: str = Field(
@@ -53,7 +53,6 @@ class Settings(BaseSettings):
 
     # JWT
     jwt_secret_key: str = Field(
-        default="dev_secret_key_change_in_production",
         validation_alias=AliasChoices("JWT_SECRET_KEY", "SECRET_KEY"),
     )
     jwt_algorithm: str = Field(
@@ -69,7 +68,6 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("REFRESH_TOKEN_EXPIRE_DAYS"),
     )
     data_encryption_key: str = Field(
-        default="JvdTsZlB_aVSl3WWVVOm7t_gQKzkj5Wbex8MAVPBn9I=",
         validation_alias=AliasChoices("DATA_ENCRYPTION_KEY"),
     )
 
@@ -86,12 +84,6 @@ class Settings(BaseSettings):
     # CORS
     allowed_origins: list[str] = [
         "https://scentrix-one.vercel.app",
-        "https://scentrix.vercel.app",
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        "http://localhost",
     ]
 
     # Pinecone Vector Search

@@ -51,8 +51,13 @@ class HybridRecommender:
             settings.neo4j_uri, auth=(settings.neo4j_user, settings.neo4j_password)
         )
         self._encoder = None
+        self._encoder_load_attempted = False
 
     def _get_encoder(self):
+        if self._encoder_load_attempted:
+            return self._encoder
+
+        self._encoder_load_attempted = True
         if self._encoder is None:
             try:
                 from ml.models.text_encoder import TextEncoder  # noqa: F821

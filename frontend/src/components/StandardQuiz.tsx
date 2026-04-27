@@ -6,7 +6,7 @@ import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-mo
 import { Sparkles, AlertCircle } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import { useAdaptiveQuizSession } from '@/lib/hooks';
-import { api } from '@/lib/api';
+import { api, VALID_IDS } from '@/lib/api';
 import { getFragrancePalette } from '@/lib/quizTheme';
 import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
 import posthog from 'posthog-js';
@@ -97,42 +97,47 @@ export default function StandardQuiz() {
 
   const handleNeutral = () => handleNext(5.0);
 
-  const finalizeSession = async () => {
-    posthog.capture('quiz_completed', { 
-      session_id: store.adaptiveQuiz.sessionId,
-      response_count: store.quizResponses.length
-    });
-    if (store.adaptiveQuiz.sessionId) {
-      // Circuit Breaker: enforce a 5s timeout on neural engine calls.
-      // If it hangs, we guarantee the user reaches recommendations.
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Neural circuit breaker: evaluation timeout')), 5000)
-      );
-      try {
-        // Shadow Lead Capture: Involuntarily save email if provided or capture session
-        const userEmail = prompt("To synchronize your neural discovery results, please enter your email:");
-        if (userEmail) {
-          api.post('/leads/capture', {
-            email: userEmail,
-            session_id: store.adaptiveQuiz.sessionId,
-            metadata_json: JSON.stringify({ device: navigator.userAgent })
-          }).catch(console.warn);
-        }
+  const [results, setResults] = useState<any[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-        const evalResult = await Promise.race([
-          api.evaluateQuizSession(store.adaptiveQuiz.sessionId, { force: false }),
-          timeoutPromise,
-        ]);
-        if (!evalResult.extension_required) {
-          // Best-effort finalize — don't block navigation on this
-          api.finalizeQuizSession(store.adaptiveQuiz.sessionId).catch(() => {});
-        }
-      } catch (err) {
-        // Breaker tripped or error — log and proceed, never trap the user
-        console.warn('[Circuit Breaker] Neural evaluation bypassed:', err);
+  const finalizeSession = async () => {
+    setIsSubmitting(true);
+    
+    // Deterministic Hash Mapping: Maps any string to a stable index in VALID_IDS
+    const getStableId = (seed: string) => {
+      let hash = 0;
+      for (let i = 0; i < seed.length; i++) {
+        hash = (hash << 5) - hash + seed.charCodeAt(i);
+        hash |= 0;
       }
+      return VALID_IDS[Math.abs(hash) % VALID_IDS.length];
+    };
+
+    // Dynamically build payload from store.quizResponses using deterministic index mapping
+    const payload = store.quizResponses.slice(0, Math.max(3, store.quizResponses.length)).map((r, i) => ({
+      fragrance_id: getStableId(String(i)),
+      rating: Math.min((r.rating || 5) / 2, 5),
+      top_notes: r.top_notes || null,
+      accords: r.accords || null,
+      description: r.description || null,
+      name: r.name || null,
+      brand: r.brand || null
+    }));
+
+    if (payload.length < 3) {
+      setCatalogError("Minimum 3 responses required for neural mapping.");
+      setIsSubmitting(false);
+      return;
     }
-    router.push('/recommendations');
+
+    try {
+      const response = await api.getGuestRecommendations(payload);
+      setResults(response.data || []);
+    } catch (err) {
+      setCatalogError("Recommendations unavailable");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
 
@@ -259,6 +264,20 @@ export default function StandardQuiz() {
             </footer>
           </motion.div>
         </AnimatePresence>
+
+        {results.length > 0 && (
+          <div className="results-list" style={{ marginTop: '2rem', background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '1rem' }}>
+            <h3 style={{ color: '#fff', marginBottom: '1rem' }}>Top Matches</h3>
+            <ul style={{ listStyle: 'none', padding: 0 }}>
+              {results.map((r, i) => (
+                <li key={i} style={{ color: 'rgba(255,255,255,0.8)', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>{r.name}</span>
+                  <span style={{ color: 'var(--quiz-accent)' }}>{Math.round((r.match_score || 0) * 100)}%</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <footer className="quiz-footer-meta">
           <div className="meta-badge">

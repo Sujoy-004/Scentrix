@@ -4,14 +4,18 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
-from app.database import close_db, init_db
+from app.database import close_db, engine, init_db
 from app.limiter import limiter
+from app.schemas.schemas import StandardResponse
 from app.routers import auth, fragrances, leads, quiz, recommendations, users
 from app.sentry_config import init_sentry
 
@@ -39,6 +43,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await init_db()
     else:
         logger.info("Production mode: Skipping init_db(), relying on Alembic migrations.")
+
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("SELECT 1"))
+        logger.info("DB CONNECTION: SUCCESS")
+    except Exception as e:
+        logger.exception(f"DB CONNECTION: FAILED {str(e)}")
 
     # Universal Warm-up (Hydrating Discovery Brain & Knowledge Graph)
     try:
@@ -89,6 +100,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "status": "error",
+            "data": None,
+            "error": exc.detail
+        }
+    )
+
+
+@app.exception_handler(Exception)
+async def universal_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled error: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "status": "error",
+            "data": None,
+            "error": "Internal server error"
+        }
+    )
+
 # Include routers
 app.include_router(auth.router)
 app.include_router(fragrances.router)
@@ -99,25 +135,28 @@ app.include_router(leads.router)
 
 
 @app.get("/health", tags=["system"])
-async def health_check() -> dict[str, str]:
-    """Health check endpoint for load balancers and monitoring."""
+async def health_check():
+    """Health check endpoint for Render/monitoring."""
     return {"status": "ok"}
 
 
 @app.get("/", tags=["system"])
-async def root() -> dict[str, str]:
+async def root() -> StandardResponse:
     """Root endpoint with API info."""
     return {
-        "name": "Scentrix API",
-        "version": "0.1.0",
-        "status": "running",
+        "status": "success",
+        "data": {
+            "name": "Scentrix API",
+            "version": "0.1.0",
+            "status": "running",
+        },
     }
 
 
 @app.get("/version", tags=["system"])
-async def version() -> dict[str, str]:
+async def version() -> StandardResponse:
     """Return API version."""
-    return {"version": "0.0.1"}
+    return {"status": "success", "data": {"version": "0.0.1"}}
 
 
 if __name__ == "__main__":

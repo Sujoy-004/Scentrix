@@ -8,7 +8,7 @@ Provides endpoints for:
 """
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -25,7 +25,9 @@ from app.schemas.schemas import (
     SavedFragranceCreate,
     SavedFragranceResponse,
     UserPreferencesUpdate,
+    UserPreferencesUpdate,
     UserProfile,
+    StandardResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,7 +36,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 def _utc_now_naive() -> datetime:
     # DB columns are TIMESTAMP WITHOUT TIME ZONE.
-    return datetime.utcnow()
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 async def _build_user_profile(session: AsyncSession, user: User) -> UserProfile:
@@ -49,11 +51,24 @@ async def _build_user_profile(session: AsyncSession, user: User) -> UserProfile:
     )
 
     preferences = user.preferences_json or {}
+    
+    # Safely decrypt PII
+    try:
+        email = vault.decrypt(user.encrypted_email)
+    except ValueError:
+        logger.error(f"DECRYPTION_FAILURE: Failed to decrypt email for user {user.id}")
+        email = None
+        
+    try:
+        full_name = vault.decrypt(user.encrypted_full_name) if user.encrypted_full_name else None
+    except ValueError:
+        logger.error(f"DECRYPTION_FAILURE: Failed to decrypt full_name for user {user.id}")
+        full_name = None
 
     return UserProfile(
         id=user.id,
-        email=vault.decrypt(user.encrypted_email),
-        full_name=vault.decrypt(user.encrypted_full_name) if user.encrypted_full_name else None,
+        email=email or "Unknown",
+        full_name=full_name,
         is_active=user.is_active,
         created_at=user.created_at,
         opt_in_training=user.opt_in_training,
@@ -64,11 +79,11 @@ async def _build_user_profile(session: AsyncSession, user: User) -> UserProfile:
     )
 
 
-@router.get("/profile", response_model=UserProfile)
+@router.get("/profile", response_model=StandardResponse)
 async def get_user_profile(
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
-) -> UserProfile:
+) -> StandardResponse:
     """Get current user's profile.
 
     Args:
@@ -91,15 +106,16 @@ async def get_user_profile(
             detail="User not found",
         )
 
-    return await _build_user_profile(session, user)
+    profile = await _build_user_profile(session, user)
+    return {"status": "success", "data": profile}
 
 
-@router.post("/preferences", response_model=UserProfile)
+@router.post("/preferences", response_model=StandardResponse)
 async def update_user_preferences(
     preferences: UserPreferencesUpdate,
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
-) -> UserProfile:
+) -> StandardResponse:
     """Update stored fragrance preferences for the current user."""
 
     stmt = select(User).where(User.id == user_id)
@@ -119,17 +135,18 @@ async def update_user_preferences(
     await session.commit()
     await session.refresh(user)
 
-    return await _build_user_profile(session, user)
+    profile = await _build_user_profile(session, user)
+    return {"status": "success", "data": profile}
 
 
 @router.post(
-    "/ratings", response_model=FragranceRatingResponse, status_code=status.HTTP_201_CREATED
+    "/ratings", response_model=StandardResponse, status_code=status.HTTP_201_CREATED
 )
 async def submit_fragrance_rating(
     rating: FragranceRatingCreate,
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
-) -> FragranceRatingResponse:
+) -> StandardResponse:
     """Submit or update a fragrance rating.
 
     If user already rated this fragrance, the rating is updated.
@@ -162,7 +179,8 @@ async def submit_fragrance_rating(
 
         await session.commit()
         logger.info(f"Updated rating for user {user_id} on {rating.fragrance_neo4j_id}")
-        return FragranceRatingResponse.model_validate(existing_rating)
+        data = FragranceRatingResponse.model_validate(existing_rating)
+        return {"status": "success", "data": data}
     else:
         # Create new rating
         new_rating = FragranceRating(
@@ -178,14 +196,15 @@ async def submit_fragrance_rating(
         session.add(new_rating)
         await session.commit()
         logger.info(f"Created rating for user {user_id} on {rating.fragrance_neo4j_id}")
-        return FragranceRatingResponse.model_validate(new_rating)
+        data = FragranceRatingResponse.model_validate(new_rating)
+        return {"status": "success", "data": data}
 
 
-@router.get("/ratings", response_model=list[FragranceRatingResponse])
+@router.get("/ratings", response_model=StandardResponse)
 async def get_user_ratings(
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
-) -> list[FragranceRatingResponse]:
+) -> StandardResponse:
     """Get all of user's fragrance ratings.
 
     Args:
@@ -199,14 +218,15 @@ async def get_user_ratings(
     result = await session.execute(stmt)
     ratings = result.scalars().all()
 
-    return [FragranceRatingResponse.model_validate(r) for r in ratings]
+    data = [FragranceRatingResponse.model_validate(r) for r in ratings]
+    return {"status": "success", "data": data}
 
 
-@router.get("/saved", response_model=list[SavedFragranceResponse])
+@router.get("/saved", response_model=StandardResponse)
 async def get_saved_fragrances(
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
-) -> list[SavedFragranceResponse]:
+) -> StandardResponse:
     """Get user's saved fragrance collection.
 
     Args:
@@ -220,15 +240,16 @@ async def get_saved_fragrances(
     result = await session.execute(stmt)
     saved = result.scalars().all()
 
-    return [SavedFragranceResponse.model_validate(s) for s in saved]
+    data = [SavedFragranceResponse.model_validate(s) for s in saved]
+    return {"status": "success", "data": data}
 
 
-@router.post("/saved", response_model=SavedFragranceResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/saved", response_model=StandardResponse, status_code=status.HTTP_201_CREATED)
 async def add_saved_fragrance(
     fragrances: SavedFragranceCreate,
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
-) -> SavedFragranceResponse:
+) -> StandardResponse:
     """Add fragrance to user's collection.
 
     Args:
@@ -263,15 +284,16 @@ async def add_saved_fragrance(
     await session.commit()
     logger.info(f"Added fragrance to collection for user {user_id}")
 
-    return SavedFragranceResponse.model_validate(saved)
+    data = SavedFragranceResponse.model_validate(saved)
+    return {"status": "success", "data": data}
 
 
-@router.delete("/saved/{saved_id}", response_model=dict)
+@router.delete("/saved/{saved_id}", response_model=StandardResponse)
 async def remove_saved_fragrance(
     saved_id: int,
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> StandardResponse:
     """Remove fragrance from user's collection.
 
     Args:
@@ -302,14 +324,14 @@ async def remove_saved_fragrance(
     await session.commit()
     logger.info(f"Removed fragrance from collection for user {user_id}")
 
-    return {"status": "deleted"}
+    return {"status": "success", "data": {"message": "Saved fragrance removed"}}
 
 
-@router.post("/delete", response_model=dict)
+@router.post("/delete", response_model=StandardResponse)
 async def request_data_deletion(
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
-) -> dict:
+) -> StandardResponse:
     """Request GDPR data deletion (right to be forgotten).
 
     Marks user account for deletion. All personal data will be deleted
@@ -340,8 +362,10 @@ async def request_data_deletion(
     logger.info(f"Data deletion requested for user {user_id}")
 
     return {
-        "status": "deletion_requested",
-        "message": "Your data deletion request has been submitted. All personal data will be deleted within 30 days.",
+        "status": "success",
+        "data": {
+            "message": "Your data deletion request has been submitted. All personal data will be deleted within 30 days."
+        },
     }
 
 
@@ -349,13 +373,13 @@ class UpdateNotesRequest(BaseModel):
     notes: str
 
 
-@router.patch("/saved/{saved_id}/notes", response_model=SavedFragranceResponse)
+@router.patch("/saved/{saved_id}/notes", response_model=StandardResponse)
 async def update_saved_fragrance_notes(
     saved_id: int,
     request: UpdateNotesRequest,
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
-) -> SavedFragranceResponse:
+) -> StandardResponse:
     """Update personal notes for a saved fragrance."""
     stmt = select(SavedFragrance).where(
         SavedFragrance.id == saved_id,
@@ -374,4 +398,5 @@ async def update_saved_fragrance_notes(
     await session.commit()
     await session.refresh(saved)
 
-    return SavedFragranceResponse.model_validate(saved)
+    data = SavedFragranceResponse.model_validate(saved)
+    return {"status": "success", "data": data}
