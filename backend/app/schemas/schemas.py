@@ -432,3 +432,4 @@ class FragranceRecommendation(BaseModel):
     id: str
     name: str
     match_score: float
+
