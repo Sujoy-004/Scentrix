@@ -4,7 +4,10 @@ import os
 import threading
 from typing import Any
 
-from neo4j import GraphDatabase
+try:
+    from neo4j import GraphDatabase
+except ImportError:
+    GraphDatabase = None
 
 from app.config import settings
 
@@ -20,6 +23,10 @@ def get_neo4j_client():
     global _driver
     if _driver is not None:
         return _driver
+
+    if not GraphDatabase:
+        logger.warning("Neo4j driver not installed. Skipping graph connection.")
+        return None
 
     uri = settings.neo4j_uri
     if os.environ.get("RUNNING_IN_DOCKER") == "true" and uri == "neo4j://localhost:7687":
@@ -131,13 +138,13 @@ def load_recommendation_catalog(force_reload: bool = False) -> list[dict[str, An
         try:
             # Try current working directory first (standard for Docker / local dev)
             json_path = os.path.abspath(
-                os.path.join(os.getcwd(), "ml", "data", "fra_elite_24k.json")
+                os.path.join(os.getcwd(), "ml", "data", "scentrix_master.json")
             )
 
             if not os.path.exists(json_path):
                 json_path = os.path.abspath(
                     os.path.join(
-                        os.path.dirname(__file__), "..", "..", "..", "ml", "data", "fra_elite_24k.json"
+                        os.path.dirname(__file__), "..", "..", "..", "ml", "data", "scentrix_master.json"
                     )
                 )
 

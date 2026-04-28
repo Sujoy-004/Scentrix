@@ -96,6 +96,8 @@ async def get_user_profile(
     Raises:
         HTTPException: 404 if user not found
     """
+    if not session:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="User database is offline.")
     stmt = select(User).where(User.id == user_id)
     result = await session.execute(stmt)
     user = result.scalar_one_or_none()
@@ -118,6 +120,8 @@ async def update_user_preferences(
 ) -> StandardResponse:
     """Update stored fragrance preferences for the current user."""
 
+    if not session:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="User database is offline.")
     stmt = select(User).where(User.id == user_id)
     result = await session.execute(stmt)
     user = result.scalar_one_or_none()
@@ -159,6 +163,8 @@ async def submit_fragrance_rating(
     Returns:
         Created or updated fragrance rating
     """
+    if not session:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Rating database is offline.")
     # Check if rating already exists
     stmt = select(FragranceRating).where(
         FragranceRating.user_id == user_id,
@@ -214,6 +220,8 @@ async def get_user_ratings(
     Returns:
         List of user's fragrance ratings
     """
+    if not session:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Rating database is offline.")
     stmt = select(FragranceRating).where(FragranceRating.user_id == user_id)
     result = await session.execute(stmt)
     ratings = result.scalars().all()
@@ -236,6 +244,8 @@ async def get_saved_fragrances(
     Returns:
         List of saved fragrances
     """
+    if not session:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Collection database is offline.")
     stmt = select(SavedFragrance).where(SavedFragrance.user_id == user_id)
     result = await session.execute(stmt)
     saved = result.scalars().all()
@@ -260,6 +270,8 @@ async def add_saved_fragrance(
     Returns:
         Created saved fragrance entry
     """
+    if not session:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Collection database is offline.")
     # Check if already saved
     stmt = select(SavedFragrance).where(
         SavedFragrance.user_id == user_id,
@@ -294,19 +306,9 @@ async def remove_saved_fragrance(
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
 ) -> StandardResponse:
-    """Remove fragrance from user's collection.
-
-    Args:
-        saved_id: Saved fragrance record ID
-        user_id: Current authenticated user
-        session: Database session
-
-    Returns:
-        Success message
-
-    Raises:
-        HTTPException: 404 if saved fragrance not found or not owned by user
-    """
+    """Remove fragrance from user's collection."""
+    if not session:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Collection database is offline.")
     stmt = select(SavedFragrance).where(
         SavedFragrance.id == saved_id,
         SavedFragrance.user_id == user_id,
@@ -344,6 +346,8 @@ async def request_data_deletion(
     Returns:
         Deletion request confirmation
     """
+    if not session:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="User database is offline.")
     stmt = select(User).where(User.id == user_id)
     result = await session.execute(stmt)
     user = result.scalar_one_or_none()
@@ -381,6 +385,8 @@ async def update_saved_fragrance_notes(
     session: AsyncSession = Depends(get_session),
 ) -> StandardResponse:
     """Update personal notes for a saved fragrance."""
+    if not session:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Collection database is offline.")
     stmt = select(SavedFragrance).where(
         SavedFragrance.id == saved_id,
         SavedFragrance.user_id == user_id,

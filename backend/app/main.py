@@ -1,8 +1,12 @@
 """FastAPI application entry point for Scentrix backend."""
 
 import logging
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+
+# DB Status Check
+from app.database import DB_AVAILABLE, close_db, init_db
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -13,7 +17,8 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
-from app.database import close_db, engine, init_db
+ML_ENABLED = settings.ml_enabled
+from app.database import DB_AVAILABLE, close_db, engine, init_db
 from app.limiter import limiter
 from app.schemas.schemas import StandardResponse
 from app.routers import auth, fragrances, leads, quiz, recommendations, users
@@ -36,20 +41,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Startup
     logger.info("Initializing Scentrix API...")
 
-    # In production, we rely on Alembic migrations.
-    # Only run init_db() if we are in debug mode and want auto-creation.
-    if settings.debug:
-        logger.info("Debug mode detected: Running init_db() for auto-schema creation...")
-        await init_db()
+    if DB_AVAILABLE:
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text("SELECT 1"))
+            logger.info("DB CONNECTION: SUCCESS")
+        except Exception as e:
+            logger.error(f"DB CONNECTION: FAILED {str(e)}")
     else:
-        logger.info("Production mode: Skipping init_db(), relying on Alembic migrations.")
-
-    try:
-        async with engine.begin() as conn:
-            await conn.execute(text("SELECT 1"))
-        logger.info("DB CONNECTION: SUCCESS")
-    except Exception as e:
-        logger.exception(f"DB CONNECTION: FAILED {str(e)}")
+        logger.warning("DB CONNECTION: SKIPPED (Offline Mode)")
 
     # Universal Warm-up (Hydrating Discovery Brain & Knowledge Graph)
     try:
@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         logger.info("Universal Boiler: Waking up Neural & Catalog Engines...")
         # NO ML loading blocks startup - lazy loading enabled
-        # asyncio.create_task(asyncio.to_thread(warmup_neural_engine))
+        # warmup_neural_engine()
         # asyncio.create_task(load_recommendation_catalog_async())
         logger.info("Universal Boiler: Background hydration deferred to first request.")
 
@@ -69,6 +69,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     logger.info(f"Database initialized: {settings.database_url}")
     logger.info("Scentrix API started successfully")
+    print("SERVER STARTED")
 
     yield
 
@@ -108,8 +109,8 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         status_code=exc.status_code,
         content={
             "status": "error",
-            "data": None,
-            "error": exc.detail
+            "code": exc.status_code,
+            "message": exc.detail
         }
     )
 
@@ -121,8 +122,8 @@ async def universal_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={
             "status": "error",
-            "data": None,
-            "error": "Internal server error"
+            "code": 500,
+            "message": "Internal server error"
         }
     )
 
@@ -138,7 +139,7 @@ app.include_router(leads.router)
 @app.get("/health", tags=["system"])
 async def health_check():
     """Health check endpoint for Render/monitoring."""
-    return {"status": "ok"}
+    return {"status": "success", "data": {"status": "ok"}}
 
 
 @app.get("/", tags=["system"])

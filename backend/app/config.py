@@ -13,6 +13,9 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # Safety Flags
+    ml_enabled: bool = False
+
     # Database
     database_url: str
 

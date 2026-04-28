@@ -11,9 +11,10 @@ This repo is a multi-service app:
 - **Neural Timeouts**: All LLM-backed services have 10s circuit breakers and 5s timeouts.
 
 ## 🏺 Feature Map
+- **Unified Master SSOT**: `ml/data/scentrix_master.json` is the sole source of truth (Sovereign 5k Elite Pool).
 - **Discovery Engine**: Adaptive neural quiz with "Aethera" atmospheric persona (`.github/prompts/persona-aethera.md`).
 - **Virtual Scent Shelf**: Collection management with personal olfactory notes and shelf-based visualization.
-- **Universal Context**: All session logic and user profile memory synchronized via `graphify-out/graph.json`.
+- **Universal Context**: All session logic and user profile memory synchronized via `graphify-out/graph.json` and `_brain/`.
 
 Prefer commands in the root `Makefile` for day-to-day dev.
 

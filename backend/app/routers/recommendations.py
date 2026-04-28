@@ -26,10 +26,9 @@ logger = logging.getLogger(__name__)
 
 # State and Warmup logic moved to app.services.hybrid_search
 
-def log_memory(stage: str):
-    process = psutil.Process(os.getpid())
-    mem = process.memory_info().rss / (1024 ** 2)
-    print(f"[MEMORY] {stage}: {mem:.2f} MB")
+def log_mem(stage):
+    m = psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)
+    print(f"[MEM] {stage}: {m:.2f} MB")
 
 
 def get_encoder():
@@ -96,141 +95,7 @@ def warmup_neural_engine():
 # ── Score engine ──────────────────────────────────────────────────────────────
 
 
-def _score_catalog(
-    user_ratings: list[FragranceRatingInput],
-    catalog: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    log_memory("START")
-    """
-    Generate recommendations from user quiz ratings.
-
-    Strategy (in priority order):
-    1. ML semantic embedding (if encoder available + catalog cached)
-    2. Note/accord overlap heuristic (always available)
-    3. Trending fallback (when no ratings match catalogue)
-    """
-    if _catalog_embeddings_cache is None:
-        logger.info("ML_LAZY_LOAD: Triggering first-time warmup...")
-        warmup_neural_engine()
-        log_memory("AFTER_EMBEDDINGS")
-
-    encoder = get_encoder()
-    log_memory("AFTER_MODEL")
-
-    catalog_by_norm_id = {_normalize_id(str(item.get("id", ""))): item for item in catalog}
-
-    # -- Resolve user rated items against catalog --------------------------
-    rated_items: list[dict[str, Any]] = []
-    weights: list[float] = []
-    liked_notes: set = set()
-    liked_accords: set = set()
-
-    for r in user_ratings:
-        norm = _normalize_id(r.fragrance_id)
-        item = catalog_by_norm_id.get(norm)
-        if item:
-            rated_items.append(item)
-            weights.append(r.rating)
-            liked_notes.update(item.get("top_notes", []) or [])
-            liked_accords.update(item.get("accords", []) or [])
-        else:
-            # Use metadata supplied by the frontend
-            liked_notes.update(r.top_notes or [])
-            liked_accords.update(r.accords or [])
-
-    seed_ids = {_normalize_id(r.fragrance_id) for r in user_ratings}
-
-    logger.info(
-        f"Score Catalog: Received {len(user_ratings)} ratings. Matched {len(rated_items)} items against catalog."
-    )
-    logger.info(
-        f"Successfully resolved {len(rated_items)} items against catalog for scoring out of {len(user_ratings)} provided."
-    )
-
-    # -- ML path -----------------------------------------------------------
-    if not _is_hydrating and _catalog_embeddings_cache is not None and rated_items:
-        try:
-            import numpy as np
-
-            encoder = recommender._get_encoder()
-            if encoder:
-                user_texts = [recommender._get_item_text(item) for item in rated_items]
-                user_embeddings = encoder.generate_embeddings(user_texts)
-
-                # Center weights so <5.5 pushes vector AWAY from the target, >5.5 pulls TOWARD the target.
-                shifted_weights = [w - 5.5 for w in weights]
-                total_w = sum(abs(w) for w in shifted_weights) or 1.0
-
-                dim = len(user_embeddings[0])
-                user_vec = np.zeros(dim)
-                for emb, w in zip(user_embeddings, shifted_weights, strict=False):
-                    user_vec += np.array(emb) * (w / total_w)
-
-                # Normalize user vector to ensure unit length
-                user_v_norm = np.linalg.norm(user_vec)
-                if user_v_norm > 0:
-                    user_vec = user_vec / user_v_norm
-
-                catalog_embs = np.array(_catalog_embeddings_cache)
-                # Ensure catalog is normalized (it should be, but let's be safe)
-                norms = np.linalg.norm(catalog_embs, axis=1, keepdims=True)
-                catalog_embs = catalog_embs / np.where(norms > 0, norms, 1.0)
-
-                scores = catalog_embs.dot(user_vec).tolist()
-
-                logger.info(
-                    f"Neural ML Computed {len(scores)} scores. Max score: {max(scores):.4f}"
-                )
-
-            results = []
-            nid_set = seed_ids  # already a set of normalized IDs to exclude
-            for item, score in zip(catalog, scores, strict=False):
-                nid = _normalize_id(str(item.get("id", "")))
-                if nid in nid_set:
-                    continue
-
-                # Neural contrast: Only boost positive correlations.
-                # Negative correlations (repulsion) are handled by the shifted vector.
-                safe_score = max(score, 0.0)
-
-                # --- Specificity Boosting & Generalist Penalty ---
-                # A "specialist" typically has 5-8 well-defined notes.
-                # A "generalist" (like London) has 20+.
-                all_notes = (
-                    (item.get("top_notes", []) or [])
-                    + (item.get("middle_notes", []) or [])
-                    + (item.get("base_notes", []) or [])
-                )
-                num_notes = len(all_notes)
-
-                # Dynamic complexity penalty: starts at 12 notes, drops scores by up to 30%
-                complexity_penalty = 1.0
-                if num_notes > 10:
-                    complexity_penalty = max(0.7, 1.0 - (num_notes - 10) * 0.03)
-
-                # Exponential Contrast: score^3 creates much sharper separation than score^1
-                calibrated_score = (safe_score**3.0) * complexity_penalty
-
-                results.append(
-                    {
-                        "id": str(item.get("id", "")),
-                        "name": str(item.get("name", "Unknown")),
-                        "brand": str(item.get("brand", "Unknown")),
-                        "match_score": round(min(max(calibrated_score, 0.0), 1.0) * 100, 1),
-                        "reason": "Neural soulbound match",
-                    }
-                )
-
-            results.sort(key=lambda x: x["match_score"], reverse=True)
-            top = results[:12]
-            if top and top[0]["match_score"] > 0:
-                return top
-        except Exception as e:
-            logger.error(f"ML scoring path failed: {e}")
-            pass
-
-    # -- ML path failed or incomplete --
-    return []
+# Scoring moved to HybridRecommender
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -248,6 +113,10 @@ async def submit_fragrance_rating(
     """
     if not user_id:
         return {"status": "success", "data": {"status": "guest_local"}}
+
+    if not db:
+        logger.warning(f"Rating persist skipped for user {user_id}: DB_OFFLINE")
+        return {"status": "success", "data": {"status": "guest_local_fallback"}}
 
     try:
         # Use fragrance_neo4j_id (the actual DB column name)
@@ -334,56 +203,17 @@ async def submit_batch_ratings(
 async def get_guest_recommendations(
     request: GuestRecommendationRequest,
 ) -> StandardResponse:
-    log_memory("START")
+    print("REQUEST RECEIVED")
+    log_mem("START")
     if _catalog_embeddings_cache is None:
         logger.info("ML_LAZY_LOAD: Triggering first-time warmup for guest...")
         warmup_neural_engine()
-        log_memory("AFTER_EMBEDDINGS")
+        log_mem("AFTER_EMBEDDINGS")
 
-
-    if not request.ratings:
-        return {"status": "success", "data": []}
-
-    catalog = load_recommendation_catalog()
-    if not catalog:
-        raise HTTPException(status_code=503, detail="Catalog unavailable")
-
-    encoder = get_encoder()
-    log_memory("AFTER_MODEL")
-
-    if not encoder:
-        logger.error("ML_NOT_READY: Encoder missing")
-        raise HTTPException(
-            status_code=503,
-            detail="ML system is initializing. Please try again shortly.",
-        )
 
     try:
-        # Generate profile vector from guest ratings
-        rated_items = []
-        weights = []
-        catalog_by_id = {_normalize_id(str(i.get("id", ""))): i for i in catalog}
-
-        for r in request.ratings:
-            item = catalog_by_id.get(_normalize_id(r.fragrance_id))
-            if item:
-                rated_items.append(_get_item_text(item))
-                weights.append(r.rating)
-
-        if not rated_items:
-            # If no items matched catalog, we can't do ML inference
-            return {"status": "success", "data": []}
-
-        user_embeddings = encoder.generate_embeddings(rated_items)
-        total_w = sum(weights) or 1.0
-        dim = len(user_embeddings[0])
-        user_vec = [0.0] * dim
-        for emb, w in zip(user_embeddings, weights, strict=False):
-            for i in range(dim):
-                user_vec[i] += emb[i] * (w / total_w)
-
         seed_ids = [_normalize_id(r.fragrance_id) for r in request.ratings]
-        results = recommender.get_recommendations(user_vec, seed_ids)
+        results = recommender.get_recommendations(request.ratings, seed_ids)
         data = [FragranceRecommendation(**r) for r in results]
         return {"status": "success", "data": data}
 
@@ -400,7 +230,7 @@ async def get_personalized_recommendations(
     user_id: int | None = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_session),
 ) -> StandardResponse:
-    log_memory("START")
+    log_mem("START")
     if not user_id:
         return {"status": "success", "data": []}
 
@@ -409,18 +239,16 @@ async def get_personalized_recommendations(
         data = [FragranceRecommendation(**r) for r in cached_recs]
         return {"status": "success", "data": data}
 
+    if not db:
+        logger.warning(f"Personalized discovery fallback to guest mode for user {user_id}")
+        return {"status": "success", "data": []}
+
     stmt = select(DBFragranceRating).where(DBFragranceRating.user_id == user_id)
     result = await db.execute(stmt)
     saved_ratings = result.scalars().all()
 
     if not saved_ratings:
         return {"status": "success", "data": []}
-
-    if _catalog_embeddings_cache is None:
-        logger.info("ML_LAZY_LOAD: Triggering first-time warmup for personalized...")
-        warmup_neural_engine()
-        log_memory("AFTER_EMBEDDINGS")
-
 
     catalog = load_recommendation_catalog()
     if not catalog:
@@ -434,40 +262,9 @@ async def get_personalized_recommendations(
         for r in saved_ratings
     ]
 
-    encoder = get_encoder()
-    log_memory("AFTER_MODEL")
-
-    if not encoder:
-        logger.error("ML_NOT_READY: Encoder missing")
-        raise HTTPException(
-            status_code=503,
-            detail="ML system is initializing. Please try again shortly.",
-        )
-
     try:
-        rated_items = []
-        weights = []
-        catalog_by_id = {_normalize_id(str(i.get("id", ""))): i for i in catalog}
-
-        for r in guest_ratings:
-            item = catalog_by_id.get(_normalize_id(r.fragrance_id))
-            if item:
-                rated_items.append(_get_item_text(item))
-                weights.append(r.rating)
-
-        if not rated_items:
-            return {"status": "success", "data": []}
-
-        user_embeddings = encoder.generate_embeddings(rated_items)
-        total_w = sum(weights) or 1.0
-        dim = len(user_embeddings[0])
-        user_vec = [0.0] * dim
-        for emb, w in zip(user_embeddings, weights, strict=False):
-            for i in range(dim):
-                user_vec[i] += emb[i] * (w / total_w)
-
         seed_ids = [_normalize_id(r.fragrance_id) for r in guest_ratings]
-        results = recommender.get_recommendations(user_vec, seed_ids)
+        results = recommender.get_recommendations(guest_ratings, seed_ids)
     except Exception as e:
         logger.error(f"Hybrid discovery hit a critical fault: {e}")
         raise HTTPException(

@@ -9,9 +9,9 @@ def filter_elite_dataset(
     input_path: Path, 
     output_path: Path, 
     min_reviews: int = 500,
-    min_popularity: float = 50.0,
-    min_rating: float = 3.5,
-    min_views: int = 1500
+    min_popularity: float = 60.0,
+    min_rating: float = 3.6,
+    min_views: int = 2000
 ):
     """Filters the fragrance dataset by performance metrics."""
     
@@ -64,6 +64,6 @@ def filter_elite_dataset(
     print("="*50)
 
 if __name__ == "__main__":
-    input_file = Path("ml/data/fra_cleaned_canonical.json")
-    output_file = Path("ml/data/fra_elite_5k.json")
+    input_file = Path("ml/data/scentrix_master.json")
+    output_file = Path("ml/data/scentrix_elite_subset.json")
     filter_elite_dataset(input_file, output_file)

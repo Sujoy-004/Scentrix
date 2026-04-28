@@ -425,7 +425,8 @@ class StandardResponse(BaseModel):
     """
     status: Literal["success", "error"]
     data: Any | None = None
-    error: str | None = None
+    code: int | None = None
+    message: str | None = None
 
 
 class FragranceRecommendation(BaseModel):

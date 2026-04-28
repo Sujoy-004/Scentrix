@@ -62,10 +62,10 @@ test-persona:
 	python internal/tools/personality_test.py
 
 enrich:
-	@echo "Enriching dataset with canonical vibes..."
-	docker-compose exec backend python ml/pipeline/clean.py ml/data/fra_elite_24k.json ml/data/fra_cleaned_canonical.json
+	@echo "Enriching Unified SSOT with canonical vibes..."
+	docker-compose exec backend python ml/pipeline/clean.py ml/data/scentrix_master.json ml/data/scentrix_master_cleaned.json
 	@echo "Updating Neo4j graph..."
-	docker-compose exec backend python ml/pipeline/ingest.py ml/data/fra_cleaned_canonical.json
+	docker-compose exec backend python ml/pipeline/ingest.py ml/data/scentrix_master_cleaned.json
 	@echo "✓ Dataset enrichment complete"
 
 clean:

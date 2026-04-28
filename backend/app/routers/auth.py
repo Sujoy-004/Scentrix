@@ -81,6 +81,8 @@ async def register(
     session: AsyncSession = Depends(get_session),
 ) -> StandardResponse:
     """Register a new user account."""
+    if not session:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Authentication database is offline.")
     email_hash = _hash_email(user_data.email)
 
     # Check if user already exists
@@ -179,6 +181,8 @@ async def login(
     session: AsyncSession = Depends(get_session),
 ) -> StandardResponse:
     """Login with email and password."""
+    if not session:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Authentication database is offline.")
     email_hash = _hash_email(credentials.email)
 
     if is_supabase_configured():
@@ -257,6 +261,8 @@ async def refresh_token(
     session: AsyncSession = Depends(get_session),
 ) -> StandardResponse:
     """Refresh access token using a valid refresh token."""
+    if not session:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Authentication database is offline.")
 
     if is_supabase_configured():
         try:
@@ -319,6 +325,8 @@ async def logout(
     session: AsyncSession = Depends(get_session),
 ) -> StandardResponse:
     """Logout by revoking all refresh tokens for this user."""
+    if not session:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Authentication database is offline.")
     # Revoke all active refresh tokens for this user
     stmt = select(RefreshToken).where(
         RefreshToken.user_id == user_id,
@@ -345,6 +353,8 @@ async def get_current_user(
     session: AsyncSession = Depends(get_session),
 ) -> StandardResponse:
     """Get current authenticated user's profile."""
+    if not session:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Authentication database is offline.")
     stmt = select(User).where(User.id == user_id)
     result = await session.execute(stmt)
     user = result.scalar_one_or_none()

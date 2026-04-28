@@ -28,9 +28,7 @@ def main():
         seed_file = Path(args.file)
     else:
         # Default to elite 24k
-        seed_file = (
-            Path(os.getenv("Scentrix_REPO_ROOT", "/app")) / "ml" / "data" / "fra_elite_24k.json"
-        )
+            Path(os.getenv("Scentrix_REPO_ROOT", "/app")) / "ml" / "data" / "scentrix_master.json"
 
     if not seed_file.exists():
         print(f"Error: Seed file not found at {seed_file}")

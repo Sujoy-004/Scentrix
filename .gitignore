@@ -2,6 +2,8 @@
 .env.*
 __pycache__/
 *.pyc
+.pytest_cache/
+*.log
 node_modules/
 .next/
 .venv/
@@ -10,4 +12,8 @@ backend/venv/
 env/
 dist/
 build/
-!ml/data/fra_elite_24k.json
+logs/
+ml/scripts/tmp/
+!ml/data/scentrix_master.json
+!ml/data/embeddings.npy
+!ml/data/embedding_index.json

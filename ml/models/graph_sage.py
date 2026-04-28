@@ -343,7 +343,7 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv()
     logging.basicConfig(level=logging.INFO)
-    seed_path = Path(__file__).parent.parent / "data" / "fra_elite_24k.json"
+    seed_path = Path(__file__).parent.parent / "data" / "scentrix_master.json"
     if seed_path.exists():
         with open(seed_path, "r", encoding="utf-8") as f:
             fragrances = json.load(f)

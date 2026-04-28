@@ -92,9 +92,12 @@ def _safe_float(value: object) -> float:
         return 0.0
 
 
-def _select_seed_questions(rows: list[dict], count: int) -> list[dict]:
+def _select_seed_questions(rows: list[dict], count: int, rng: random.Random | None = None) -> list[dict]:
     if not rows:
         return []
+
+    # Use provided RNG or default random
+    shuffle = rng.shuffle if rng else random.shuffle
 
     # Olfactive Kingdoms: The 18 pillars of modern perfumery for full spectrum coverage
     KINGDOMS = {
@@ -116,7 +119,7 @@ def _select_seed_questions(rows: list[dict], count: int) -> list[dict]:
         "spicy_fresh": ["fresh spicy", "pink pepper", "ginger", "coriander", "juniper"],
     }
 
-    random.shuffle(rows)
+    shuffle(rows)
     selected: list[dict] = []
     filled_kingdoms: set[str] = set()
     used_ids: set[str] = set()
@@ -124,7 +127,7 @@ def _select_seed_questions(rows: list[dict], count: int) -> list[dict]:
     # Priority 1: Randomized Kingdom Coverage (1 item per kingdom, picked randomly from the 18)
     # Shuffling the kingdoms list ensures that different sessions cover different families.
     kingdom_list = list(KINGDOMS.items())
-    random.shuffle(kingdom_list)
+    shuffle(kingdom_list)
 
     for kingdom_name, keywords in kingdom_list:
         if len(selected) >= count:
@@ -291,24 +294,28 @@ async def start_quiz_session(
 
     candidate_rows = [row for row in catalog if str(row.get("id", "")).strip()]
 
-    if quiz_data.filters.exclude_seen and user_id:
+    if quiz_data.filters.exclude_seen and user_id and session:
         seen_ids = await _load_seen_ids(user_id, session)
         filtered = [row for row in candidate_rows if str(row.get("id", "")) not in seen_ids]
         if filtered:
             candidate_rows = filtered
+    elif quiz_data.filters.exclude_seen and user_id:
+        logger.warning(f"Exclude-seen filter skipped for user {user_id}: DB_OFFLINE")
 
-    rng = random.Random(f"quiz:{effective_user_id}:{uuid4().hex}")
+    session_id = f"qz_{uuid4().hex[:8]}"
+    # Seed with session_id for intra-session determinism if needed, 
+    # but ensure variety across sessions.
+    rng = random.Random(session_id)
+
     if len(candidate_rows) > quiz_data.candidate_pool_size:
         candidate_rows = rng.sample(candidate_rows, quiz_data.candidate_pool_size)
 
-    seed_rows = _select_seed_questions(candidate_rows, quiz_data.seed_count)
+    seed_rows = _select_seed_questions(candidate_rows, quiz_data.seed_count, rng=rng)
     if not seed_rows:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Unable to initialize quiz session",
         )
-
-    session_id = f"qz_{uuid4().hex[:8]}"
     now_iso = datetime.now(UTC).isoformat()
     rules = QuizSessionRules(
         min_core_questions=quiz_data.seed_count,
@@ -402,7 +409,7 @@ async def submit_quiz_answer(
         await save_quiz_session(session_id=session_id, payload=session_payload)
 
         # BRIDGE: Sync to permanent database for authenticated users
-        if user_id:
+        if user_id and db_session:
             neo4j_id = quiz_data.fragrance_id.replace("frag_syn_", "").replace("frag_", "")
             existing = await db_session.execute(
                 select(FragranceRating).where(
@@ -422,6 +429,8 @@ async def submit_quiz_answer(
                     )
                 )
             await db_session.commit()
+        elif user_id:
+            logger.warning(f"Quiz Answer Sync skipped for user {user_id}: DB_OFFLINE")
 
     except RuntimeError as exc:
         raise HTTPException(

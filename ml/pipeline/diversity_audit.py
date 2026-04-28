@@ -75,7 +75,7 @@ def audit_dataset(dataset_path: Path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", type=Path, default=Path("ml/data/fra_elite_24k.json"))
+    parser.add_argument("--dataset", type=Path, default=Path("ml/data/scentrix_master.json"))
     args = parser.parse_args()
     
     audit_dataset(args.dataset)

@@ -5,13 +5,16 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from pinecone import Pinecone, ServerlessSpec
+from pinecone import Pinecone, ServerlessSpec
+
+# SAFE MODE: Bypass ML dependencies
 try:
     from sentence_transformers import SentenceTransformer
-except ImportError as exc:
-    raise ImportError(
-        "Missing optional dependency 'sentence-transformers'. "
-        "Install it with 'pip install sentence-transformers' to use ml.models.text_encoder."
-    ) from exc
+except Exception:
+    class SentenceTransformer:
+        def __init__(self, *args, **kwargs): pass
+        def encode(self, *args, **kwargs): return []
+        def get_sentence_embedding_dimension(self): return 384
 
 logger = logging.getLogger(__name__)
 

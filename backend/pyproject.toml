@@ -32,6 +32,7 @@ dependencies = [
     "httpx>=0.25.0",
     "aiofiles>=23.1.0",
     "python-dotenv>=1.0.1",
+    "psutil>=5.9.0",
 ]
 
 [project.optional-dependencies]
@@ -46,7 +47,7 @@ dev = [
     "types-python-jose",
 ]
 runtime = [
-    "numpy>=1.26.0",
+    "numpy>=1.26.0,<2.0.0",
     "neo4j>=5.14.0",
     "pinecone>=5.0.0",
 ]

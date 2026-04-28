@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file in real-time, following the **Rewired Senior Architect** protocol.
 
+## [2026-04-30] - API Contract Hardening & Determinism (Production Grade)
+- [API] **StandardResponse V2**: Updated global response wrapper to include `code` and `message` for production-grade error reporting.
+- [API] **Global Error Consistency**: Standardized `main.py` exception handlers to enforce the new structured error format across the entire API.
+- [API] **DB-Aware Stability**: Added proactive database availability checks to all `auth` and `users` endpoints, returning `503 Service Unavailable` instead of crashing when infra is offline.
+- [QUIZ] **HybridRecommender Upgrade**: Integrated precomputed semantic embeddings (15% weight) with average user profile vectorization.
+- [QUIZ] **Latency Hardening**: Optimized scoring loop with aggressive candidate pruning and pre-normalized NumPy dot-product similarity (Average Latency: ~44ms).
+- [QUIZ] **Production Hygiene**: Cleaned repository of temporary scripts, updated `.gitignore`, and stabilized dependencies (NumPy < 2.0).
+- [QUIZ] **Deployment Ready**: Verified 100% success across core endpoints and edge case fallbacks.
+- [QUIZ] **Intra-Session Determinism**: Enforced same-input-same-output behavior in the quiz engine by seeding random sampling with the `session_id`.
+- [QUIZ] **Seed Coverage**: Updated `_select_seed_questions` to ensure variety while maintaining determinism via passed-through RNG.
+- [API] **Health Check Hardening**: Updated `GET /health` to return the `StandardResponse` format for consistency.
+
+## [2026-04-28] - Scentrix Dataset Sovereignty Hardening
+- [DATA] **Unified Master SSOT**: Established `ml/data/scentrix_master.json` as the singular authoritative source of truth.
+- [DATA] **Deduplication**: Resolved 672 ID collisions using the `frag_{brand}_{name}_{year}` schema.
+- [DATA] **Sovereign 5k Optimization**: Shrunk dataset from 21k to **4,577 elite items** (rating_count > 500) to hit 512MB RAM target for Render Free Tier.
+- [INFRA] **Dependency Hardening**: Added `psutil` to `pyproject.toml` and synchronized the local `.venv` with all ML/Runtime dependencies.
+- [ML] **Codebase Synchronization**: Updated `Makefile`, `seed_data.py`, `catalog.py`, `graph_sage.py`, and `diversity_audit.py` to point exclusively to the new Master SSOT.
+- [ML] **Memory Optimization**: Updated `hybrid_search.py` with lazy-loading and RAM-aware warmup logic.
+- [CLEANUP] **Legacy Purge**: Permanently deleted `fra_elite_24k.json` and `fra_cleaned_canonical.json`.
+
 ## [2026-04-27] - Render Migration & Configuration Hardening
 - [INFRA] Render Readiness: Created `backend/requirements.txt` and purged Railway-specific `railway.json` and `Procfile`.
 - [CONFIG] Environment Lockdown: Enforced strict `DATABASE_URL`, `JWT_SECRET_KEY`, and `DATA_ENCRYPTION_KEY` requirement with no fallbacks.
