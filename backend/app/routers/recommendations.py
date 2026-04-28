@@ -1,4 +1,6 @@
 import logging
+import os
+import psutil
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -23,6 +25,11 @@ router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 logger = logging.getLogger(__name__)
 
 # State and Warmup logic moved to app.services.hybrid_search
+
+def log_memory(stage: str):
+    process = psutil.Process(os.getpid())
+    mem = process.memory_info().rss / (1024 ** 2)
+    print(f"[MEMORY] {stage}: {mem:.2f} MB")
 
 
 def get_encoder():
@@ -93,6 +100,7 @@ def _score_catalog(
     user_ratings: list[FragranceRatingInput],
     catalog: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
+    log_memory("START")
     """
     Generate recommendations from user quiz ratings.
 
@@ -101,14 +109,14 @@ def _score_catalog(
     2. Note/accord overlap heuristic (always available)
     3. Trending fallback (when no ratings match catalogue)
     """
-    if _is_hydrating or _catalog_embeddings_cache is None:
-        logger.error("ML_NOT_READY")
-        raise HTTPException(
-            status_code=503,
-            detail="ML system is initializing. Please try again shortly."
-        )
+    if _catalog_embeddings_cache is None:
+        logger.info("ML_LAZY_LOAD: Triggering first-time warmup...")
+        warmup_neural_engine()
+        log_memory("AFTER_EMBEDDINGS")
 
     encoder = get_encoder()
+    log_memory("AFTER_MODEL")
+
     catalog_by_norm_id = {_normalize_id(str(item.get("id", ""))): item for item in catalog}
 
     # -- Resolve user rated items against catalog --------------------------
@@ -326,12 +334,12 @@ async def submit_batch_ratings(
 async def get_guest_recommendations(
     request: GuestRecommendationRequest,
 ) -> StandardResponse:
-    if _is_hydrating or _catalog_embeddings_cache is None:
-        logger.error("ML_NOT_READY")
-        raise HTTPException(
-            status_code=503,
-            detail="ML system is initializing. Please try again shortly.",
-        )
+    log_memory("START")
+    if _catalog_embeddings_cache is None:
+        logger.info("ML_LAZY_LOAD: Triggering first-time warmup for guest...")
+        warmup_neural_engine()
+        log_memory("AFTER_EMBEDDINGS")
+
 
     if not request.ratings:
         return {"status": "success", "data": []}
@@ -341,6 +349,8 @@ async def get_guest_recommendations(
         raise HTTPException(status_code=503, detail="Catalog unavailable")
 
     encoder = get_encoder()
+    log_memory("AFTER_MODEL")
+
     if not encoder:
         logger.error("ML_NOT_READY: Encoder missing")
         raise HTTPException(
@@ -390,6 +400,7 @@ async def get_personalized_recommendations(
     user_id: int | None = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_session),
 ) -> StandardResponse:
+    log_memory("START")
     if not user_id:
         return {"status": "success", "data": []}
 
@@ -405,12 +416,11 @@ async def get_personalized_recommendations(
     if not saved_ratings:
         return {"status": "success", "data": []}
 
-    if _is_hydrating or _catalog_embeddings_cache is None:
-        logger.error("ML_NOT_READY")
-        raise HTTPException(
-            status_code=503,
-            detail="ML system is initializing. Please try again shortly.",
-        )
+    if _catalog_embeddings_cache is None:
+        logger.info("ML_LAZY_LOAD: Triggering first-time warmup for personalized...")
+        warmup_neural_engine()
+        log_memory("AFTER_EMBEDDINGS")
+
 
     catalog = load_recommendation_catalog()
     if not catalog:
@@ -425,6 +435,8 @@ async def get_personalized_recommendations(
     ]
 
     encoder = get_encoder()
+    log_memory("AFTER_MODEL")
+
     if not encoder:
         logger.error("ML_NOT_READY: Encoder missing")
         raise HTTPException(

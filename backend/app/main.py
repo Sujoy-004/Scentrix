@@ -59,9 +59,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         from app.services.catalog import load_recommendation_catalog_async
 
         logger.info("Universal Boiler: Waking up Neural & Catalog Engines...")
-        asyncio.create_task(asyncio.to_thread(warmup_neural_engine))
-        asyncio.create_task(load_recommendation_catalog_async())
-        logger.info("Universal Boiler: Background hydration dispatched.")
+        # NO ML loading blocks startup - lazy loading enabled
+        # asyncio.create_task(asyncio.to_thread(warmup_neural_engine))
+        # asyncio.create_task(load_recommendation_catalog_async())
+        logger.info("Universal Boiler: Background hydration deferred to first request.")
 
     except Exception as e:
         logger.error(f"Universal Boiler: Startup Warm-up failed: {str(e)}")
