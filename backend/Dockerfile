@@ -42,10 +42,10 @@ COPY --from=builder /usr/local /usr/local
 
 # Copy application code
 COPY backend/app app/
-COPY ml/data/fra_elite_24k.json ml/data/
-COPY ml/models ml/models
+COPY ml/data/scentrix_master.json ml/data/
+COPY ml/data/embeddings.npy ml/data/
+COPY ml/data/embedding_index.json ml/data/
 COPY backend/alembic.ini .
-COPY backend/Procfile .
 
 # Ensure all files are world-readable/executable where needed
 RUN chmod -R 755 /usr/local/bin
