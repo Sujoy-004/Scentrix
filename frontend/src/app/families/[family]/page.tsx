@@ -3,7 +3,6 @@
 import React, { use, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, type FragranceCatalogItem } from '@/lib/api';
-import '../../fragrances/fragrances.css';
 import './family.css';
 
 const FAMILY_NAMES: Record<string, string> = {
