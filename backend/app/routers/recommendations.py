@@ -16,6 +16,7 @@ from app.services.catalog import load_recommendation_catalog
 from app.services.hybrid_search import _catalog_embeddings_cache, _is_hydrating, recommender
 from app.schemas.schemas import (
     FragranceRecommendation,
+    GuestRecommendationRequest,
     StandardResponse,
     RecommendationResult,
     RecommendationJob,
@@ -63,10 +64,6 @@ class FragranceRatingInput(BaseModel):
     description: str | None = None
     name: str | None = None
     brand: str | None = None
-
-
-class GuestRecommendationRequest(BaseModel):
-    ratings: list[FragranceRatingInput]
 
 
 class BatchRatingRequest(BaseModel):

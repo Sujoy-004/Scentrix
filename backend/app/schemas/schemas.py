@@ -1,7 +1,7 @@
 """Pydantic request/response schemas for Scentrix API."""
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, List, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -433,4 +433,15 @@ class FragranceRecommendation(BaseModel):
     id: str
     name: str
     match_score: float
+
+
+class GuestRatingInput(BaseModel):
+    fragrance_id: str
+    rating: float
+    top_notes: List[str] = []
+    accords: List[str] = []
+
+
+class GuestRecommendationRequest(BaseModel):
+    ratings: List[GuestRatingInput]
 
