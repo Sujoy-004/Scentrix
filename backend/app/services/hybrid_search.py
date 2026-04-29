@@ -308,7 +308,16 @@ class HybridRecommender:
                 if u_norm > 0:
                     user_embedding = user_embedding / u_norm
 
+        profile = {
+            "target_notes": list(target_notes)[:10],
+            "target_accords": list(target_accords)[:10],
+        }
+        if target_notes or target_accords:
+            print("PROFILE EXISTS → SHOULD NOT FALLBACK")
+
         if not target_notes and not target_accords:
+            print("DEBUG PROFILE:", profile)
+            print("DEBUG CANDIDATES:", 0)
             # Cold start: Return top popularity items
             return [
                 {
@@ -363,6 +372,8 @@ class HybridRecommender:
         # Ensure we have at least some candidates, otherwise take top popularity
         if len(candidate_pool) < 20:
             candidate_pool = sorted(catalog, key=lambda x: x.get("rating_count", 0), reverse=True)[:100]
+
+        print("DEBUG CANDIDATES:", len(candidate_pool))
 
         for item in candidate_pool:
             item_id = str(item["id"])
