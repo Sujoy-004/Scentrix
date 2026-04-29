@@ -68,9 +68,25 @@ npm run dev
 - **Fallback Architecture**: The system proactively handles infrastructure outages (e.g., Neo4j or Redis downtime) by falling back to local memory-safe discovery modes.
 
 ## Future Work
-- **Pinecone Integration**: Transitioning from local NumPy search to managed vector search for the full 21k+ dataset.
-- **Neo4j Graph Relationships**: Deepening the discovery engine with complex brand-perfumer-note relationships.
-- **Advanced Personalization**: Implementing persistent user taste profiles and olfactive history tracking.
+
+### Feedback Loop (User Interaction Logging)
+- Track user actions such as clicks, skips, and selections
+- Store interaction data for analysis
+- Enable data-driven improvement of recommendations
+
+### Evaluation Metrics
+- Define metrics such as:
+  - Click-through rate (CTR)
+  - Top-K hit rate
+- Use these metrics to evaluate recommendation quality
+
+### Personalization Engine
+- Build user profiles based on interaction history
+- Adapt recommendations over time
+- Transition from stateless to stateful system
+
+> Note: The current system is intentionally stateless for stability, low memory usage, and deployment simplicity under constrained environments.
+
 
 ## Author
 - **Name**: Sujoy
