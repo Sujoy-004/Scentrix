@@ -15,12 +15,10 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
-from celery.result import AsyncResult
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user_id, get_optional_user_id
-from app.celery_app import celery_app
 from app.config import settings
 from app.database import get_session
 from app.models.models import UserInteractionEvent
@@ -43,7 +41,6 @@ from app.schemas.schemas import (
 from app.services.catalog import load_recommendation_catalog
 from app.services.hybrid_search import recommender
 from app.services.job_store import create_job, get_job, is_job_timed_out, update_job
-from app.tasks.recommend_tasks import recommend_by_profile_task, recommend_by_text_task
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/fragrances", tags=["fragrances"])
@@ -522,6 +519,12 @@ async def recommend_by_text(
     Returns:
         RecommendationJob with job_id and processing status
     """
+
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="Recommendation queue unavailable",
+    )
+
     job_id = str(uuid4())
 
     try:
@@ -534,29 +537,6 @@ async def recommend_by_text(
         ) from exc
 
     logger.info(f"Created recommendation job {job_id} for query: {request.query[:50]}")
-
-    try:
-        async_task = recommend_by_text_task.delay(
-            job_id=job_id,
-            query=request.query,
-            limit=request.limit,
-            user_id=user_id,
-        )
-        await update_job(
-            job_id, celery_task_id=async_task.id, message="Recommendation generation started"
-        )
-    except Exception as exc:
-        logger.error(f"Failed to enqueue text recommendation task for {job_id}: {exc}")
-        await update_job(
-            job_id,
-            status="failed",
-            error=str(exc),
-            message="Recommendation queue unavailable",
-        )
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Recommendation queue unavailable",
-        ) from exc
 
     data = RecommendationJob(
         job_id=job_id,
@@ -842,46 +822,6 @@ async def get_recommendation_result(
             detail="Not authorized to access this job",
         )
 
-    if job["status"] in {"processing", "queued"} and job.get("celery_task_id"):
-        result = AsyncResult(job["celery_task_id"], app=celery_app)
-        if result.successful():
-            payload = result.result if isinstance(result.result, dict) else {}
-            generated_at = payload.get("generated_at")
-            if not isinstance(generated_at, str):
-                generated_at = datetime.now(UTC).isoformat()
-
-            await update_job(
-                job_id,
-                status="completed",
-                results=payload.get("fragrances", []),
-                generated_at=generated_at,
-                message="Recommendation generation completed",
-                error=None,
-            )
-            job = await get_job(job_id) or job
-        elif result.failed():
-            await update_job(
-                job_id,
-                status="failed",
-                error=str(result.result),
-                message="Recommendation generation failed",
-            )
-            job = await get_job(job_id) or job
-        else:
-            if is_job_timed_out(job.get("created_at")):
-                await update_job(
-                    job_id,
-                    status="timed_out",
-                    error="Recommendation job timed out",
-                    message="Recommendation job timed out while waiting for worker completion",
-                )
-                job = await get_job(job_id) or job
-            else:
-                await update_job(
-                    job_id, status="processing", message=f"Worker state: {result.state}"
-                )
-                job = await get_job(job_id) or job
-
     if job["status"] in {"processing", "queued"}:
         data = RecommendationJob(
             job_id=job_id,
@@ -947,6 +887,12 @@ async def recommend_by_profile(
     Raises:
         HTTPException: 401 if user not authenticated
     """
+
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="Recommendation queue unavailable",
+    )
+
     job_id = str(uuid4())
 
     try:
@@ -961,28 +907,6 @@ async def recommend_by_profile(
         ) from exc
 
     logger.info(f"Created profile recommendation job {job_id} for user {user_id}")
-
-    try:
-        async_task = recommend_by_profile_task.delay(
-            job_id=job_id,
-            user_id=user_id,
-            limit=limit,
-        )
-        await update_job(
-            job_id, celery_task_id=async_task.id, message="Generating personalized recommendations"
-        )
-    except Exception as exc:
-        logger.error(f"Failed to enqueue profile recommendation task for {job_id}: {exc}")
-        await update_job(
-            job_id,
-            status="failed",
-            error=str(exc),
-            message="Recommendation queue unavailable",
-        )
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Recommendation queue unavailable",
-        ) from exc
 
     data = RecommendationJob(
         job_id=job_id,
