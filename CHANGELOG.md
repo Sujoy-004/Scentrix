@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file in real-time, following the **Rewired Senior Architect** protocol.
 
+## [2026-04-29] - Roadmap & Strategy Expansion
+- [DOCS] **Roadmap**: Expanded the "Future Work" section in `README.md` to include technical specifications for Feedback Loops, Evaluation Metrics (CTR, Top-K), and State-aware Personalization.
+
+## [2026-04-29] - Documentation & Maintenance
+- [DOCS] **README**: Created production-grade `README.md` with detailed architecture, performance metrics, and design decisions.
+- [DOCS] **Author Info**: Synchronized author details and GitHub links.
+
+## [2026-04-29] - Production Deployment (Render + Vercel)
+- [INFRA] **Backend Live**: Deployed `scentrix-backend-prod` to Render.
+- [INFRA] **Frontend Connected**: Updated Vercel environment variables (`NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_API_BASE_URL`) to point to Render.
+- [DEPLOY] **Verification**: Confirmed `/health` (200 OK) and successful quiz session initialization.
+- [DATA] **SSOT Verification**: Confirmed 4,577 records loaded from `scentrix_master.json`.
+- [STATUS] **End-to-End Operational**: Frontend-to-Backend neural link established.
+
 ## [2026-04-30] - API Contract Hardening & Determinism (Production Grade)
 - [API] **StandardResponse V2**: Updated global response wrapper to include `code` and `message` for production-grade error reporting.
 - [API] **Global Error Consistency**: Standardized `main.py` exception handlers to enforce the new structured error format across the entire API.
