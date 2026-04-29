@@ -17,9 +17,5 @@ python-dotenv>=1.0.1
 numpy>=1.26.0
 neo4j>=5.14.0
 pinecone>=5.0.0
-torch --index-url https://download.pytorch.org/whl/cpu
-sentence-transformers>=3.0.0
-torch-geometric>=2.4.0
-prefect>=2.14.0
 celery>=5.3.6
 redis>=5.0.1
