@@ -107,13 +107,13 @@ export const api = {
     brand?: string 
   }[]) => {
     const { data } = await apiInstance.post('/recommendations/guest', { ratings });
-    return data;
+    return data.data;
   },
 
   // Fixed: maps to the correct backend endpoint name (/personalized not /for-me)
   getPersonalizedRecommendations: async () => {
     const { data } = await apiInstance.get('/recommendations/personalized');
-    return Array.isArray(data) ? data : [];
+    return data.data;
   },
   // Adaptive Quiz Protocol
   startQuizSession: async (payload: { seed_count: number; candidate_pool_size: number; filters: any }) => {
