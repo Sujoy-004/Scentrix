@@ -119,13 +119,15 @@ export default function RecommendationsPage() {
           </div>
 
           <h2 style={{ fontSize: '1.75rem', fontFamily: 'var(--font-display)', fontStyle: 'italic', color: '#fff', marginBottom: '1rem', letterSpacing: '-0.02em' }}>
-            {isColdStart ? "Neural Synthesis in Progress" : "Neural Sync Required"}
+            {error ? "Neural Link Failed" : isColdStart ? "Neural Synthesis in Progress" : "Neural Sync Required"}
           </h2>
 
           <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '2.5rem', lineHeight: '1.7', fontSize: '0.95rem' }}>
-            {isColdStart
-              ? "Your profile is being mapped across our 24,000 scents. This usually takes a moment on your first visit."
-              : "We couldn't detect your olfactory signature. Please complete the Discovery Protocol to begin."}
+            {error
+              ? "Failed to load recommendations. Please try again."
+              : isColdStart
+                ? "Your profile is being mapped across our 24,000 scents. This usually takes a moment on your first visit."
+                : "We couldn't detect your olfactory signature. Please complete the Discovery Protocol to begin."}
           </p>
 
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>

@@ -99,36 +99,6 @@ export default function Navbar() {
 
         {/* Global Nav Links - Desktop */}
         <div className="navbar-links-desktop">
-          <MagneticLink href="/fragrances" isActive={pathname === '/fragrances'} onClick={() => router.push('/fragrances')}>
-            Browse
-          </MagneticLink>
-
-          <div className="nav-search-portal">
-            <button 
-              className="nav-search-button p-1 hover:opacity-100 transition-opacity"
-              onClick={handleSearch}
-              aria-label="Submit search"
-              type="submit"
-            >
-              <Search 
-                className="nav-search-icon" 
-                size={14} 
-              />
-            </button>
-            <input 
-              ref={searchRef}
-              type="text" 
-              placeholder="Search scents..."
-              className="nav-search-input"
-              defaultValue={typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('q') || '' : ''}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleSearch();
-                }
-              }}
-            />
-          </div>
-
           {!isAuthenticated ? (
             <>
               <MagneticLink href="/auth/login" isActive={pathname === '/auth/login'} onClick={() => router.push('/auth/login')}>
@@ -181,8 +151,6 @@ export default function Navbar() {
             exit="closed"
           >
             <div className="mobile-links-container">
-              <MobileNavLink icon={<Search size={18} />} label="Browse" onClick={() => { router.push('/fragrances'); setIsOpen(false); }} variants={itemVariants} />
-              
               {!isAuthenticated ? (
                 <>
                   <MobileNavLink icon={<User size={18} />} label="Log In" onClick={() => { router.push('/auth/login'); setIsOpen(false); }} variants={itemVariants} />

@@ -97,49 +97,12 @@ export default function StandardQuiz() {
 
   const handleNeutral = () => handleNext(5.0);
 
-  const [results, setResults] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const finalizeSession = async () => {
     setIsSubmitting(true);
-    
-    // Deterministic Hash Mapping: Maps any string to a stable index in VALID_IDS
-    const getStableId = (seed: string) => {
-      let hash = 0;
-      for (let i = 0; i < seed.length; i++) {
-        hash = (hash << 5) - hash + seed.charCodeAt(i);
-        hash |= 0;
-      }
-      return VALID_IDS[Math.abs(hash) % VALID_IDS.length];
-    };
-
-    // Dynamically build payload from store.quizResponses using deterministic index mapping
-    const payload = store.quizResponses.slice(0, Math.max(3, store.quizResponses.length)).map((r, i) => ({
-      fragrance_id: getStableId(String(i)),
-      rating: Math.min((r.rating || 5) / 2, 5),
-      top_notes: r.top_notes || null,
-      accords: r.accords || null,
-      description: r.description || null,
-      name: r.name || null,
-      brand: r.brand || null
-    }));
-
-    if (payload.length < 3) {
-      setCatalogError("Minimum 3 responses required for neural mapping.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    try {
-      const response = await api.getGuestRecommendations(payload);
-      setResults(response.data || []);
-    } catch (err) {
-      setCatalogError("Recommendations unavailable");
-    } finally {
-      setIsSubmitting(false);
-    }
+    router.push('/recommendations');
   };
-
 
   if (isBootstrapping) return <DiscoveryNeuralLoader />;
 
@@ -264,20 +227,6 @@ export default function StandardQuiz() {
             </footer>
           </motion.div>
         </AnimatePresence>
-
-        {results.length > 0 && (
-          <div className="results-list" style={{ marginTop: '2rem', background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '1rem' }}>
-            <h3 style={{ color: '#fff', marginBottom: '1rem' }}>Top Matches</h3>
-            <ul style={{ listStyle: 'none', padding: 0 }}>
-              {results.map((r, i) => (
-                <li key={i} style={{ color: 'rgba(255,255,255,0.8)', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
-                  <span>{r.name}</span>
-                  <span style={{ color: 'var(--quiz-accent)' }}>{Math.round((r.match_score || 0) * 100)}%</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
 
         <footer className="quiz-footer-meta">
           <div className="meta-badge">
