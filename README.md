@@ -1,9 +1,18 @@
 # Scentrix — Fragrance Recommendation System
 
 ## Overview
-Scentrix is a high-performance fragrance discovery system designed to help users navigate the complex world of perfumes through an intuitive, data-driven approach. The system deconstructs the olfactive universe into molecular components—notes, accords, and categories—to find the perfect match for any user preference.
+Scentrix is a high-performance fragrance discovery system designed to help users navigate the complex world of perfumes through an intuitive, data-driven approach. The system analyzes fragrance notes, accords, and categories to match user preferences—to find the perfect match for any user preference.
 
-Built with a focus on efficiency and scalability, Scentrix was specifically engineered to operate within a tight 512MB memory constraint. This was achieved by moving heavy machine learning computations offline and utilizing a hybrid recommendation strategy that combines deterministic rule-based logic with pre-computed semantic embeddings.
+Built with a focus on efficiency and scalability, Scentrix was specifically engineered to operate within a tight 512MB memory constraint. This was achieved by moving heavy machine learning computations offline and utilizing a hybrid recommendation strategy that combines deterministic rule-based logic with pre-computed semantic embeddings. The system delivers semantic recommendations without loading any ML model at runtime.
+
+## Problem & Constraint
+
+Initial attempts to use runtime embeddings (SentenceTransformers + Torch) resulted in high memory usage (~700MB+) and unstable deployment on Render's 512MB free tier.
+
+To address this, the system was redesigned to:
+- move embedding generation offline
+- replace runtime ML with NumPy-based similarity
+- implement a hybrid recommendation system that balances performance and accuracy
 
 ## Live Demo
 - Frontend: [https://scentrix-one.vercel.app](https://scentrix-one.vercel.app)
@@ -23,7 +32,7 @@ The system follows a modern decoupled architecture:
 - **Hybrid Recommendation Engine**: Combines structural data (notes/accords) with semantic meaning (descriptions) for high-precision matching.
 - **Memory-Safe Pipeline**: Optimized to run on resource-constrained environments (512MB RAM) through pre-computed vectors and lazy-loading.
 - **Deterministic Quiz System**: A multi-step discovery process that seeds recommendation sessions with unique user preference vectors.
-- **Fallback-Safe Architecture**: Designed to operate even when external database dependencies (Redis/Neo4j) are unavailable.
+- **Stateless Fallback Architecture**: Designed to operate without external database dependencies, using local data for consistent performance.
 - **High Performance**: Optimized scoring loops delivering recommendations in under 50ms.
 
 ## Recommendation Logic
