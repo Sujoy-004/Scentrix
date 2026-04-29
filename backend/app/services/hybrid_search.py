@@ -261,7 +261,7 @@ class HybridRecommender:
             for r in ratings:
                 fid = str(getattr(r, "fragrance_id", r.get("fragrance_id", "") if isinstance(r, dict) else ""))
                 score = getattr(r, "rating", r.get("rating", 5.0) if isinstance(r, dict) else 5.0)
-                if score < 6.0: continue # Skip low ratings for profile building
+                # if score < 6.0: continue  # Skip low ratings for profile building
 
                 provided_notes = getattr(r, "top_notes", r.get("top_notes", []) if isinstance(r, dict) else [])
                 provided_accords = getattr(r, "accords", r.get("accords", []) if isinstance(r, dict) else [])
@@ -295,7 +295,7 @@ class HybridRecommender:
             for r in ratings:
                 fid = str(getattr(r, "fragrance_id", r.get("fragrance_id", "") if isinstance(r, dict) else ""))
                 score = getattr(r, "rating", r.get("rating", 5.0) if isinstance(r, dict) else 5.0)
-                if score < 6.0: continue
+                # if score < 6.0: continue
                 
                 idx = self.embedding_index.get(fid)
                 if idx is not None:
@@ -448,6 +448,9 @@ class HybridRecommender:
                 "item": item
             })
 
+        scored_results = scored_candidates
+        print("DEBUG SCORED COUNT:", len(scored_results))
+
         # 3. Selection with DIVERSITY_PENALTY (0.05)
         scored_candidates.sort(key=lambda x: x["base_score"], reverse=True)
         top_n = scored_candidates[:100] # Candidate pool for diversity pass
@@ -502,8 +505,24 @@ class HybridRecommender:
         total_ms = (end_total - start_total) * 1000
         scoring_ms = (end_total - start_scoring) * 1000
         logger.info(f"Discovery Engine: Optimized pass completed in {total_ms:.1f}ms (scoring: {scoring_ms:.1f}ms) | Pool: {len(candidate_pool)}")
-        
-        return results
+
+        scored_results = results
+        if scored_results:
+            return scored_results
+
+        # Only fallback when scoring produced no results
+        return [
+            {
+                "id": item["id"],
+                "name": item["name"],
+                "brand": item["brand"],
+                "match_score": 50.0,
+                "reason": "Popular Choice",
+                "top_accords": item.get("accords", [])[:3],
+                "top_notes": item.get("top_notes", [])[:3],
+            }
+            for item in sorted(catalog, key=lambda x: x.get("rating_count", 0), reverse=True)[:12]
+        ]
 
     def close(self):
         self.driver.close()
