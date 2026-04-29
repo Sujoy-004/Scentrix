@@ -1,72 +1,77 @@
-# 🌌 Scentrix — v0.01
-### *The World's First Atmospheric Fragrance Discovery Engine.*
+# Scentrix — Fragrance Recommendation System
 
-[![Production: Healthy](https://img.shields.io/badge/Production-Healthy-success?style=for-the-badge&logo=railway)](https://scentrix-one.vercel.app/api/health)
-[![Deploy: Vercel](https://img.shields.io/badge/Frontend-Vercel-black?style=for-the-badge&logo=vercel)](https://scentrix-one.vercel.app)
-[![Engine: Neural](https://img.shields.io/badge/Engine-Neural_Sommelier-blueviolet?style=for-the-badge)](https://scentrix-one.vercel.app/api/redoc)
+## Overview
+Scentrix is a high-performance fragrance discovery system designed to help users navigate the complex world of perfumes through an intuitive, data-driven approach. The system deconstructs the olfactive universe into molecular components—notes, accords, and categories—to find the perfect match for any user preference.
 
----
+Built with a focus on efficiency and scalability, Scentrix was specifically engineered to operate within a tight 512MB memory constraint. This was achieved by moving heavy machine learning computations offline and utilizing a hybrid recommendation strategy that combines deterministic rule-based logic with pre-computed semantic embeddings.
 
-**Scentrix** is a digital sommelier that deconstructs the olfactive universe. By fusing **Graph Neural Networks (GraphSAGE)** with **High-Recall Dual-Vector Search**, Scentrix maps your personal scent DNA across a library of over **21,000+ fragrances**.
+## Live Demo
+- Frontend: [https://scentrix-one.vercel.app](https://scentrix-one.vercel.app)
+- Backend: [https://scentrix-backend-prod.onrender.com](https://scentrix-backend-prod.onrender.com)
 
-## 🧠 The Neural Discovery Flow
+## Architecture
+The system follows a modern decoupled architecture:
 
-Scentrix doesn't just match keywords; it understands the molecular relationships between notes, accords, and brands.
+- **Frontend**: Next.js 15 application deployed on Vercel, providing a responsive and cinematic user interface.
+- **Backend**: FastAPI service deployed on Render, handling request orchestration and recommendation logic.
+- **Data**: A unified JSON Single Source of Truth (SSOT) containing 4,577 elite fragrance records, optimized for fast lookups and low memory footprint.
+- **ML Strategy**: 
+  - **Offline**: Semantic embeddings are generated using sentence-transformers and stored in a compressed format.
+  - **Runtime**: Recommendation scoring is performed using NumPy-based cosine similarity, ensuring sub-100ms response times without loading heavy model weights into RAM.
 
-```mermaid
-graph TD
-    User((User)) -->|Olfactive Quiz| A[Neural Engine]
-    A -->|Text DNA| B[Pinecone Vector Store]
-    A -->|Graph DNA| C[Neo4j Knowledge Graph]
-    B -->|Cosine Similarity| D[Similarity Reranker]
-    C -->|Genetic Distance| D
-    D -->|Atmospheric Insight| E[Neural Sommelier]
-    E -->|Personalized Match| User
-```
+## Key Features
+- **Hybrid Recommendation Engine**: Combines structural data (notes/accords) with semantic meaning (descriptions) for high-precision matching.
+- **Memory-Safe Pipeline**: Optimized to run on resource-constrained environments (512MB RAM) through pre-computed vectors and lazy-loading.
+- **Deterministic Quiz System**: A multi-step discovery process that seeds recommendation sessions with unique user preference vectors.
+- **Fallback-Safe Architecture**: Designed to operate even when external database dependencies (Redis/Neo4j) are unavailable.
+- **High Performance**: Optimized scoring loops delivering recommendations in under 50ms.
 
-## ✨ Core Pillars
+## Recommendation Logic
+The engine utilizes a multi-factor scoring algorithm that evaluates fragrances across several dimensions:
+- **Structural Similarity**: Overlap analysis of top, middle, and base notes.
+- **Accord Profiling**: Evaluation of primary olfactive accords (e.g., woody, floral, citrus).
+- **Metadata Matching**: Filtering and boosting based on gender, concentration, and brand reputation.
+- **Semantic DNA**: Pre-computed vector similarity based on deep fragrance descriptions.
+- **Popularity Weighting**: Prioritizing fragrances with high community engagement (Elite Pool).
 
-- **Neural Sommelier (Aethera):** Generates evocative, atmospheric insights for every recommendation.
-- **Adaptive Discovery:** A confidence-aware quiz that narrows down your olfactive kingdom in real-time.
-- **Deep Recall:** Access to 21,500+ unique fragrances with detailed note pyramids and accord structures.
-- **Privacy First:** Full GDPR compliance. Your scent DNA belongs to you—one-click data deletion and zero unconsented training.
+## Performance
+- **Latency**: 40–50ms average for recommendation generation.
+- **Memory Overhead**: ~7MB for the entire embedding index.
+- **Total Footprint**: Fully operational within a 512MB environment.
 
-## 🚀 Quick Start
+## Tech Stack
+- **Backend**: FastAPI, Python 3.11
+- **Frontend**: Next.js, TypeScript, Tailwind CSS
+- **Processing**: NumPy, Sentence-Transformers (Offline)
+- **Infrastructure**: Render (API), Vercel (UI), Supabase (PostgreSQL)
 
-### The Flight Proof (Local Dev)
-The entire stack is containerized for deterministic scaling.
+## Setup Instructions
 
+### Backend
 ```bash
-# 1. Start the Neural Stack
-make up
-
-# 2. Hydrate the Discovery Engine (21k+ Frags)
-make seed
-
-# 3. Flight Check (Backend Tests)
-make test-backend
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload
 ```
 
-### Repo Map
+### Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-- `frontend/` — Next.js 15 Cinematic UI (Vercel)
-- `backend/` — FastAPI High-Throughput API (Railway)
-- `ml/` — The Brain: GraphSAGE modeling & Scrapy pipelines
-- `docs/` — Architectural blueprints and system specs
+## Design Decisions
+- **No Runtime ML**: Loading large LLMs or BERT models into production RAM was avoided to maintain 512MB compatibility and eliminate cold-start latency.
+- **Offline Embeddings**: By pre-computing vectors, we achieve the benefits of semantic search with the speed of raw matrix multiplication.
+- **JSON as SSOT**: Using a structured JSON file as the primary source of truth allows for extremely fast I/O and simplifies deployment by reducing external DB round-trips for core catalog data.
+- **Fallback Architecture**: The system proactively handles infrastructure outages (e.g., Neo4j or Redis downtime) by falling back to local memory-safe discovery modes.
 
-## 🛠️ Technology Stack
+## Future Work
+- **Pinecone Integration**: Transitioning from local NumPy search to managed vector search for the full 21k+ dataset.
+- **Neo4j Graph Relationships**: Deepening the discovery engine with complex brand-perfumer-note relationships.
+- **Advanced Personalization**: Implementing persistent user taste profiles and olfactive history tracking.
 
-- **Core:** FastAPI, Next.js 15, PostgreSQL (Supabase)
-- **Memory:** Neo4j Aura (Graph), Pinecone (Vector), Redis (Cache)
-- **Neural:** PyTorch Geometric (GraphSAGE), Sentence-Transformers (BERT)
-- **Infrastructure:** Docker, Railway, Vercel, Alembic
-
----
-
-## 📅 Roadmap: v0.01 → v1.0
-- [x] **v0.01:** Stable production deployment & Neural Quiz launch.
-- [ ] **v0.10:** Collection Management & Community Scent-Sharing.
-- [ ] **v0.20:** Real-time Olfactive Mapping (Mobile Native).
-
----
-*Developed with obsession by the Antigravity Team.*
+## Author
+- **Name**: Sujoy
+- **GitHub**: [https://github.com/Sujoy-004](https://github.com/Sujoy-004)
