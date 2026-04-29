@@ -448,8 +448,7 @@ class HybridRecommender:
                 "item": item
             })
 
-        scored_results = scored_candidates
-        print("DEBUG SCORED COUNT:", len(scored_results))
+        print("DEBUG SCORED COUNT:", len(scored_candidates))
 
         # 3. Selection with DIVERSITY_PENALTY (0.05)
         scored_candidates.sort(key=lambda x: x["base_score"], reverse=True)
@@ -507,11 +506,7 @@ class HybridRecommender:
         logger.info(f"Discovery Engine: Optimized pass completed in {total_ms:.1f}ms (scoring: {scoring_ms:.1f}ms) | Pool: {len(candidate_pool)}")
 
         scored_results = results
-        if scored_results:
-            return scored_results
-
-        # Only fallback when scoring produced no results
-        return [
+        fallback_results = [
             {
                 "id": item["id"],
                 "name": item["name"],
@@ -523,6 +518,11 @@ class HybridRecommender:
             }
             for item in sorted(catalog, key=lambda x: x.get("rating_count", 0), reverse=True)[:12]
         ]
+
+        if scored_results and len(scored_results) > 0:
+            return scored_results
+
+        return fallback_results
 
     def close(self):
         self.driver.close()
