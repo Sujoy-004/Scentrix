@@ -1,4 +1,7 @@
 {
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://scentrix-backend-prod.onrender.com"
+  },
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm ci",
