@@ -262,6 +262,13 @@ class HybridRecommender:
                 fid = str(getattr(r, "fragrance_id", r.get("fragrance_id", "") if isinstance(r, dict) else ""))
                 score = getattr(r, "rating", r.get("rating", 5.0) if isinstance(r, dict) else 5.0)
                 if score < 6.0: continue # Skip low ratings for profile building
+
+                provided_notes = getattr(r, "top_notes", r.get("top_notes", []) if isinstance(r, dict) else [])
+                provided_accords = getattr(r, "accords", r.get("accords", []) if isinstance(r, dict) else [])
+                if provided_notes:
+                    target_notes.update(provided_notes)
+                if provided_accords:
+                    target_accords.update(provided_accords)
                 
                 item = catalog_map.get(fid)
                 if not item: continue
