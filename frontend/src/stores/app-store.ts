@@ -144,9 +144,9 @@ export const useAppStore = create<AppState>()(
       addQuizResponse: (response: QuizResponse) =>
         set((state) => {
           if (
-            !response.fragnance_id ||
-            typeof response.fragnance_id !== "string" ||
-            !response.fragnance_id.startsWith("frag_")
+            !response.fragrance_id ||
+            typeof response.fragrance_id !== "string" ||
+            !response.fragrance_id.startsWith("frag_")
           ) {
             console.warn("Invalid fragrance_id:", response.fragrance_id);
             return state;
@@ -155,13 +155,13 @@ export const useAppStore = create<AppState>()(
           const filtered = state.quizResponses.filter(
             (r) => r.fragrance_id !== response.fragrance_id
           );
-          
-          const updated = [...filtered, response].slice(-20);
+    
+         const updated = [...filtered, response].slice(-20);
 
-          return{
-            quizResponses: updated,
-          };
-        }),
+         return {
+          quizResponses: updated,
+        };
+      }),
       clearQuizResponses: () => set({ quizResponses: [] }),
       setCurrentQuizStep: (step) => set({ currentQuizStep: step }),
 
