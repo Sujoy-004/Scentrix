@@ -141,7 +141,7 @@ export const useAppStore = create<AppState>()(
 
       // ── Quiz actions ──────────────────────────────────────────────────
       setQuizId: (id) => set({ quizId: id }),
-      addQuizResponse: (response) =>
+      addQuizResponse: (response: QuizResponse) =>
         set((state) => {
           if (
             !response.fragnance_id ||
