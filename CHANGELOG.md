@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file in real-time, following the **Rewired Senior Architect** protocol.
 
+## [2026-04-30] - Render Dependency Slimming
+- [INFRA] **Backend Requirements Trimmed**: Removed heavyweight ML/runtime packages (`torch`, `sentence-transformers`, `torch-geometric`, `prefect`) from `backend/requirements.txt` to keep Render builds lighter and the deploy surface smaller.
+
 ## [2026-04-29] - Roadmap & Strategy Expansion
 - [DOCS] **Roadmap**: Expanded the "Future Work" section in `README.md` to include technical specifications for Feedback Loops, Evaluation Metrics (CTR, Top-K), and State-aware Personalization.
 
