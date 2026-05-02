@@ -48,7 +48,7 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
     }
   };
 
-  const familyLookup = frag.family || frag.top_accords?.[0] || 'all';
+  const familyLookup = frag.family || frag.top_accords?.[0] || frag.brand || 'all';
   const familyAsset = getFamilyAsset(familyLookup);
   const displayFamily = frag.family || (frag.top_accords?.[0] || 'Universal');
 
@@ -80,7 +80,7 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
       {/* Upper Visual Area */}
       <div className="relative aspect-[4/5] overflow-hidden">
         <img
-          src={frag.image_url || familyAsset.src || '/assets/family/all.png'}
+          src={frag.image_url || familyAsset?.src || '/assets/family/all.png'}
           alt={frag.name}
           className="w-full h-full object-cover transition-transform duration-700 hover:scale-110"
         />
@@ -120,7 +120,7 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
         <h3 className="text-lg font-light text-white mb-4 line-clamp-1">{frag.name}</h3>
         
         <div className="flex flex-wrap gap-2 mb-6">
-          {frag.top_notes?.slice(0, 2).map((note: string) => (
+          {(frag.top_notes?.length ? frag.top_notes : frag.top_accords)?.slice(0, 2).map((note: string) => (
             <span key={note} className="text-[9px] uppercase tracking-widest px-2 py-1 bg-white/5 border border-white/10 rounded-md text-white/60">
               {note}
             </span>
@@ -130,7 +130,7 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
         <div className="mt-auto flex items-center justify-between">
            <div className="flex items-center gap-1">
              <span className="text-amber-500 text-sm">★</span>
-             <span className="text-xs font-bold text-white/80">{frag.rating ? frag.rating.toFixed(1) : '—'}</span>
+             <span className="text-xs font-bold text-white/80">{frag.rating ? frag.rating.toFixed(1) : 'N/A'}</span>
            </div>
            
            <div className="flex gap-2">
