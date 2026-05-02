@@ -18,7 +18,7 @@ export default function FragrancesPage() {
     const fetchFragrances = async () => {
       try {
         // CHANGE this to your actual backend endpoint
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/fragrances`)
+        const res = await fetch('https://scentrix-backend-prod.onrender.com/fragrances')
 
         if (!res.ok) throw new Error('Failed to fetch')
 
