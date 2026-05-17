@@ -1,7 +1,7 @@
 """Pydantic request/response schemas for Scentrix API."""
 
 from datetime import datetime
-from typing import Any, List, Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -420,9 +420,10 @@ class ErrorResponse(BaseModel):
 
 class StandardResponse(BaseModel):
     """Global API response wrapper.
-    
+
     Standardizes all successful and failed responses into a common structure.
     """
+
     status: Literal["success", "error"]
     data: Any | None = None
     code: int | None = None
@@ -438,10 +439,9 @@ class FragranceRecommendation(BaseModel):
 class GuestRatingInput(BaseModel):
     fragrance_id: str
     rating: float
-    top_notes: List[str] = []
-    accords: List[str] = []
+    top_notes: list[str] = []
+    accords: list[str] = []
 
 
 class GuestRecommendationRequest(BaseModel):
-    ratings: List[GuestRatingInput]
-
+    ratings: list[GuestRatingInput]

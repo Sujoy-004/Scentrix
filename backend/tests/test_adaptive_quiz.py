@@ -137,12 +137,12 @@ async def _register_and_login(client: AsyncClient) -> tuple[dict[str, str], int]
         },
     )
     assert login.status_code == 200
-    token = login.json()["access_token"]
+    token = login.json()["data"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     me = await client.get("/auth/me", headers=headers)
     assert me.status_code == 200
-    return headers, int(me.json()["id"])
+    return headers, int(me.json()["data"]["id"])
 
 
 async def test_quiz_start_accessible_without_auth(client: AsyncClient):
@@ -183,7 +183,7 @@ async def test_quiz_start_submit_and_evaluate_flow(
         headers=headers,
     )
     assert start.status_code == 200
-    payload = start.json()
+    payload = start.json()["data"]
     session_id = payload["session_id"]
     assert len(payload["seed_questions"]) == 8
 
@@ -194,7 +194,7 @@ async def test_quiz_start_submit_and_evaluate_flow(
         headers=headers,
     )
     assert submit.status_code == 200
-    submit_payload = submit.json()
+    submit_payload = submit.json()["data"]
     assert submit_payload["accepted"] is True
     assert submit_payload["normalized_rating_0_to_5"] == 3.9
     assert submit_payload["answers_count"] == 1
@@ -205,7 +205,7 @@ async def test_quiz_start_submit_and_evaluate_flow(
         headers=headers,
     )
     assert evaluate.status_code == 200
-    evaluate_payload = evaluate.json()
+    evaluate_payload = evaluate.json()["data"]
     assert evaluate_payload["total_answered"] == 1
     assert evaluate_payload["stop_reason"] == "core_incomplete"
 
@@ -296,7 +296,7 @@ async def test_quiz_next_questions_excludes_served_and_answered(
     )
     assert response.status_code == 200
 
-    payload = response.json()
+    payload = response.json()["data"]
     assert payload["count"] <= 3
 
     returned_ids = {item["fragrance_id"] for item in payload["questions"]}

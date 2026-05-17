@@ -9,7 +9,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.auth import get_user_id_from_token, verify_token
+from app.auth.auth import verify_token
 from app.database import get_session
 from app.services.supabase_auth import (
     SupabaseAuthError,

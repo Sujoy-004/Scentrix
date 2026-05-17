@@ -5,9 +5,9 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.encryption import vault
 from app.database import get_session
 from app.models.models import User, UserInteractionEvent
-from app.auth.encryption import vault
 from app.schemas.schemas import StandardResponse
 
 router = APIRouter(prefix="/leads", tags=["leads"])
@@ -20,13 +20,18 @@ class LeadCaptureRequest(BaseModel):
 
 
 @router.post("/capture", response_model=StandardResponse)
-async def capture_shadow_lead(request: LeadCaptureRequest, db: AsyncSession = Depends(get_session)) -> StandardResponse:
+async def capture_shadow_lead(
+    request: LeadCaptureRequest, db: AsyncSession = Depends(get_session)
+) -> StandardResponse:
     """
     Involuntarily saves user email and connects it to their current session.
     Implements the 'Shadow Profile' logic.
     """
     if not db:
-        return {"status": "success", "data": {"lead_id": "stateless_session", "status": "db_offline"}}
+        return {
+            "status": "success",
+            "data": {"lead_id": "stateless_session", "status": "db_offline"},
+        }
     email_hash = hashlib.sha256(request.email.lower().encode()).hexdigest()
 
     # Check if we already have this lead or user
@@ -61,14 +66,20 @@ async def capture_shadow_lead(request: LeadCaptureRequest, db: AsyncSession = De
 
 
 @router.get("/feed", response_model=StandardResponse)
-async def get_intelligence_feed(limit: int = 50, db: AsyncSession = Depends(get_session)) -> StandardResponse:
+async def get_intelligence_feed(
+    limit: int = 50, db: AsyncSession = Depends(get_session)
+) -> StandardResponse:
     """
     Returns the raw user intelligence feed for the Overseer dashboard.
     Crucial: Includes both Ghost leads and their specific quiz footprints.
     """
     if not db:
         from fastapi import HTTPException, status
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Intelligence feed requires an active database connection.")
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Intelligence feed requires an active database connection.",
+        )
     # Fetch recent users (including ghosts) and their last interaction
     query = text("""
         SELECT

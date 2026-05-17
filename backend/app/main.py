@@ -1,27 +1,27 @@
 """FastAPI application entry point for Scentrix backend."""
 
 import logging
-import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-# DB Status Check
-from app.database import DB_AVAILABLE, close_db, init_db
-
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
+from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
 
 from app.config import settings
+
+# DB Status Check
+from app.database import DB_AVAILABLE, close_db
+
 ML_ENABLED = settings.ml_enabled
-from app.database import DB_AVAILABLE, close_db, engine, init_db
+from app.database import engine
 from app.limiter import limiter
-from app.schemas.schemas import StandardResponse
 from app.routers import auth, fragrances, leads, quiz, recommendations, users
+from app.schemas.schemas import StandardResponse
 from app.sentry_config import init_sentry
 
 # Initialize Sentry for error tracking (if configured)
@@ -53,11 +53,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # Universal Warm-up (Hydrating Discovery Brain & Knowledge Graph)
     try:
-        import asyncio
-
-        from app.routers.recommendations import warmup_neural_engine
-        from app.services.catalog import load_recommendation_catalog_async
-
         logger.info("Universal Boiler: Waking up Neural & Catalog Engines...")
         # NO ML loading blocks startup - lazy loading enabled
         # warmup_neural_engine()
@@ -96,7 +91,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # ty
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -107,11 +102,7 @@ app.add_middleware(
 async def http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(
         status_code=exc.status_code,
-        content={
-            "status": "error",
-            "code": exc.status_code,
-            "message": exc.detail
-        }
+        content={"status": "error", "code": exc.status_code, "message": exc.detail},
     )
 
 
@@ -120,12 +111,9 @@ async def universal_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled error: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={
-            "status": "error",
-            "code": 500,
-            "message": "Internal server error"
-        }
+        content={"status": "error", "code": 500, "message": "Internal server error"},
     )
+
 
 # Include routers
 app.include_router(auth.router)

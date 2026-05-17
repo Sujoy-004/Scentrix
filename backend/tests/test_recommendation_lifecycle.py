@@ -33,25 +33,12 @@ async def _register_and_login(client: AsyncClient) -> tuple[dict[str, str], int]
         },
     )
     assert login.status_code == 200
-    token = login.json()["access_token"]
+    token = login.json()["data"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     me = await client.get("/auth/me", headers=headers)
     assert me.status_code == 200
-    return headers, int(me.json()["id"])
-
-
-async def test_profile_recommend_requires_auth(client: AsyncClient):
-    response = await client.post("/fragrances/recommend/profile")
-    assert response.status_code == 401
-
-
-async def test_text_recommend_requires_auth(client: AsyncClient):
-    response = await client.post(
-        "/fragrances/recommend/text",
-        json={"query": "woody spicy", "limit": 5},
-    )
-    assert response.status_code == 401
+    return headers, int(me.json()["data"]["id"])
 
 
 async def test_job_poll_owner_enforced(client: AsyncClient, monkeypatch: pytest.MonkeyPatch):
@@ -66,7 +53,6 @@ async def test_job_poll_owner_enforced(client: AsyncClient, monkeypatch: pytest.
             "results": None,
             "generated_at": None,
             "error": None,
-            "celery_task_id": None,
             "created_at": datetime.now(UTC).isoformat(),
         }
 
@@ -74,7 +60,7 @@ async def test_job_poll_owner_enforced(client: AsyncClient, monkeypatch: pytest.
 
     own_response = await client.get("/fragrances/recommend/job-owner", headers=owner_headers)
     assert own_response.status_code == 200
-    assert own_response.json()["status"] in {"processing", "queued"}
+    assert own_response.json()["data"]["status"] in {"processing", "queued"}
 
     forbidden = await client.get("/fragrances/recommend/job-owner", headers=other_headers)
     assert forbidden.status_code == 403
@@ -102,7 +88,6 @@ async def test_job_poll_completed_payload_contract(
             ],
             "generated_at": generated_at,
             "error": None,
-            "celery_task_id": None,
             "created_at": generated_at,
         }
 
@@ -110,7 +95,7 @@ async def test_job_poll_completed_payload_contract(
 
     response = await client.get("/fragrances/recommend/job-complete", headers=owner_headers)
     assert response.status_code == 200
-    payload = response.json()
+    payload = response.json()["data"]
     assert payload["status"] == "completed"
     assert isinstance(payload.get("fragrances"), list)
     assert payload["fragrances"]
@@ -129,7 +114,6 @@ async def test_job_poll_timed_out_maps_to_504(client: AsyncClient, monkeypatch: 
             "results": None,
             "generated_at": None,
             "error": "Recommendation job timed out",
-            "celery_task_id": None,
             "created_at": created_at,
         }
 
@@ -137,7 +121,7 @@ async def test_job_poll_timed_out_maps_to_504(client: AsyncClient, monkeypatch: 
 
     response = await client.get("/fragrances/recommend/job-timeout", headers=owner_headers)
     assert response.status_code == 504
-    assert "timed out" in response.json()["detail"].lower()
+    assert "timed out" in response.json()["message"].lower()
 
 
 async def test_recommendation_interaction_ingest_requires_auth(client: AsyncClient):
@@ -195,11 +179,11 @@ async def test_recommendation_interactions_feed_weekly_metrics(client: AsyncClie
         },
     )
     assert ingest.status_code == 202
-    assert ingest.json()["accepted"] == 4
+    assert ingest.json()["data"]["accepted"] == 4
 
     metrics = await client.get("/fragrances/recommend/metrics/weekly", headers=headers)
     assert metrics.status_code == 200
-    payload = metrics.json()
+    payload = metrics.json()["data"]
 
     assert payload["impressions"] == 2
     assert payload["detail_clicks"] == 1

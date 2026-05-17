@@ -1,8 +1,8 @@
 import logging
 import os
-import psutil
 from typing import Any
 
+import psutil
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -12,23 +12,22 @@ from app.auth.dependencies import get_current_user_id, get_optional_user_id
 from app.cache import cache
 from app.database import get_session
 from app.models.models import FragranceRating as DBFragranceRating
-from app.services.catalog import load_recommendation_catalog
-from app.services.hybrid_search import _catalog_embeddings_cache, _is_hydrating, recommender
 from app.schemas.schemas import (
     FragranceRecommendation,
     GuestRecommendationRequest,
     StandardResponse,
-    RecommendationResult,
-    RecommendationJob,
 )
+from app.services.catalog import load_recommendation_catalog
+from app.services.hybrid_search import _catalog_embeddings_cache, recommender
 
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 logger = logging.getLogger(__name__)
 
 # State and Warmup logic moved to app.services.hybrid_search
 
+
 def log_mem(stage):
-    m = psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)
+    m = psutil.Process(os.getpid()).memory_info().rss / (1024**2)
     print(f"[MEM] {stage}: {m:.2f} MB")
 
 
@@ -206,7 +205,6 @@ async def get_guest_recommendations(
         logger.info("ML_LAZY_LOAD: Triggering first-time warmup for guest...")
         warmup_neural_engine()
         log_mem("AFTER_EMBEDDINGS")
-
 
     try:
         seed_ids = [_normalize_id(r.fragrance_id) for r in request.ratings]

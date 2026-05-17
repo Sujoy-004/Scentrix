@@ -35,12 +35,12 @@ from app.schemas.schemas import (
     RecommendationJob,
     RecommendationResult,
     RecommendationWeeklyMetrics,
-    TextRecommendationRequest,
     StandardResponse,
+    TextRecommendationRequest,
 )
 from app.services.catalog import load_recommendation_catalog
 from app.services.hybrid_search import recommender
-from app.services.job_store import create_job, get_job, is_job_timed_out, update_job
+from app.services.job_store import create_job, get_job
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/fragrances", tags=["fragrances"])
@@ -870,7 +870,6 @@ async def recommend_by_profile(
     user_id: int = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session),
 ) -> StandardResponse:
-
     """Generate recommendations based on user's fragrance ratings (async job).
 
     Requires authentication. Uses user's taste vector built from their ratings

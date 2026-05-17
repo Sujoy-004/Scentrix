@@ -30,7 +30,6 @@ from app.schemas.schemas import (
     QuizSessionRules,
     QuizSessionStartRequest,
     QuizSessionStartResponse,
-    QuizSessionStartResponse,
     QuizSessionSubmitResponseRequest,
     QuizSessionSubmitResponseResponse,
     StandardResponse,
@@ -92,7 +91,9 @@ def _safe_float(value: object) -> float:
         return 0.0
 
 
-def _select_seed_questions(rows: list[dict], count: int, rng: random.Random | None = None) -> list[dict]:
+def _select_seed_questions(
+    rows: list[dict], count: int, rng: random.Random | None = None
+) -> list[dict]:
     if not rows:
         return []
 
@@ -303,7 +304,7 @@ async def start_quiz_session(
         logger.warning(f"Exclude-seen filter skipped for user {user_id}: DB_OFFLINE")
 
     session_id = f"qz_{uuid4().hex[:8]}"
-    # Seed with session_id for intra-session determinism if needed, 
+    # Seed with session_id for intra-session determinism if needed,
     # but ensure variety across sessions.
     rng = random.Random(session_id)
 
@@ -482,7 +483,10 @@ async def finalize_quiz_session(
     logger.info(
         f"Quiz Session {session_id} finalized for user {user_id}. {len(responses)} ratings synced."
     )
-    return {"status": "success", "data": {"count": len(responses), "message": "Quiz data synced to profile"}}
+    return {
+        "status": "success",
+        "data": {"count": len(responses), "message": "Quiz data synced to profile"},
+    }
 
 
 @router.post("/{session_id}/evaluate", response_model=StandardResponse)

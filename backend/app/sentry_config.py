@@ -31,13 +31,6 @@ def init_sentry() -> None:
         integrations.append(SqlalchemyIntegration())
 
     try:
-        from sentry_sdk.integrations.celery import CeleryIntegration
-    except ImportError:
-        pass
-    else:
-        integrations.append(CeleryIntegration())
-
-    try:
         from sentry_sdk.integrations.redis import RedisIntegration
     except ImportError:
         pass

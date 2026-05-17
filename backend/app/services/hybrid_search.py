@@ -31,10 +31,12 @@ logger = logging.getLogger(__name__)
 _catalog_embeddings_cache = None
 _is_hydrating: bool = False
 
+
 def log_mem(stage):
     import psutil
+
     try:
-        m = psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)
+        m = psutil.Process(os.getpid()).memory_info().rss / (1024**2)
         logger.info(f"[MEM] {stage}: {m:.2f} MB")
     except Exception:
         pass
@@ -53,7 +55,9 @@ class HybridRecommender:
             try:
                 self.pc = Pinecone(api_key=settings.pinecone_api_key)
                 self.text_index = self.pc.Index(settings.pinecone_index_name)
-                logger.info(f"Neural Engine: Connected to Text Index '{settings.pinecone_index_name}'")
+                logger.info(
+                    f"Neural Engine: Connected to Text Index '{settings.pinecone_index_name}'"
+                )
             except Exception as e:
                 logger.warning(f"Neural Engine: Vector indices unreachable: {e}")
                 self.pc = None
@@ -75,11 +79,11 @@ class HybridRecommender:
         self.embeddings = None
         self.embedding_index = None
         self.semantic_enabled = False
-        
+
         base_dir = os.getcwd()
         embeddings_path = os.path.join(base_dir, "ml", "data", "embeddings.npy")
         index_path = os.path.join(base_dir, "ml", "data", "embedding_index.json")
-        
+
         if np is not None and os.path.exists(embeddings_path) and os.path.exists(index_path):
             try:
                 self.embeddings = np.load(embeddings_path)
@@ -87,11 +91,13 @@ class HybridRecommender:
                 norms = np.linalg.norm(self.embeddings, axis=1, keepdims=True)
                 norms[norms == 0] = 1.0
                 self.embeddings = self.embeddings / norms
-                
-                with open(index_path, 'r', encoding='utf-8') as f:
+
+                with open(index_path, "r", encoding="utf-8") as f:
                     self.embedding_index = json.load(f)
                 self.semantic_enabled = True
-                logger.info(f"Neural Engine: Semantic embeddings loaded and normalized ({len(self.embedding_index)} items)")
+                logger.info(
+                    f"Neural Engine: Semantic embeddings loaded and normalized ({len(self.embedding_index)} items)"
+                )
             except Exception as e:
                 logger.warning(f"Neural Engine: Semantic embeddings load failed: {e}")
 
@@ -177,10 +183,10 @@ class HybridRecommender:
         if not candidates_map:
             catalog = load_recommendation_catalog()
             # Simple scoring based on notes/accords overlap if we can't use ML
-            for item in catalog[:200]: # Limit scan for speed
+            for item in catalog[:200]:  # Limit scan for speed
                 candidates_map[item["id"]] = {
                     "id": item["id"],
-                    "text_score": 0.5, # Baseline score
+                    "text_score": 0.5,  # Baseline score
                     "graph_score": 0.0,
                     "metadata": item,
                 }
@@ -230,8 +236,9 @@ class HybridRecommender:
     ) -> list[dict[str, Any]]:
         """Main entry point for Optimized Rule-Based Discovery."""
         import time
+
         start_total = time.perf_counter()
-        
+
         catalog = load_recommendation_catalog()
         if not catalog:
             return []
@@ -241,17 +248,27 @@ class HybridRecommender:
         target_accords = set()
         target_families = set()
         target_occasions = set()
-        
+
         # Check if we got a vector (legacy search pass) or ratings
         is_vector = len(ratings) > 0 and isinstance(ratings[0], (int, float))
-        
+
         # Fresh/Day Proxy Accords
         FRESH_ACCORDS = {"fresh", "citrus", "floral", "green", "aquatic", "aromatic", "fresh spicy"}
         # Warm/Night Proxy Accords
-        WARM_ACCORDS = {"warm spicy", "amber", "tobacco", "leather", "oud", "sweet", "vanilla", "animalic", "balsamic"}
+        WARM_ACCORDS = {
+            "warm spicy",
+            "amber",
+            "tobacco",
+            "leather",
+            "oud",
+            "sweet",
+            "vanilla",
+            "animalic",
+            "balsamic",
+        }
 
         catalog_map = {str(item["id"]): item for item in catalog}
-        
+
         if is_vector:
             # For vector-based (semantic search fallback in safe mode), we just use a default high-count profile
             # In a real setup, we'd do vector similarity, but here we just return popularity if ML is off.
@@ -259,48 +276,72 @@ class HybridRecommender:
         else:
             seeds_count = 0
             for r in ratings:
-                fid = str(getattr(r, "fragrance_id", r.get("fragrance_id", "") if isinstance(r, dict) else ""))
+                fid = str(
+                    getattr(
+                        r, "fragrance_id", r.get("fragrance_id", "") if isinstance(r, dict) else ""
+                    )
+                )
                 score = getattr(r, "rating", r.get("rating", 5.0) if isinstance(r, dict) else 5.0)
                 # if score < 6.0: continue  # Skip low ratings for profile building
 
-                provided_notes = getattr(r, "top_notes", r.get("top_notes", []) if isinstance(r, dict) else [])
-                provided_accords = getattr(r, "accords", r.get("accords", []) if isinstance(r, dict) else [])
+                provided_notes = getattr(
+                    r, "top_notes", r.get("top_notes", []) if isinstance(r, dict) else []
+                )
+                provided_accords = getattr(
+                    r, "accords", r.get("accords", []) if isinstance(r, dict) else []
+                )
                 if provided_notes:
                     target_notes.update(provided_notes)
                 if provided_accords:
                     target_accords.update(provided_accords)
-                
+
                 item = catalog_map.get(fid)
-                if not item: continue
-                
+                if not item:
+                    continue
+
                 seeds_count += 1
                 target_notes.update(item.get("_notes_set", set()))
                 item_accords = item.get("_accords_set", set())
                 target_accords.update(item_accords)
-                
+
                 # Extract family from description or accords
                 desc = item.get("description", "").lower()
-                for family in ["woody", "citrus", "oriental", "floral", "fruity", "aromatic", "leather", "chypre"]:
+                for family in [
+                    "woody",
+                    "citrus",
+                    "oriental",
+                    "floral",
+                    "fruity",
+                    "aromatic",
+                    "leather",
+                    "chypre",
+                ]:
                     if family in desc or family in item_accords:
                         target_families.add(family)
-                
+
                 # Extract occasion proxy
-                if any(a in FRESH_ACCORDS for a in item_accords): target_occasions.add("day")
-                if any(a in WARM_ACCORDS for a in item_accords): target_occasions.add("night")
+                if any(a in FRESH_ACCORDS for a in item_accords):
+                    target_occasions.add("day")
+                if any(a in WARM_ACCORDS for a in item_accords):
+                    target_occasions.add("night")
 
         # 1.5 Semantic User Profile (Averaging item embeddings)
         user_embedding = None
         if self.semantic_enabled and not is_vector:
             profile_vecs = []
             for r in ratings:
-                fid = str(getattr(r, "fragrance_id", r.get("fragrance_id", "") if isinstance(r, dict) else ""))
+                fid = str(
+                    getattr(
+                        r, "fragrance_id", r.get("fragrance_id", "") if isinstance(r, dict) else ""
+                    )
+                )
                 score = getattr(r, "rating", r.get("rating", 5.0) if isinstance(r, dict) else 5.0)
                 # if score < 6.0: continue
-                
+
                 idx = self.embedding_index.get(fid)
                 if idx is not None:
                     profile_vecs.append(self.embeddings[idx])
-            
+
             if profile_vecs:
                 user_embedding = np.mean(profile_vecs, axis=0)
                 # Normalize user embedding once
@@ -328,68 +369,75 @@ class HybridRecommender:
                     "reason": "Popular Choice",
                     "top_accords": item.get("accords", [])[:3],
                     "top_notes": item.get("top_notes", [])[:3],
-                } for item in sorted(catalog, key=lambda x: x.get("rating_count", 0), reverse=True)[:12]
+                }
+                for item in sorted(catalog, key=lambda x: x.get("rating_count", 0), reverse=True)[
+                    :12
+                ]
             ]
 
         # 2. Candidate Pooling & Scoring
         scored_candidates = []
         seed_id_set = set(user_seed_ids)
-        
+
         start_scoring = time.perf_counter()
-        
+
         import math
 
         # Pre-filter catalog to reduce scoring overhead (Target: <1000 items)
         candidate_pool = []
         for item in catalog:
             item_id = str(item["id"])
-            if item_id in seed_id_set: continue
-            
+            if item_id in seed_id_set:
+                continue
+
             # Phase 1 Filter: Accord Overlap (Weighted)
             item_accords = item.get("_accords_set", set())
             overlap_a = len(target_accords.intersection(item_accords))
-            if overlap_a >= 2: # Require at least 2 matching accords for fast path
+            if overlap_a >= 2:  # Require at least 2 matching accords for fast path
                 candidate_pool.append(item)
                 continue
-                
+
             # Phase 2 Filter: Note Overlap (High precision)
             item_notes = item.get("_notes_set", set())
             overlap_n = len(target_notes.intersection(item_notes))
-            if overlap_n >= 5: # Require significant note overlap
+            if overlap_n >= 5:  # Require significant note overlap
                 candidate_pool.append(item)
                 continue
-            
+
             # Phase 3 Filter: Family match (Strict)
             desc = item.get("description", "").lower()
             if any(family in desc for family in target_families):
                 candidate_pool.append(item)
-        
+
         # Hard cap on candidate pool for latency stability
         if len(candidate_pool) > 1000:
             candidate_pool.sort(key=lambda x: x.get("rating_count", 0), reverse=True)
             candidate_pool = candidate_pool[:1000]
-        
+
         # Ensure we have at least some candidates, otherwise take top popularity
         if len(candidate_pool) < 20:
-            candidate_pool = sorted(catalog, key=lambda x: x.get("rating_count", 0), reverse=True)[:100]
+            candidate_pool = sorted(catalog, key=lambda x: x.get("rating_count", 0), reverse=True)[
+                :100
+            ]
 
         print("DEBUG CANDIDATES:", len(candidate_pool))
 
         for item in candidate_pool:
             item_id = str(item["id"])
-            if item_id in seed_id_set: continue
-            
+            if item_id in seed_id_set:
+                continue
+
             # a) NOTE_SIMILARITY (0.35) - Jaccard
             item_notes = item.get("_notes_set", set())
             intersection_n = len(target_notes.intersection(item_notes))
             union_n = len(target_notes.union(item_notes))
             note_sim = (intersection_n / union_n) if union_n > 0 else 0
-            
+
             # b) ACCORD_SIMILARITY (0.25) - Overlap
             item_accords = item.get("_accords_set", set())
             intersection_a = len(target_accords.intersection(item_accords))
-            accord_sim = (intersection_a / max(len(target_accords), 1))
-            
+            accord_sim = intersection_a / max(len(target_accords), 1)
+
             # c) CATEGORY_MATCH (0.15)
             cat_match = 0.0
             desc = item.get("description", "").lower()
@@ -397,21 +445,25 @@ class HybridRecommender:
                 if family in desc or family in item_accords:
                     cat_match = 1.0
                     break
-            
+
             # d) OCCASION_MATCH (0.10)
             occ_match = 0.0
             item_occ = set()
-            if any(a in FRESH_ACCORDS for a in item_accords): item_occ.add("day")
-            if any(a in WARM_ACCORDS for a in item_accords): item_occ.add("night")
+            if any(a in FRESH_ACCORDS for a in item_accords):
+                item_occ.add("day")
+            if any(a in WARM_ACCORDS for a in item_accords):
+                item_occ.add("night")
             if target_occasions.intersection(item_occ):
                 occ_match = 1.0
-                
+
             # e) SEMANTIC_SCORE (0.15)
             semantic_score = 0.0
             if user_embedding is not None:
                 item_idx = self.embedding_index.get(item_id)
                 if item_idx is not None:
-                    semantic_score = self._cosine_similarity(user_embedding, self.embeddings[item_idx])
+                    semantic_score = self._cosine_similarity(
+                        user_embedding, self.embeddings[item_idx]
+                    )
 
             # f) POPULARITY_SCORE (0.10)
             # Normalizing log10(count) [0 to 4] and rating [1 to 5]
@@ -420,61 +472,62 @@ class HybridRecommender:
             rv = item.get("rating_value", 3.5)
             pop_val_score = (rv - 1.0) / 4.0
             popularity = (pop_count_score * 0.6) + (pop_val_score * 0.4)
-            
+
             # Compute Final Base Score
             # Weight update: 0.35->0.30, 0.25->0.20, +0.15 Semantic
             if self.semantic_enabled and user_embedding is not None:
                 base_score = (
-                    (0.30 * note_sim) +
-                    (0.20 * accord_sim) +
-                    (0.15 * semantic_score) +
-                    (0.15 * cat_match) +
-                    (0.10 * occ_match) +
-                    (0.10 * popularity)
+                    (0.30 * note_sim)
+                    + (0.20 * accord_sim)
+                    + (0.15 * semantic_score)
+                    + (0.15 * cat_match)
+                    + (0.10 * occ_match)
+                    + (0.10 * popularity)
                 )
             else:
                 # Fallback to pure rule-based weights if semantic is off
                 base_score = (
-                    (0.35 * note_sim) +
-                    (0.25 * accord_sim) +
-                    (0.15 * cat_match) +
-                    (0.15 * occ_match) + # Give slightly more weight to occasion/popularity in fallback
-                    (0.10 * popularity)
+                    (0.35 * note_sim)
+                    + (0.25 * accord_sim)
+                    + (0.15 * cat_match)
+                    + (
+                        0.15 * occ_match
+                    )  # Give slightly more weight to occasion/popularity in fallback
+                    + (0.10 * popularity)
                 )
-            
-            scored_candidates.append({
-                "id": item_id,
-                "base_score": base_score,
-                "item": item
-            })
+
+            scored_candidates.append({"id": item_id, "base_score": base_score, "item": item})
 
         print("DEBUG SCORED COUNT:", len(scored_candidates))
 
         # 3. Selection with DIVERSITY_PENALTY (0.05)
         scored_candidates.sort(key=lambda x: x["base_score"], reverse=True)
-        top_n = scored_candidates[:100] # Candidate pool for diversity pass
-        
+        top_n = scored_candidates[:100]  # Candidate pool for diversity pass
+
         final_selections = []
         selected_accords_union = set()
-        
+
         for _ in range(12):
-            if not top_n: break
-            
+            if not top_n:
+                break
+
             best_idx = -1
             best_final_score = -1.0
-            
+
             for i, cand in enumerate(top_n):
                 # f) DIVERSITY_PENALTY
                 # Penalize if it shares accords with already selected set
-                overlap = len(cand["item"].get("_accords_set", set()).intersection(selected_accords_union))
-                penalty = min(overlap * 0.1, 1.0) # Penalty builds up
-                
+                overlap = len(
+                    cand["item"].get("_accords_set", set()).intersection(selected_accords_union)
+                )
+                penalty = min(overlap * 0.1, 1.0)  # Penalty builds up
+
                 final_score = cand["base_score"] - (0.05 * penalty)
-                
+
                 if final_score > best_final_score:
                     best_final_score = final_score
                     best_idx = i
-            
+
             winner = top_n.pop(best_idx)
             final_selections.append(winner)
             selected_accords_union.update(winner["item"].get("_accords_set", set()))
@@ -483,27 +536,33 @@ class HybridRecommender:
         results = []
         for s in final_selections:
             item = s["item"]
-            score = s["base_score"] # We display the match relevance, penalty is for selection
-            
+            score = s["base_score"]  # We display the match relevance, penalty is for selection
+
             # Adaptive reasoning
             reason = "Atmospheric Resonance"
-            if s["base_score"] > 0.6: reason = "Olfactory Soulmate"
-            elif s["base_score"] > 0.4: reason = "Harmonious Discovery"
+            if s["base_score"] > 0.6:
+                reason = "Olfactory Soulmate"
+            elif s["base_score"] > 0.4:
+                reason = "Harmonious Discovery"
 
-            results.append({
-                "id": item["id"],
-                "name": item["name"],
-                "brand": item["brand"],
-                "match_score": round(score * 100, 1),
-                "reason": reason,
-                "top_accords": item.get("accords", [])[:3],
-                "top_notes": item.get("top_notes", [])[:3],
-            })
-            
+            results.append(
+                {
+                    "id": item["id"],
+                    "name": item["name"],
+                    "brand": item["brand"],
+                    "match_score": round(score * 100, 1),
+                    "reason": reason,
+                    "top_accords": item.get("accords", [])[:3],
+                    "top_notes": item.get("top_notes", [])[:3],
+                }
+            )
+
         end_total = time.perf_counter()
         total_ms = (end_total - start_total) * 1000
         scoring_ms = (end_total - start_scoring) * 1000
-        logger.info(f"Discovery Engine: Optimized pass completed in {total_ms:.1f}ms (scoring: {scoring_ms:.1f}ms) | Pool: {len(candidate_pool)}")
+        logger.info(
+            f"Discovery Engine: Optimized pass completed in {total_ms:.1f}ms (scoring: {scoring_ms:.1f}ms) | Pool: {len(candidate_pool)}"
+        )
 
         scored_results = results
         fallback_results = [

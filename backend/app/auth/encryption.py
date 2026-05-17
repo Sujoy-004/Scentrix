@@ -1,5 +1,6 @@
 try:
     from cryptography.fernet import Fernet
+
     _CRYPTO_AVAILABLE = True
 except ImportError:
     Fernet = None
@@ -22,19 +23,19 @@ class DataVault:
         if not data:
             return data
         if not self.fernet:
-            return data # Pass-through in stateless/limited mode
+            return data  # Pass-through in stateless/limited mode
         return self.fernet.encrypt(data.encode()).decode()
 
     def decrypt(self, encrypted_data: str) -> str:
         """Decrypt string data from DB storage.
-        
+
         Raises:
             ValueError: If decryption fails.
         """
         if not encrypted_data:
             return encrypted_data
         if not self.fernet:
-            return encrypted_data # Pass-through
+            return encrypted_data  # Pass-through
         try:
             return self.fernet.decrypt(encrypted_data.encode()).decode()
         except Exception as exc:

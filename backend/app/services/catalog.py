@@ -144,7 +144,13 @@ def load_recommendation_catalog(force_reload: bool = False) -> list[dict[str, An
             if not os.path.exists(json_path):
                 json_path = os.path.abspath(
                     os.path.join(
-                        os.path.dirname(__file__), "..", "..", "..", "ml", "data", "scentrix_master.json"
+                        os.path.dirname(__file__),
+                        "..",
+                        "..",
+                        "..",
+                        "ml",
+                        "data",
+                        "scentrix_master.json",
                     )
                 )
 

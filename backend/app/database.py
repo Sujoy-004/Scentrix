@@ -30,9 +30,11 @@ try:
     DB_AVAILABLE = True
 except Exception:
     import logging
-    logging.getLogger(__name__).error("DATABASE_OFFLINE: Failed to create engine. Falling back to Stateless Mode.")
 
-from fastapi import HTTPException, status
+    logging.getLogger(__name__).error(
+        "DATABASE_OFFLINE: Failed to create engine. Falling back to Stateless Mode."
+    )
+
 
 async def get_session() -> AsyncGenerator[AsyncSession | None, None]:
     """Dependency: Get an async database session.
@@ -50,6 +52,8 @@ async def get_session() -> AsyncGenerator[AsyncSession | None, None]:
             raise
         finally:
             await session.close()
+
+
 async def init_db():
     """Initialize database schema (create tables)."""
     if not DB_AVAILABLE or engine is None:

@@ -26,7 +26,6 @@ from app.models.models import RefreshToken, User
 from app.schemas.schemas import (
     RefreshTokenRequest,
     StandardResponse,
-    TokenResponse,
     UserLogin,
     UserProfile,
     UserRegister,
@@ -82,7 +81,10 @@ async def register(
 ) -> StandardResponse:
     """Register a new user account."""
     if not session:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Authentication database is offline.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication database is offline.",
+        )
     email_hash = _hash_email(user_data.email)
 
     # Check if user already exists
@@ -182,7 +184,10 @@ async def login(
 ) -> StandardResponse:
     """Login with email and password."""
     if not session:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Authentication database is offline.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication database is offline.",
+        )
     email_hash = _hash_email(credentials.email)
 
     if is_supabase_configured():
@@ -191,9 +196,7 @@ async def login(
             supabase_user = extract_supabase_user_payload(session_data)
             sb_user = await sync_local_user_from_supabase(session, supabase_user)
 
-            logger.info(
-                "User logged in via Supabase: %s (local ID: %s)", email_hash, sb_user.id
-            )
+            logger.info("User logged in via Supabase: %s (local ID: %s)", email_hash, sb_user.id)
 
             return {
                 "status": "success",
@@ -262,7 +265,10 @@ async def refresh_token(
 ) -> StandardResponse:
     """Refresh access token using a valid refresh token."""
     if not session:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Authentication database is offline.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication database is offline.",
+        )
 
     if is_supabase_configured():
         try:
@@ -326,7 +332,10 @@ async def logout(
 ) -> StandardResponse:
     """Logout by revoking all refresh tokens for this user."""
     if not session:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Authentication database is offline.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication database is offline.",
+        )
     # Revoke all active refresh tokens for this user
     stmt = select(RefreshToken).where(
         RefreshToken.user_id == user_id,
@@ -354,7 +363,10 @@ async def get_current_user(
 ) -> StandardResponse:
     """Get current authenticated user's profile."""
     if not session:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Authentication database is offline.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication database is offline.",
+        )
     stmt = select(User).where(User.id == user_id)
     result = await session.execute(stmt)
     user = result.scalar_one_or_none()
@@ -371,7 +383,7 @@ async def get_current_user(
     except ValueError:
         logger.error(f"DECRYPTION_FAILURE: Failed to decrypt email for user {user.id}")
         email = None
-        
+
     try:
         full_name = vault.decrypt(user.encrypted_full_name) if user.encrypted_full_name else None
     except ValueError:
