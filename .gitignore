@@ -41,3 +41,5 @@ backend/.coverage
 DESIGN.md
 # coverage artifacts
 .coverage
+# opencode tooling artifacts
+.opencode/
