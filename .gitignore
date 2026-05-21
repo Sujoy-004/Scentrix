@@ -37,3 +37,7 @@ backend/.coverage
 .opencode/sdk/node_modules/
 .opencode/sdk/dist/# opencode/gsd framework internals (regeneratable)
 .agent/
+# opencode design documentation
+DESIGN.md
+# coverage artifacts
+.coverage
