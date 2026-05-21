@@ -1,114 +1,83 @@
 # AGENTS.md (Scentrix)
 
-This repo is a multi-service app:
-- `backend/`: FastAPI API + Celery worker (Python)
-- `frontend/`: Next.js app (TypeScript)
-- `ml/`: ML + data pipeline code (invoked by backend/tasks or run manually)
+Multi-service fragrance discovery platform pivoted into a **cold-start recommendation research platform** (MEXT research plan, July 2026). E2E pipeline is broken — parts exist in isolation, full quiz → GraphSAGE → recommendation flow never connected.
 
-## 🛡️ Security & Privacy (Hardening v1.0)
-- **PII Encryption**: User `full_name` and `email` are encrypted at rest using AES-256 (via `backend/app/auth/encryption.py`).
-- **Data Policy**: Decryption happens on-the-fly in API routers (`auth.py`, `users.py`).
-- **Neural Timeouts**: All LLM-backed services have 10s circuit breakers and 5s timeouts.
+## Services
 
-## 🏺 Feature Map
-- **Unified Master SSOT**: `ml/data/scentrix_master.json` is the sole source of truth (Sovereign 5k Elite Pool).
-- **Discovery Engine**: Adaptive neural quiz with "Aethera" atmospheric persona (`.github/prompts/persona-aethera.md`).
-- **Virtual Scent Shelf**: Collection management with personal olfactory notes and shelf-based visualization.
-- **Universal Context**: All session logic and user profile memory synchronized via `graphify-out/graph.json` and `_brain/`.
+| Dir | Tech | Purpose | Entrypoint |
+|-----|------|---------|------------|
+| `backend/` | FastAPI (Python 3.11+) | REST API | `app/main.py` |
+| `frontend/` | Next.js 16, React 19, Tailwind v4 | Web UI (App Router) | `src/app/` |
+| `ml/` | PyTorch, PyG, Sentence-Transformers | GraphSAGE, embeddings, data pipeline | `ml/models/` |
 
-Prefer commands in the root `Makefile` for day-to-day dev.
+## Quick commands (use root Makefile)
 
-## Quick commands (recommended)
+```
+make up              # docker-compose up -d (postgres, neo4j, redis, backend, frontend)
+make down            # docker-compose down
+make logs            # docker-compose logs -f
+make migrate         # alembic upgrade head (via Docker)
+make seed            # python -m scripts.seed_data (via Docker)
+make test-backend    # pytest --cov=app (via Docker)
+make lint            # ruff + mypy (backend) + eslint (frontend)
+make enrich          # Clean dataset + update Neo4j (via Docker)
+make audit           # Run olfactive diversity audit
+make clean           # docker-compose down -v + rm __pycache__/node_modules/.next
+```
 
-- Start the whole stack (Postgres, Neo4j, Redis, API, worker, frontend):
-  - `make up`
-- Logs:
-  - `make logs`
-- Stop everything:
-  - `make down`
-- DB migrations:
-  - `make migrate`
-- Seed dev/test data:
-  - `make seed`
-- Backend tests (runs inside Docker backend container):
-  - `make test-backend`
-- Lint (backend ruff+mypy in Docker, frontend eslint locally):
-  - `make lint`
-- ML dataset enrichment + Neo4j update (inside Docker backend container):
-  - `make enrich`
+## Known breakages
 
-See: [Makefile](Makefile) and [docker-compose.yml](docker-compose.yml).
+- **Missing `celery_app.py`**: Referenced in `backend/README.md` but never created. `celery>=5.3.6` is a dependency but no code imports it and no worker container exists in docker-compose.
+- **No `npm test` script**: `make test-frontend` runs `npm test` which fails. Use `npm run test:e2e` (Playwright) instead.
+- **`ml/training/` never created**: Documented in `ml/README.md` but directory doesn't exist.
+- **Startup warmup commented out**: `backend/app/main.py:57-59` — neural engine and catalog never preloaded on startup (lazy-loaded on first request).
 
-## Repo boundaries (where to change what)
+## Backend (Python)
 
-- Backend API entrypoint: `backend/app/main.py`
-- Backend routes: `backend/app/routers/`
-- Backend DB/models/schemas/services/tasks: `backend/app/{models,schemas,services,tasks}/`
-- Alembic migrations: `backend/app/migrations/` (configured in [backend/alembic.ini](backend/alembic.ini))
-- Frontend app code: `frontend/src/`
-- ML pipeline + graph logic: `ml/` (this is the canonical ML tree; `backend/ml/` is not used)
-- Internal Utilities: `internal/tools/` (integration tests, persona simulations)
-- Historical Records: `docs/history/` (deployment ledgers, audit logs)
+- **Install**: `cd backend && pip install -e ".[dev,runtime,ml]"`
+- **Run standalone**: `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
+- **Lint/type**: `ruff check app/` / `ruff format --check app/` / `mypy app/`
+- **Test**: `pytest tests/` — tests use **SQLite in-memory** via `conftest.py` (`sqlite+aiosqlite:///:memory:`). CI needs postgres+redis services.
+- **Test env vars**: `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET_KEY`, `SENTRY_DSN=""`
+- **CI pipeline**: ruff → mypy → pytest (runs on push to main/develop/phase/**)
+- **Ruff config**: `backend/ruff.toml` — line-length 100, target py311, select E/W/F/I/C/B/UP, ignore E501/B008
+- **Mypy**: `check_untyped_defs`, `warn_return_any`, ignores `neo4j.*`/`pinecone.*`/`ml.*`
+- **`ml_enabled`** defaults to `False` in `app/config.py` (`Settings.ml_enabled`)
 
-More detail:
-- Backend docs: [backend/README.md](backend/README.md)
-- ML docs: [ml/README.md](ml/README.md)
+## Frontend (TypeScript/Next.js)
 
-## Tooling conventions
+- Install: `cd frontend && npm ci`
+- **Commands**: `npm run dev` / `npm run type-check` (tsc --noEmit) / `npm run lint` (eslint . --fix) / `npm run format` (prettier --write .)
+- **E2E**: `npm run test:e2e` / `npm run test:e2e:ui` (Playwright, 5 browser projects: chromium, firefox, webkit, Mobile Chrome, Mobile Safari)
+- **API mocking**: MSW handlers at `frontend/tests/mocks/handlers.ts` — covers auth, fragrances, recommendations, quiz, wishlist
+- **CI pipeline**: eslint → type-check → build → e2e (chromium only)
 
-### Backend (Python)
+## ML pipeline
 
-- Python version: 3.11+ (see [backend/pyproject.toml](backend/pyproject.toml))
-- Lint/format:
-  - `ruff check ...`
-  - `ruff format ...` (CI uses `ruff format --check`)
-- Types: `mypy app/`
-- Tests: `pytest` (asyncio enabled)
+- Data SSOT: `ml/data/scentrix_master.json` (the sole source of truth)
+- GraphSAGE: `ml/models/graph_sage.py` (2-layer, mean aggregation, 128-dim output) — currently uses random node split, **not** cold-start split
+- Text encoder: `ml/models/text_encoder.py` (SentenceTransformer `all-MiniLM-L6-v2`)
+- Graph validation: `python -m ml.tests.test_graph --profile local`
+- Integration test: `python -m ml.tests.test_integration --cleanup --profile local`
+- Backend container mounts `./ml` at `/app/ml` (no `:ro` flag)
 
-CI is the best “source of truth” for exact gates:
-- [Backend + frontend CI](.github/workflows/ci.yml)
-- [Backend checks](.github/workflows/backend-test.yml)
+## Architecture notes
 
-### Frontend (Node/Next.js)
+- Backend container mounts: `./backend` → `/app`, `./ml` → `/app/ml`
+- Docker service deps: `backend` waits for postgres+neo4j+redis; `frontend` waits for backend
+- SSOT is JSON file — system has fallback paths for DB outages (catalog from JSON, graceful degrades for Neo4j/Redis)
+- `.github/prompts/` contains brand/persona prompts (`architect-neural.md`, `cinematic-ui.md`, `persona-aethera.md`) — read before implementing frontend features
+- Secrets from `.env.example` (repo root) or `backend/.env`
 
-- Dev server: `cd frontend && npm run dev`
-- Lint: `cd frontend && npm run lint`
-- Type-check: `cd frontend && npm run type-check`
-- E2E: `cd frontend && npm run test:e2e`
+## Repo conventions
 
-Note: the root `Makefile` target `make test-frontend` runs `npm test`, but `frontend/package.json` does not define a `test` script. Prefer `npm run test:e2e` / `npm run test:e2e:ui` instead.
+- Alembic migrations: `backend/app/migrations/` (configured in `backend/alembic.ini`)
+- Python: ruff format + mypy strict. No `any` types.
+- API changes must update both backend schemas/routes and frontend client usage
+- PII (full_name, email) encrypted at rest via `backend/app/auth/encryption.py` (AES-256 Fernet)
+- `.planning/` is in `.gitignore` — planning docs are local-only
 
-## Running locally without Docker (backend)
+## Workflow rules
 
-When you need to run the backend directly (e.g., faster iteration than Docker):
-
-- Install:
-  - `cd backend && pip install -e ".[dev,runtime,ml]"`
-- Run:
-  - `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
-
-You’ll need env vars from `.env.example` (repo root) or `backend/.env`.
-
-## Environment + services
-
-- Docker services: `postgres`, `neo4j`, `redis`, `backend`, `worker`, `frontend` (see [docker-compose.yml](docker-compose.yml))
-- The backend container mounts:
-  - `./backend` at `/app`
-  - `./ml` at `/app/ml` (read-only)
-
-## When changing code
-
-- If you change API contracts, update both:
-  - backend schemas/routes, and frontend client usage.
-- Add/adjust tests when behavior changes (pytest for backend; Playwright for e2e if UI flow changes).
-
-## 🦾 Universal AI Context (Portability)
-
-To maintain consistency across different devices and AI sessions, this repo follows a **Context Linkage** protocol:
-
-1.  **Codebase Map:** `graphify-out/graph.json` contains the structural mapping of the codebase. AI agents should load this to understand architecture.
-2.  **AI Instructions:** Always read `.github/prompts/` before implementing new features:
-    *   `persona-aethera.md`: Atmospheric brand voice.
-    *   `architect-neural.md`: Neural engine constraints.
-    *   `cinematic-ui.md`: WOW-factor design standards.
-3.  **Master Truth:** This file (`AGENTS.md`) is the final authority on project boundaries and dev workflows.
+- **Graphify after every task**: After completing any task (code change, fix, test, doc update), run `/graphify` to update the project knowledge graph.
+- **Parallel sub-agents**: When a task can be split into independent subtasks, launch multiple sub-agents in parallel using the `task` tool. Prioritize parallelism wherever dependencies allow — but never at the cost of correctness or quality. Verify each sub-agent's output before declaring the parent task done.

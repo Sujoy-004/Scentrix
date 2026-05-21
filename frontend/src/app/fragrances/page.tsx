@@ -1,58 +1,111 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-
-type Fragrance = {
-  id: string
-  name: string
-  brand: string
-  year?: number
-}
+import { useSearchParams } from 'next/navigation'
+import { FragranceCard } from '@/components/FragranceCard'
+import { FragranceFamilies } from '@/components/FragranceFamilies'
+import { api } from '@/lib/api'
 
 export default function FragrancesPage() {
-  const [data, setData] = useState<Fragrance[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const searchParams = useSearchParams()
 
+  const family = searchParams.get('family') || undefined
+  const query = searchParams.get('q') || undefined
+
+  const [data, setData] = useState<any[]>([])
+  const [offset, setOffset] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+
+  const LIMIT = 24
+
+  const loadData = async (reset = false) => {
+    if (loading) return
+    setLoading(true)
+
+    const currentOffset = reset ? 0 : offset
+
+    const res = await api.getFragranceCatalog(
+      LIMIT,
+      currentOffset,
+      { family, q: query }
+    )
+
+    const items = res.items || []
+
+    setData(prev => reset ? items : [...prev, ...items])
+    setOffset(prev => reset ? LIMIT : prev + LIMIT)
+    setHasMore(items.length === LIMIT)
+
+    setLoading(false)
+  }
+
+  // reload on filter change
   useEffect(() => {
-    const fetchFragrances = async () => {
-      try {
-        const res = await fetch('https://scentrix-backend-prod.onrender.com/fragrances')
+    if (!family && !query) return
 
-        if (!res.ok) throw new Error('Failed to fetch')
-
-        const json = await res.json()
-        setData(json.data) // ✅ FIX
-      } catch (err: any) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchFragrances()
-  }, [])
-
-  if (loading) return <div style={{ padding: 24 }}>Loading...</div>
-  if (error) return <div style={{ padding: 24 }}>Error: {error}</div>
+    loadData(true)
+  }, [family, query])
 
   return (
-    <div style={{ padding: 24 }}>
-      <h1>Fragrance Catalog</h1>
+    <div className="p-6 space-y-10">
 
-      {data.length === 0 ? (
-        <p>No fragrances found.</p>
-      ) : (
-        <div style={{ display: 'grid', gap: 16 }}>
-          {data.map((f) => (
-            <div key={f.id} style={{ border: '1px solid #ccc', padding: 12 }}>
-              <h3>{f.name}</h3>
-              <p>{f.brand}</p>
-              {f.year && <p>{f.year}</p>}
-            </div>
-          ))}
+      {/* STATE 1: NO FAMILY SELECTED */}
+      {!family && (
+        <div className="space-y-10">
+          <div className="text-center space-y-4">
+            <h1 className="text-4xl md:text-5xl font-serif italic text-white">
+              Choose a Family to Begin
+            </h1>
+            <p className="text-white/60">
+              Each family holds a universe of scents waiting to be discovered
+            </p>
+          </div>
+
+          <FragranceFamilies />
         </div>
       )}
+
+      {/* STATE 2: FAMILY SELECTED */}
+      {family && (
+        <div className="space-y-8">
+
+          <div className="flex justify-between items-center">
+            <button
+              onClick={() => window.location.href = '/fragrances'}
+              className="text-white/60 hover:text-white"
+            >
+              ← Back to families
+            </button>
+
+            <div className="text-white capitalize text-xl">
+              {family}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {data.map((frag, index) => (
+              <FragranceCard
+                key={frag.id}
+                frag={frag}
+                index={index}
+              />
+            ))}
+          </div>
+
+          {hasMore && (
+            <div className="flex justify-center">
+              <button
+                onClick={() => loadData()}
+                className="px-6 py-3 border border-white/20 rounded-xl text-white hover:bg-white/10 transition"
+              >
+                Load More
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
     </div>
   )
 }

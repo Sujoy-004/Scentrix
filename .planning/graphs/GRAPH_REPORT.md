@@ -1,7 +1,7 @@
 # Graph Report - C:\Users\KIIT0001\Documents\antigravity skills\Scentrix  (2026-05-18)
 
 ## Corpus Check
-- 140 files · ~5,469,035 words
+- 140 files · ~5,473,398 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -132,8 +132,8 @@
   C:\Users\KIIT0001\Documents\antigravity skills\Scentrix\backend\app\main.py → C:\Users\KIIT0001\Documents\antigravity skills\Scentrix\backend\app\schemas\schemas.py
 - `Root endpoint with API info.` --uses--> `StandardResponse`  [INFERRED]
   C:\Users\KIIT0001\Documents\antigravity skills\Scentrix\backend\app\main.py → C:\Users\KIIT0001\Documents\antigravity skills\Scentrix\backend\app\schemas\schemas.py
-- `Supabase auth integration helpers.` --uses--> `User`  [INFERRED]
-  C:\Users\KIIT0001\Documents\antigravity skills\Scentrix\backend\app\services\supabase_auth.py → C:\Users\KIIT0001\Documents\antigravity skills\Scentrix\backend\app\models\models.py
+- `User` --uses--> `Supabase auth integration helpers.`  [INFERRED]
+  C:\Users\KIIT0001\Documents\antigravity skills\Scentrix\backend\app\models\models.py → C:\Users\KIIT0001\Documents\antigravity skills\Scentrix\backend\app\services\supabase_auth.py
 
 ## Communities
 

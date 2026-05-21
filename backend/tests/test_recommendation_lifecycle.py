@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
-
-import app.routers.fragrances as fragrances_router
 
 pytestmark = pytest.mark.asyncio
 
@@ -41,87 +38,38 @@ async def _register_and_login(client: AsyncClient) -> tuple[dict[str, str], int]
     return headers, int(me.json()["data"]["id"])
 
 
-async def test_job_poll_owner_enforced(client: AsyncClient, monkeypatch: pytest.MonkeyPatch):
-    owner_headers, owner_id = await _register_and_login(client)
-    other_headers, _ = await _register_and_login(client)
+async def test_excised_endpoints_return_404(client: AsyncClient):
+    headers, _ = await _register_and_login(client)
 
-    async def fake_get_job(_: str):
-        return {
-            "status": "processing",
-            "user_id": owner_id,
-            "message": "Still generating recommendations...",
-            "results": None,
-            "generated_at": None,
-            "error": None,
-            "created_at": datetime.now(UTC).isoformat(),
-        }
+    # 1. recommend/text is gone
+    text_resp = await client.post(
+        "/fragrances/recommend/text",
+        headers=headers,
+        json={"query": "fresh woodsy", "limit": 5},
+    )
+    assert text_resp.status_code == 404
 
-    monkeypatch.setattr(fragrances_router, "get_job", fake_get_job)
+    # 2. recommend/profile is gone
+    profile_resp = await client.post(
+        "/fragrances/recommend/profile",
+        headers=headers,
+        params={"limit": 5},
+    )
+    assert profile_resp.status_code == 404
 
-    own_response = await client.get("/fragrances/recommend/job-owner", headers=owner_headers)
-    assert own_response.status_code == 200
-    assert own_response.json()["data"]["status"] in {"processing", "queued"}
+    # 3. recommend/job_id is gone
+    poll_resp = await client.get(
+        "/fragrances/recommend/some-job-id",
+        headers=headers,
+    )
+    assert poll_resp.status_code == 404
 
-    forbidden = await client.get("/fragrances/recommend/job-owner", headers=other_headers)
-    assert forbidden.status_code == 403
-
-
-async def test_job_poll_completed_payload_contract(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-):
-    owner_headers, owner_id = await _register_and_login(client)
-    generated_at = datetime.now(UTC).isoformat()
-
-    async def fake_get_job(_: str):
-        return {
-            "status": "completed",
-            "user_id": owner_id,
-            "message": "Recommendation generation completed",
-            "results": [
-                {
-                    "id": "frag_001",
-                    "name": "Sauvage",
-                    "brand": "Dior",
-                    "match_score": 93.2,
-                    "reason": "User taste vector similarity",
-                }
-            ],
-            "generated_at": generated_at,
-            "error": None,
-            "created_at": generated_at,
-        }
-
-    monkeypatch.setattr(fragrances_router, "get_job", fake_get_job)
-
-    response = await client.get("/fragrances/recommend/job-complete", headers=owner_headers)
-    assert response.status_code == 200
-    payload = response.json()["data"]
-    assert payload["status"] == "completed"
-    assert isinstance(payload.get("fragrances"), list)
-    assert payload["fragrances"]
-    assert payload.get("generated_at")
-
-
-async def test_job_poll_timed_out_maps_to_504(client: AsyncClient, monkeypatch: pytest.MonkeyPatch):
-    owner_headers, owner_id = await _register_and_login(client)
-    created_at = datetime.now(UTC).isoformat()
-
-    async def fake_get_job(_: str):
-        return {
-            "status": "timed_out",
-            "user_id": owner_id,
-            "message": "Recommendation job timed out while waiting for worker completion",
-            "results": None,
-            "generated_at": None,
-            "error": "Recommendation job timed out",
-            "created_at": created_at,
-        }
-
-    monkeypatch.setattr(fragrances_router, "get_job", fake_get_job)
-
-    response = await client.get("/fragrances/recommend/job-timeout", headers=owner_headers)
-    assert response.status_code == 504
-    assert "timed out" in response.json()["message"].lower()
+    # 4. recommend/metrics/weekly is gone
+    metrics_resp = await client.get(
+        "/fragrances/recommend/metrics/weekly",
+        headers=headers,
+    )
+    assert metrics_resp.status_code == 404
 
 
 async def test_recommendation_interaction_ingest_requires_auth(client: AsyncClient):
@@ -141,7 +89,7 @@ async def test_recommendation_interaction_ingest_requires_auth(client: AsyncClie
     assert response.status_code == 401
 
 
-async def test_recommendation_interactions_feed_weekly_metrics(client: AsyncClient):
+async def test_recommendation_interactions_still_ingests(client: AsyncClient):
     headers, _ = await _register_and_login(client)
 
     ingest = await client.post(
@@ -165,29 +113,8 @@ async def test_recommendation_interactions_feed_weekly_metrics(client: AsyncClie
                     "availability": "in-stock",
                     "context": {"availability_known": True},
                 },
-                {
-                    "fragrance_id": "frag_002",
-                    "interaction_type": "click_detail",
-                    "confidence_tier": "high",
-                },
-                {
-                    "fragrance_id": "frag_001",
-                    "interaction_type": "wishlist_add",
-                    "confidence_tier": "low",
-                },
             ]
         },
     )
     assert ingest.status_code == 202
-    assert ingest.json()["data"]["accepted"] == 4
-
-    metrics = await client.get("/fragrances/recommend/metrics/weekly", headers=headers)
-    assert metrics.status_code == 200
-    payload = metrics.json()["data"]
-
-    assert payload["impressions"] == 2
-    assert payload["detail_clicks"] == 1
-    assert payload["wishlist_adds"] == 1
-    assert payload["click_through_rate_pct"] == 50.0
-    assert payload["low_confidence_share_pct"] == 50.0
-    assert payload["stock_coverage_pct"] == 50.0
+    assert ingest.json()["data"]["accepted"] == 2

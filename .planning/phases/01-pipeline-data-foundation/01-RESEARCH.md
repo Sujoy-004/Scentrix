@@ -464,7 +464,7 @@ SET s2.score = $score
 | A5 | `get_recommendation_result()` endpoint (lines 787-864) should also be removed | Architecture | If some frontend code still polls this endpoint for unrelated features, removal would cause 404. Check: only `getFragranceCatalog` in api.ts references it via the polling loop on line 53 |
 | A6 | `ingest_recommendation_interactions()` endpoint (lines 549-593) keeps working | Architecture | This endpoint has ongoing utility for logging interactions — no reason to remove it |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `get_recommendation_result()` (lines 787-864) also be removed?**
    - What we know: Only used by the frontend's `getFragranceCatalog` polling loop (api.ts lines 51-58), which is being rewritten to not use recommend/text at all. Removing the endpoint is clean but technically not in D-03's scope (which only names `recommend_by_text` and `recommend_by_profile`).

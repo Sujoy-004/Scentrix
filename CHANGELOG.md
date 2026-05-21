@@ -1,80 +1,207 @@
-# 📜 Scentrix Changelog
+# Scentrix Changelog
 
-All notable changes to this project will be documented in this file in real-time, following the **Rewired Senior Architect** protocol.
+---
 
-## [2026-04-30] - Render Dependency Slimming
-- [INFRA] **Backend Requirements Trimmed**: Removed heavyweight ML/runtime packages (`torch`, `sentence-transformers`, `torch-geometric`, `prefect`) from `backend/requirements.txt` to keep Render builds lighter and the deploy surface smaller.
+## SYSTEM STATE (CURRENT)
 
-## [2026-04-29] - Roadmap & Strategy Expansion
-- [DOCS] **Roadmap**: Expanded the "Future Work" section in `README.md` to include technical specifications for Feedback Loops, Evaluation Metrics (CTR, Top-K), and State-aware Personalization.
+Status: PARTIALLY WORKING
 
-## [2026-04-29] - Documentation & Maintenance
-- [DOCS] **README**: Created production-grade `README.md` with detailed architecture, performance metrics, and design decisions.
-- [DOCS] **Author Info**: Synchronized author details and GitHub links.
+Backend:
+- Local server runs successfully (`uvicorn app.main:app`)
+- `/fragrances` → working
+- `/recommendations/guest` → working
+- ML recommendation engine producing real scores
 
-## [2026-04-29] - Production Deployment (Render + Vercel)
-- [INFRA] **Backend Live**: Deployed `scentrix-backend-prod` to Render.
-- [INFRA] **Frontend Connected**: Updated Vercel environment variables (`NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_API_BASE_URL`) to point to Render.
-- [DEPLOY] **Verification**: Confirmed `/health` (200 OK) and successful quiz session initialization.
-- [DATA] **SSOT Verification**: Confirmed 4,577 records loaded from `scentrix_master.json`.
-- [STATUS] **End-to-End Operational**: Frontend-to-Backend neural link established.
+Frontend:
+- Runs locally
+- Connected to backend (after CORS fix)
+- `/fragrances` route loads
+- Data fetch works
 
-## [2026-04-30] - API Contract Hardening & Determinism (Production Grade)
-- [API] **StandardResponse V2**: Updated global response wrapper to include `code` and `message` for production-grade error reporting.
-- [API] **Global Error Consistency**: Standardized `main.py` exception handlers to enforce the new structured error format across the entire API.
-- [API] **DB-Aware Stability**: Added proactive database availability checks to all `auth` and `users` endpoints, returning `503 Service Unavailable` instead of crashing when infra is offline.
-- [QUIZ] **HybridRecommender Upgrade**: Integrated precomputed semantic embeddings (15% weight) with average user profile vectorization.
-- [QUIZ] **Latency Hardening**: Optimized scoring loop with aggressive candidate pruning and pre-normalized NumPy dot-product similarity (Average Latency: ~44ms).
-- [QUIZ] **Production Hygiene**: Cleaned repository of temporary scripts, updated `.gitignore`, and stabilized dependencies (NumPy < 2.0).
-- [QUIZ] **Deployment Ready**: Verified 100% success across core endpoints and edge case fallbacks.
-- [QUIZ] **Intra-Session Determinism**: Enforced same-input-same-output behavior in the quiz engine by seeding random sampling with the `session_id`.
-- [QUIZ] **Seed Coverage**: Updated `_select_seed_questions` to ensure variety while maintaining determinism via passed-through RNG.
-- [API] **Health Check Hardening**: Updated `GET /health` to return the `StandardResponse` format for consistency.
+Critical Issues:
+- UI not matching expected “wow” design
+- FragranceCard not rendering as intended
+- Data → UI mismatch still present
+- No clear separation of catalog vs recommendation display
+- No stable production-ready flow
 
-## [2026-04-28] - Scentrix Dataset Sovereignty Hardening
-- [DATA] **Unified Master SSOT**: Established `ml/data/scentrix_master.json` as the singular authoritative source of truth.
-- [DATA] **Deduplication**: Resolved 672 ID collisions using the `frag_{brand}_{name}_{year}` schema.
-- [DATA] **Sovereign 5k Optimization**: Shrunk dataset from 21k to **4,577 elite items** (rating_count > 500) to hit 512MB RAM target for Render Free Tier.
-- [INFRA] **Dependency Hardening**: Added `psutil` to `pyproject.toml` and synchronized the local `.venv` with all ML/Runtime dependencies.
-- [ML] **Codebase Synchronization**: Updated `Makefile`, `seed_data.py`, `catalog.py`, `graph_sage.py`, and `diversity_audit.py` to point exclusively to the new Master SSOT.
-- [ML] **Memory Optimization**: Updated `hybrid_search.py` with lazy-loading and RAM-aware warmup logic.
-- [CLEANUP] **Legacy Purge**: Permanently deleted `fra_elite_24k.json` and `fra_cleaned_canonical.json`.
+---
 
-## [2026-04-27] - Render Migration & Configuration Hardening
-- [INFRA] Render Readiness: Created `backend/requirements.txt` and purged Railway-specific `railway.json` and `Procfile`.
-- [CONFIG] Environment Lockdown: Enforced strict `DATABASE_URL`, `JWT_SECRET_KEY`, and `DATA_ENCRYPTION_KEY` requirement with no fallbacks.
-- [API] Health Check: Standardized `GET /health` to flat `{"status": "ok"}` for Render compatibility.
-- [DATA] Path Optimization: Fixed ML dataset pathing in `catalog.py` to correctly traverse from `backend/app/services` to project root.
-- [AUTH] Protocol Synchronization: Activated **Rewired Senior Architect** persona (Mythos-GSD-Graphify).
-- [CONTEXT] Codebase Ingestion: Completed deep read of `SOVEREIGNTY.md`, `README.md`, `AGENTS.md`, and `CHANGELOG.md`.
-- [GRAPH] Brain Synchronization: Verified `_brain` and `graphify-out/graph.json` structural integrity for neural context linkage.
-- [STATUS] Scentrix Neural Engine synchronized. Initialized and standing by for Socratic Specification.
+## PHASE 0 — DEBUG BASELINE (DONE)
 
-## [2026-04-27] - Global Error Handling & API Standardization
-- [API] Unified Response Format: Converted all remaining manual error returns in routers (especially `recommendations.py`) to `raise HTTPException`, relying on the global handler for formatting.
-- [ML] Deterministic ML Readiness: Enforced `503 Service Unavailable` with a clear initialization message when the Neural Engine or Embeddings cache is not ready.
-- [ML] Strict Path Enforcement: Removed all heuristic (note-overlap) and trending fallbacks. The system now strictly follows the `Quiz → Embeddings → Similarity → Response` path.
-- [CLEANUP] Python Standardization: Replaced all legacy `null` literals with Python `None` and fixed code duplication in `auth.py`.
+- Fixed wrong uvicorn entrypoint
+- Backend boot verified
+- DB connection verified
+- Recommendation engine verified
+- Swagger tested
+- CORS issue fixed
+- Frontend successfully connected to local backend
 
-## [2026-04-27] - Global API Contract & Safety Enforcement
-- [API] Global Response Contract: Enforced unified `{status, data, error}` format across ALL routers (`auth`, `users`, `leads`, `quiz`, `fragrances`, `recommendations`).
-- [API] Type Hint Unification: Standardized all router function signatures to `-> StandardResponse` for documentation and validation consistency.
-- [SECURITY] Decryption Safety: Hardened `auth.py` and `users.py` to handle decryption failures gracefully without leaking sensitive details.
-- [INFRA] Validation Format: Verified `main.py` global handlers correctly intercept `HTTPException` and generic `Exception` into the standard contract.
+---
 
-## [2026-04-27] - System Stabilization & Response Standardization
-- [SECURITY] Hardened Decryption: All `DataVault.decrypt` calls now wrapped in safety blocks with proper fallbacks.
-- [INFRA] Fail-Fast Configuration: Validated that `config.py` correctly raises errors at startup if critical secrets are missing.
-- [API] Standardized Responses: Updated `/leads/capture`, `/leads/feed`, `/users/ratings`, and `/users/saved` to use a consistent `{status, data}` JSON structure.
+## PHASE 1 — CORE ARCHITECTURE LOCK (DONE)
 
-## [2026-04-27] - Production Hardening & Security Fixes
-- [SECURITY] Env Hardening: `JWT_SECRET_KEY` and `DATA_ENCRYPTION_KEY` no longer have default values; system fails fast if missing.
-- [SECURITY] Encryption Safety: Updated `decrypt` to raise `ValueError` on failure instead of returning raw input.
-- [SECURITY] PII Logging Removal: Removed raw email logging in `auth.py` to prevent PII exposure in logs.
-- [AUTH] JWT Performance: Fixed double-decode issue in `dependencies.py`; payload is now decoded once and passed through.
-- [TIME] Temporal Consistency: Global migration from `datetime.utcnow()` to `datetime.now(UTC)` for future-proofing.
+- Backend structure confirmed:
+  - routers/
+  - services/
+  - schemas/
+  - models/
+- Frontend structure confirmed:
+  - app/
+  - components/
+  - lib/
 
-## [2026-04-27] - Backend Production Audit
-- Completed a strict backend audit covering `auth/`, `routers/`, `schemas/`, and `database.py`.
-- Identified critical security risks (default keys, decryption leakage, PII logging).
-- Flagged inconsistent response formats and missing Pydantic strictness.
+- Confirmed key routes:
+  - `/fragrances` → catalog
+  - `/recommendations/guest` → inference
+
+---
+
+## PHASE 2 — MAJOR PROBLEM IDENTIFIED
+
+Root issue:
+
+Frontend UI expects:
+- rich data (images, ratings, notes)
+
+Backend provides:
+- minimal data (no images, empty notes, null ratings)
+
+Result:
+- UI looks “broken” but actually data is incomplete
+
+---
+
+## PHASE 3 — FIX STRATEGY (IN PROGRESS)
+
+### 3.1 Data Layer Fix
+Goal:
+- Normalize backend output to match UI expectations
+
+Actions:
+- Add fallback for:
+  - `top_notes ← top_accords`
+  - `rating ← default or computed`
+  - `image_url ← placeholder or mapping`
+
+---
+
+### 3.2 UI Integration Fix
+Goal:
+- Restore original premium UI
+
+Rules:
+- DO NOT rewrite `FragranceCard`
+- DO NOT use raw `<div>` UI
+- ONLY adapt data passed to component
+
+---
+
+### 3.3 Routing Fix
+Goal:
+Clear separation:
+
+- `/fragrances` → public catalog
+- `/collection` → private wishlist
+
+---
+
+### 3.4 Recommendation Flow Fix
+Goal:
+- Show recommendations inside UI properly
+
+Tasks:
+- Add frontend call to:
+  - `/recommendations/guest`
+- Render results using same `FragranceCard`
+
+---
+
+## PHASE 4 — FRONTEND STABILIZATION (PENDING)
+
+Tasks:
+
+- Fix FragranceCard rendering mismatch
+- Ensure props match expected structure (`frag`)
+- Restore:
+  - animations
+  - hover effects
+  - visual density
+
+---
+
+## PHASE 5 — BACKEND ENHANCEMENT (PENDING)
+
+Tasks:
+
+- Add richer metadata:
+  - images
+  - ratings
+  - notes
+- Improve recommendation explanation (`reason`)
+- Ensure consistent schema across all endpoints
+
+---
+
+## PHASE 6 — FULL SYSTEM INTEGRATION (PENDING)
+
+Goal:
+Single flow works end-to-end:
+
+1. User lands on homepage
+2. Clicks "Browse Library"
+3. Sees catalog (`/fragrances`)
+4. Takes quiz / inputs preferences
+5. Gets recommendations
+6. Saves to collection
+
+---
+
+## PHASE 7 — DEPLOYMENT HARDENING (PENDING)
+
+- Ensure Vercel frontend build stable
+- Ensure backend API stable (Render/local)
+- Fix environment variables
+- Ensure no CORS issues in production
+
+---
+
+## PHASE 8 — FINAL QUALITY CHECK (PENDING)
+
+Checklist:
+
+- No broken routes
+- No redirect loops
+- No “failed to fetch”
+- UI consistent everywhere
+- Recommendations feel meaningful
+
+---
+
+## FINAL TARGET
+
+System is complete when:
+
+- Local works ✅
+- Production works ✅
+- UI looks premium ✅
+- Recommendations are personalized ✅
+- No manual hacks required ✅
+
+---
+
+## CURRENT FOCUS
+
+→ Fix UI rendering mismatch  
+→ Align backend data with frontend expectations  
+→ Restore FragranceCard full capability
+
+---
+
+## RULES (NON-NEGOTIABLE)
+
+- No rewriting working components
+- No blind refactoring
+- No guessing API schema
+- Always verify via backend response
+- Always fix root cause, not symptoms
