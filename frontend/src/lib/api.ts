@@ -40,27 +40,6 @@ export const api = {
   
   getFragranceCatalog: async (limit: number, offset: number, filters?: { q?: string; brand?: string; family?: string; sort?: string }) => {
     try {
-      if (filters?.q) {
-        const { data: jobData } = await apiInstance.post('/fragrances/recommend/text', {
-          query: filters.q,
-          limit: limit
-        });
-        
-        if (!jobData || !jobData.job_id) return { items: [], total: 0 };
-
-        for (let i = 0; i < 20; i++) {
-          await new Promise(r => setTimeout(r, 1500));
-          const { data: result } = await apiInstance.get(`/fragrances/recommend/${jobData.job_id}`);
-          
-          if (result.status === 'completed') {
-             return { items: result.fragrances || [], total: (result.fragrances || []).length };
-          }
-          if (result.status === 'failed') break;
-        }
-        
-        return { items: [], total: 0 };
-      }
-      
       const { data } = await apiInstance.get('/fragrances/catalog', { 
         params: { limit, offset, ...filters } 
       });

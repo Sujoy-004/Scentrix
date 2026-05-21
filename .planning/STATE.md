@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-05-15)
 ## Current Position
 
 Phase: 1 of 6 (Pipeline & Data Foundation)
-Plan: 01-02, 01-03, 01-04 (Plan 01-01 completed)
-Status: Executing Wave 2 (Plan 01-02 next)
-Last activity: 2026-05-18 - Completed Plan 01-01: Celery cleanout, scikit-learn dependency, and StandardResponse test alignment.
+Plan: 01-03 (Plans 01-01 and 01-02 completed)
+Status: Ready to start Plan 01-03: Create Neo4j graph service + import rewiring
+Last activity: 2026-05-21 - Completed Plan 01-02: Remove 4 dead 503 endpoints and scrub frontend recommend/text calls
 
-Progress: [██████████] 25%
+Progress: [█████████░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
+- Total plans completed: 2
 - Average duration: 1.0 hour
-- Total execution time: 1.0 hour
+- Total execution time: 2.0 hours
 
 **By Phase:**
 
@@ -42,7 +42,7 @@ Progress: [██████████] 25%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- None yet (initial state)
+- Removed dead 503 endpoints (PIPE-02) - clean removal preferred over implementation due to research pivot
 
 ### Pending Todos
 
@@ -62,6 +62,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-15 HH:MM
-Stopped at: Roadmap creation complete — 6 phases identified across 20 v1 requirements
+Last session: 2026-05-21
+Stopped at: Completed Plan 01-02: Remove 4 dead 503 endpoints and scrub frontend recommend/text calls
 Resume file: None
