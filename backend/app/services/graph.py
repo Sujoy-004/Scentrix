@@ -9,8 +9,8 @@ try:
     from neo4j import Driver as Neo4jClient
     from neo4j import GraphDatabase
 except ImportError:
-    GraphDatabase = None
-    Neo4jClient = Any  # type: ignore[assignment]
+    GraphDatabase = None  # type: ignore[assignment,misc]
+    Neo4jClient = Any  # type: ignore[assignment,misc]
 
 from app.config import settings
 
@@ -30,7 +30,7 @@ def init_neo4j(
     if _driver is not None:
         return _driver
 
-    if not GraphDatabase:
+    if not GraphDatabase:  # type: ignore[truthy-function]
         logger.warning("Neo4j driver not installed. Skipping graph connection.")
         return None
 

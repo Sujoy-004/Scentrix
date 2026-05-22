@@ -8,7 +8,7 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
-from ml.graph import Neo4jClient
+from app.services.graph import Neo4jClient
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,9 @@ def summarize_validation_results(results: dict[str, Any]) -> dict[str, Any]:
     total_checks = len(results)
     query_errors = [k for k, v in results.items() if v.get("error")]
     failed_checks = [k for k, v in results.items() if not v.get("passed")]
-    warning_checks = [k for k, v in results.items() if not v.get("passed") and not v.get("error")]
+    warning_checks = [
+        k for k, v in results.items() if not v.get("passed") and not v.get("error")
+    ]
     passed_checks = [k for k, v in results.items() if v.get("passed")]
 
     return {
@@ -108,7 +110,11 @@ class GraphValidator:
         self.neo4j = neo4j_client
         self.results = {}
 
-        selected_profile = (profile or os.getenv("SCENTSCAPE_VALIDATION_PROFILE", "local")).strip().lower()
+        selected_profile = (
+            (profile or os.getenv("SCENTSCAPE_VALIDATION_PROFILE", "local"))
+            .strip()
+            .lower()
+        )
         if selected_profile not in PROFILE_PRESETS:
             raise ValueError(
                 f"Unknown validation profile '{selected_profile}'. "
@@ -272,7 +278,7 @@ class GraphValidator:
             "max_relationships": stats.get("max_rels", 0),
             "minimum": self.profile.min_edges_per_frag,
             "message": f"Average {avg_rels:.1f} relationships per fragrance "
-                       f"(minimum: {self.profile.min_edges_per_frag})",
+            f"(minimum: {self.profile.min_edges_per_frag})",
         }
 
     def validate_orphaned_notes(self) -> dict[str, Any]:
@@ -428,9 +434,11 @@ if __name__ == "__main__":
     import os
     import sys
     import json
-    from ml.graph import init_neo4j
+    from app.services.graph import init_neo4j
 
-    parser = argparse.ArgumentParser(description="Validate Scentrix Neo4j graph quality.")
+    parser = argparse.ArgumentParser(
+        description="Validate Scentrix Neo4j graph quality."
+    )
     parser.add_argument(
         "neo4j_uri",
         nargs="?",

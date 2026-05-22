@@ -9,8 +9,6 @@ Provides endpoints for:
 
 import json
 import logging
-import os
-import sys
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -209,15 +207,14 @@ def _parse_context_json(raw: str | None) -> dict[str, Any]:
 
 
 def get_graph_client():
-    """Lazy initialize neo4j client"""
-    try:
-        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
-        from ml.graph.neo4j_client import get_neo4j, init_neo4j
+    """Lazy initialize neo4j client via app.services.graph"""
+    from app.services.graph import get_neo4j, init_neo4j
 
-        try:
-            return get_neo4j()
-        except RuntimeError:
-            return init_neo4j(settings.neo4j_uri, settings.neo4j_user, settings.neo4j_password)
+    try:
+        client = get_neo4j()
+        if client is not None:
+            return client
+        return init_neo4j(settings.neo4j_uri, settings.neo4j_user, settings.neo4j_password)
     except Exception as exc:
         logger.error(f"Neo4j client init failed: {exc}")
         return None

@@ -22,7 +22,7 @@ from typing import Optional
 if __package__ in (None, ""):
     sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-from ml.graph import init_neo4j, close_neo4j
+from app.services.graph import init_neo4j, close_neo4j
 from ml.pipeline.clean import FragranceDataCleaner
 from ml.pipeline.ingest import FragranceGraphIngestor
 from ml.tests.test_graph import GraphValidator, summarize_validation_results
@@ -60,14 +60,14 @@ async def run_integration_test(
     artifact_dir: Optional[Path] = None,
 ) -> dict:
     """Run complete integration test of data pipeline.
-    
+
     Args:
         seed_data_path: Path to seed fragrances JSON. Defaults to ml/data/seed_fragrances.json
         neo4j_uri: Neo4j connection URI
         neo4j_user: Neo4j username
         neo4j_password: Neo4j password
         cleanup: If True, delete all nodes before test
-        
+
     Returns:
         Dictionary with test results:
         {
@@ -81,7 +81,7 @@ async def run_integration_test(
             }
         }
     """
-    
+
     started_at = datetime.now(UTC)
     report_dir = artifact_dir or (Path(__file__).parent.parent / "logs" / "integration")
 
@@ -95,20 +95,20 @@ async def run_integration_test(
         "duration_seconds": None,
         "artifact_path": None,
     }
-    
+
     # Set default seed data path
     if seed_data_path is None:
         seed_data_path = Path(__file__).parent.parent / "data" / "fra_elite_5k.json"
-    
+
     logger.info("=" * 80)
     logger.info("STARTING INTEGRATION TEST - Phase 1 Data Pipeline")
     logger.info("=" * 80)
-    
+
     try:
         # Step 1: Initialize Neo4j connection
         logger.info("\n[1/5] Initializing Neo4j connection...")
         client = init_neo4j(neo4j_uri, neo4j_user, neo4j_password)
-        
+
         try:
             if not client.verify_connection():
                 raise RuntimeError("Neo4j connection verification returned False")
@@ -120,7 +120,7 @@ async def run_integration_test(
                 "error": str(e),
             }
             return results
-        
+
         # Step 2: Optional cleanup
         if cleanup:
             logger.info("\n[1.5/5] Cleaning up existing data...")
@@ -135,16 +135,16 @@ async def run_integration_test(
                     "status": "skipped",
                     "reason": str(e),
                 }
-        
+
         # Step 2: Load seed data
         logger.info(f"\n[2/5] Loading seed data from {seed_data_path}...")
         try:
             with open(seed_data_path, "r", encoding="utf-8") as f:
                 seed_fragrances = json.load(f)
-            
+
             if not isinstance(seed_fragrances, list):
                 seed_fragrances = [seed_fragrances]
-            
+
             logger.info(f"✓ Loaded {len(seed_fragrances)} fragrances from seed data")
             results["phases"]["load"] = {
                 "status": "passed",
@@ -157,21 +157,21 @@ async def run_integration_test(
                 "error": str(e),
             }
             return results
-        
+
         # Step 3: Clean data
         logger.info("\n[3/5] Cleaning fragrances...")
         try:
             cleaner = FragranceDataCleaner()
             cleaned_fragrances = cleaner.clean_fragrance_list(seed_fragrances)
             stats = cleaner.report()
-            
+
             logger.info(f"✓ Cleaned {len(cleaned_fragrances)} fragrances")
             logger.info(f"  - Input: {stats['total_input']}")
             logger.info(f"  - Output: {stats['total_output']}")
             logger.info(f"  - Duplicates removed: {stats['duplicates_removed']}")
             logger.info(f"  - Invalid records: {stats['invalid_records']}")
             logger.info(f"  - Removal rate: {stats['removal_rate']:.1f}%")
-            
+
             results["phases"]["clean"] = {
                 "status": "passed",
                 "input_count": stats["total_input"],
@@ -185,22 +185,30 @@ async def run_integration_test(
                 "error": str(e),
             }
             return results
-        
+
         # Step 4: Ingest into Neo4j
         logger.info("\n[4/5] Ingesting fragrances into Neo4j...")
         try:
             ingestor = FragranceGraphIngestor(client)
             ingest_stats = ingestor.ingest_fragrances(cleaned_fragrances)
-            
+
             logger.info(f"✓ Ingested fragrances into Neo4j")
-            logger.info(f"  - Fragrances created: {ingest_stats.get('fragrances_created', 0)}")
-            logger.info(f"  - Fragrances updated: {ingest_stats.get('fragrances_updated', 0)}")
+            logger.info(
+                f"  - Fragrances created: {ingest_stats.get('fragrances_created', 0)}"
+            )
+            logger.info(
+                f"  - Fragrances updated: {ingest_stats.get('fragrances_updated', 0)}"
+            )
             logger.info(f"  - Notes created: {ingest_stats.get('notes_created', 0)}")
-            logger.info(f"  - Accords created: {ingest_stats.get('accords_created', 0)}")
+            logger.info(
+                f"  - Accords created: {ingest_stats.get('accords_created', 0)}"
+            )
             logger.info(f"  - Brands created: {ingest_stats.get('brands_created', 0)}")
-            logger.info(f"  - Relationships created: {ingest_stats.get('relationships_created', 0)}")
+            logger.info(
+                f"  - Relationships created: {ingest_stats.get('relationships_created', 0)}"
+            )
             logger.info(f"  - Errors: {ingest_stats.get('errors', 0)}")
-            
+
             results["phases"]["ingest"] = {
                 "status": "passed",
                 "stats": ingest_stats,
@@ -212,7 +220,7 @@ async def run_integration_test(
                 "error": str(e),
             }
             return results
-        
+
         # Step 5: Validate graph
         logger.info("\n[5/5] Validating graph integrity...")
         try:
@@ -220,13 +228,13 @@ async def run_integration_test(
             validation_results = validator.validate_all()
             summary = summarize_validation_results(validation_results)
             results["strict_mode"] = validator.strict
-            
+
             # Log validation results
             passed = summary["passed_check_count"]
             total = summary["total_checks"]
-            
+
             logger.info(f"✓ Validation complete: {passed}/{total} tests passed")
-            
+
             for test_name, test_result in validation_results.items():
                 status = "✓" if test_result.get("passed") else "✗"
                 logger.info(f"  {status} {test_name}: {test_result.get('message', '')}")
@@ -239,7 +247,7 @@ async def run_integration_test(
                 validate_status = "failed"
             else:
                 validate_status = "warnings"
-            
+
             results["phases"]["validate"] = {
                 "status": validate_status,
                 "passed": passed,
@@ -254,7 +262,7 @@ async def run_integration_test(
                 "error": str(e),
             }
             return results
-        
+
         # Determine overall status
         phase_statuses = [p.get("status") for p in results["phases"].values()]
         if any(s == "failed" for s in phase_statuses):
@@ -265,16 +273,16 @@ async def run_integration_test(
             results["overall_status"] = "passed_with_warnings"
         else:
             results["overall_status"] = "failed"
-        
+
         logger.info("\n" + "=" * 80)
         logger.info(f"INTEGRATION TEST RESULT: {results['overall_status'].upper()}")
         logger.info("=" * 80)
-    
+
     except Exception as e:
         logger.error(f"Unexpected error during integration test: {e}")
         results["overall_status"] = "failed"
         results["error"] = str(e)
-    
+
     finally:
         # Close Neo4j connection
         if "client" in locals():
@@ -283,13 +291,15 @@ async def run_integration_test(
 
         completed_at = datetime.now(UTC)
         results["completed_at_utc"] = completed_at.isoformat() + "Z"
-        results["duration_seconds"] = round((completed_at - started_at).total_seconds(), 3)
+        results["duration_seconds"] = round(
+            (completed_at - started_at).total_seconds(), 3
+        )
 
         report_path = _write_integration_report(results, report_dir)
         if report_path:
             results["artifact_path"] = str(report_path)
             logger.info(f"Integration artifact saved: {report_path}")
-    
+
     return results
 
 
@@ -300,15 +310,19 @@ def print_results(results: dict):
     print("=" * 80)
     print(f"Overall Status: {results['overall_status'].upper()}")
     print("-" * 80)
-    
+
     for phase_name, phase_result in results["phases"].items():
         status_symbol = "✓" if phase_result.get("status") == "passed" else "✗"
-        print(f"{status_symbol} {phase_name.upper()}: {phase_result.get('status', 'unknown')}")
-        
+        print(
+            f"{status_symbol} {phase_name.upper()}: {phase_result.get('status', 'unknown')}"
+        )
+
         if "count" in phase_result:
             print(f"  - Count: {phase_result['count']}")
         if "input_count" in phase_result:
-            print(f"  - Input: {phase_result['input_count']}, Output: {phase_result['output_count']}")
+            print(
+                f"  - Input: {phase_result['input_count']}, Output: {phase_result['output_count']}"
+            )
         if "stats" in phase_result and isinstance(phase_result["stats"], dict):
             for stat_name, stat_value in phase_result["stats"].items():
                 if stat_name not in ["total_input", "total_output"]:
@@ -322,20 +336,24 @@ def print_results(results: dict):
         print("VALIDATION SUMMARY")
         print(f"  - Profile: {results.get('validation_profile')}")
         print(f"  - Strict mode: {results.get('strict_mode')}")
-        print(f"  - Passed checks: {summary['passed_check_count']}/{summary['total_checks']}")
+        print(
+            f"  - Passed checks: {summary['passed_check_count']}/{summary['total_checks']}"
+        )
         print(f"  - Failed checks: {summary['failed_check_count']}")
         print(f"  - Query errors: {summary['query_error_count']}")
 
     if results.get("artifact_path"):
         print(f"Artifact: {results['artifact_path']}")
-    
+
     print("=" * 80)
 
 
 if __name__ == "__main__":
     import argparse
-    
-    parser = argparse.ArgumentParser(description="Run ML integration pipeline validation.")
+
+    parser = argparse.ArgumentParser(
+        description="Run ML integration pipeline validation."
+    )
     parser.add_argument(
         "neo4j_uri",
         nargs="?",
@@ -368,7 +386,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     artifact_dir = Path(args.artifact_dir) if args.artifact_dir else None
-    
+
     # Run integration test
     results = asyncio.run(
         run_integration_test(
@@ -381,16 +399,13 @@ if __name__ == "__main__":
             artifact_dir=artifact_dir,
         )
     )
-    
+
     # Print results
     print_results(results)
-    
+
     # Exit with appropriate code
-    exit_ok = (
-        results["overall_status"] == "passed"
-        or (
-            results["overall_status"] == "passed_with_warnings"
-            and not results.get("strict_mode", False)
-        )
+    exit_ok = results["overall_status"] == "passed" or (
+        results["overall_status"] == "passed_with_warnings"
+        and not results.get("strict_mode", False)
     )
     sys.exit(0 if exit_ok else 1)

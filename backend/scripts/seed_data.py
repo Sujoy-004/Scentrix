@@ -7,8 +7,9 @@ from pathlib import Path
 # In Docker, project root is /app
 sys.path.append(os.getenv("Scentrix_REPO_ROOT", "/app"))
 
-from ml.graph import init_neo4j
 from ml.pipeline.ingest import ingest_fragrances_from_file
+
+from app.services.graph import init_neo4j
 
 
 def main():
@@ -28,7 +29,7 @@ def main():
         seed_file = Path(args.file)
     else:
         # Default to elite 24k
-            Path(os.getenv("Scentrix_REPO_ROOT", "/app")) / "ml" / "data" / "scentrix_master.json"
+        Path(os.getenv("Scentrix_REPO_ROOT", "/app")) / "ml" / "data" / "scentrix_master.json"
 
     if not seed_file.exists():
         print(f"Error: Seed file not found at {seed_file}")
