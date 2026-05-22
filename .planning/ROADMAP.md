@@ -29,7 +29,7 @@ Plans:
 - [x] 01-01-PLAN.md — Remove Celery worker + scikit-learn dependency (Wave 1)
 - [x] 01-02-PLAN.md — Remove 4 dead 503 endpoints + frontend scrub (Wave 1)
 - [x] 01-03-PLAN.md — Create Neo4j graph service + import rewiring (Wave 2)
-- [ ] 01-04-PLAN.md — Create fragrance ingestor + data preprocessing (Wave 3)
+- [x] 01-04-PLAN.md — Create fragrance ingestor + data preprocessing (Wave 3)
 
 ### Phase 2: Evaluation Infrastructure
 **Goal**: Cold-start-aware evaluation harness that produces valid, reproducible metric computations aligned with RecSys standard practices.
@@ -93,7 +93,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Pipeline & Data Foundation | 3/4 | In Progress | - |
+| 1. Pipeline & Data Foundation | 4/4 | Complete | 2026-05-22 |
 | 2. Evaluation Infrastructure | 0/TBD | Not started | - |
 | 3. Baselines & Comparison | 0/TBD | Not started | - |
 | 4. GraphSAGE Pipeline | 0/TBD | Not started | - |

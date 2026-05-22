@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-05-15)
 ## Current Position
 
 Phase: 1 of 6 (Pipeline & Data Foundation)
-Plan: 01-04 (Plans 01-01, 01-02, and 01-03 completed)
-Status: Ready to start Plan 01-04: Data preprocessing and graph population
-Last activity: 2026-05-22 - Completed Plan 01-03: Create Neo4j graph service + import rewiring
+Plan: 01-04 (Plans 01-01, 01-02, 01-03, and 01-04 completed)
+Status: Completed Plan 01-04: Create fragrance ingestor + data preprocessing
+Last activity: 2026-05-22 - Completed Plan 01-04: Fragrance ingestor + data preprocessing
 
-Progress: [██████████] 75%
+Progress: [████████████] 100%
 
 ## Performance Metrics
 
@@ -63,5 +63,5 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-05-22
-Stopped at: Completed Plan 01-03: Create Neo4j graph service + import rewiring
+Stopped at: Completed Plan 01-04: Fragrance ingestor + data preprocessing
 Resume file: None
