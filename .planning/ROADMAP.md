@@ -26,9 +26,9 @@ Scentrix is transitioning from a broken E2E fragrance discovery app into a resea
   4. Neo4j fragrance graph is populated with similarity edges, note relationships, and note-fragrance connections
 **Plans**: 4 plans (Wave 1-3)
 Plans:
-- [ ] 01-01-PLAN.md — Remove Celery worker + scikit-learn dependency (Wave 1)
-- [ ] 01-02-PLAN.md — Remove 4 dead 503 endpoints + frontend scrub (Wave 1)
-- [ ] 01-03-PLAN.md — Create Neo4j graph service + import rewiring (Wave 2)
+- [x] 01-01-PLAN.md — Remove Celery worker + scikit-learn dependency (Wave 1)
+- [x] 01-02-PLAN.md — Remove 4 dead 503 endpoints + frontend scrub (Wave 1)
+- [x] 01-03-PLAN.md — Create Neo4j graph service + import rewiring (Wave 2)
 - [ ] 01-04-PLAN.md — Create fragrance ingestor + data preprocessing (Wave 3)
 
 ### Phase 2: Evaluation Infrastructure
@@ -93,7 +93,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Pipeline & Data Foundation | 0/4 | Planning | - |
+| 1. Pipeline & Data Foundation | 3/4 | In Progress | - |
 | 2. Evaluation Infrastructure | 0/TBD | Not started | - |
 | 3. Baselines & Comparison | 0/TBD | Not started | - |
 | 4. GraphSAGE Pipeline | 0/TBD | Not started | - |
