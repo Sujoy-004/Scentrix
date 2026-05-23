@@ -9,7 +9,7 @@ help:
 	@echo "make migrate         - Run database migrations (Alembic)"
 	@echo "make seed            - Seed test data into databases"
 	@echo "make test-backend    - Run backend pytest suite"
-	@echo "make test-frontend   - Run frontend Jest tests"
+	@echo "make test-frontend   - Run frontend E2E tests (Playwright)"
 	@echo "make lint            - Run linting on all code"
 	@echo "make context         - Trigger AI codebase re-mapping and context refresh"
 	@echo "make audit           - Run olfactive diversity audit on dataset"

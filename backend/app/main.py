@@ -1,5 +1,6 @@
 """FastAPI application entry point for Scentrix backend."""
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -19,6 +20,7 @@ from app.database import DB_AVAILABLE, close_db
 
 ML_ENABLED = settings.ml_enabled
 from app.database import engine
+from app.services.catalog import load_recommendation_catalog_async
 from app.limiter import limiter
 from app.routers import auth, fragrances, leads, quiz, recommendations, users
 from app.schemas.schemas import StandardResponse
@@ -54,10 +56,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Universal Warm-up (Hydrating Discovery Brain & Knowledge Graph)
     try:
         logger.info("Universal Boiler: Waking up Neural & Catalog Engines...")
-        # NO ML loading blocks startup - lazy loading enabled
-        # warmup_neural_engine()
-        # asyncio.create_task(load_recommendation_catalog_async())
-        logger.info("Universal Boiler: Background hydration deferred to first request.")
+        recommendations.warmup_neural_engine()
+        asyncio.create_task(load_recommendation_catalog_async())
+        logger.info("Universal Boiler: Neural engine & catalog cache warmed up.")
 
     except Exception as e:
         logger.error(f"Universal Boiler: Startup Warm-up failed: {str(e)}")
