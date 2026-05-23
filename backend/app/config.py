@@ -86,7 +86,7 @@ class Settings(BaseSettings):
 
     # CORS
     allowed_origins: list[str] = [
-        "https://scentrix-one.vercel.app",
+        "http://localhost:3000",
     ]
 
     # Pinecone Vector Search
