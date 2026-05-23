@@ -22,6 +22,12 @@ _brain/
 graphify-out/
 artifacts/
 
+# auto-generated caches
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+*.tsbuildinfo
+
 # test artifacts
 frontend/test-results/
 frontend/playwright-report/
@@ -29,13 +35,23 @@ frontend/playwright-report/
 # python coverage
 backend/.coverage
 
+# secrets / credentials
+*.key
+*.pem
+*.cert
+credentials*
+service-account*.json
+secrets*
+docker-compose.override.yml
+
 # planning docs (kept local, not committed)
 .planning/
 
 # opencode tooling artifacts (regeneratable)
 .opencode/node_modules/
 .opencode/sdk/node_modules/
-.opencode/sdk/dist/# opencode/gsd framework internals (regeneratable)
+.opencode/sdk/dist/
+# opencode/gsd framework internals (regeneratable)
 .agent/
 # opencode design documentation
 DESIGN.md
