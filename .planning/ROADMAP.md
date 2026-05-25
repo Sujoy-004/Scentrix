@@ -73,7 +73,7 @@ Plans:
 **Plans**: 1 plan (Wave 1)
 
 Plans:
-- [ ] 04-01-PLAN.md — GraphSAGE wrapper and pipeline integration (Wave 1)
+- [x] 04-01-PLAN.md — GraphSAGE wrapper with contrastive learning, KNN graph construction, and full pipeline integration (Wave 1)
 
 ### Phase 5: Research Differentiators
 **Goal**: Core research claims are validated through quiz-initialized evaluation, stratification, ablation study, learning curves, and popularity debiasing.
