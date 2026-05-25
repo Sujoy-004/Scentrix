@@ -22,6 +22,18 @@ class EvalConfig(BaseSettings):
     data_path: str = "ml/data/scentrix_master_cleaned.json"
     output_dir: str = "ml/eval/runs"
 
+    graphsage_enabled: bool = True
+    graphsage_embedding_dim: int = 64
+    graphsage_num_layers: int = 2
+    graphsage_epochs: int = 100
+    graphsage_learning_rate: float = 0.01
+    graphsage_dropout: float = 0.1
+    graphsage_edge_dropout: float = 0.1
+    graphsage_tau: float = 0.5
+    graphsage_loss_type: str = "contrastive"
+    graphsage_knn_k: int = 10
+    graphsage_similarity_threshold: float = 0.5
+
     @field_validator("cold_ratio")
     @classmethod
     def validate_cold_ratio(cls, v: float) -> float:

@@ -108,6 +108,6 @@ Plans:
 | 1. Pipeline & Data Foundation | 4/4 | Complete | 2026-05-22 |
 | 2. Evaluation Infrastructure | 4/4 | Complete | 2026-05-23 |
 | 3. Baselines & Comparison | 2/2 | Complete | 2026-05-25 |
-| 4. GraphSAGE Pipeline | 0/1 | Not started | — |
+| 4. GraphSAGE Pipeline | 1/1 | Complete | 2026-05-25 |
 | 5. Research Differentiators | 0/TBD | Not started | — |
 | 6. MEXT Demo | 0/TBD | Not started | — |

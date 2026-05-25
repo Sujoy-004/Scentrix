@@ -8,22 +8,24 @@ from pathlib import Path
 from typing import Any, Optional, Dict, List
 import os
 
+import numpy as np
 import pandas as pd
+import torch
 
 from ml.eval.config import EvalConfig
 from ml.eval.split import ColdStartSplitter, LeaveColdOutStrategy, SplitResult
 from ml.eval.metrics import MetricsWrapper
 from ml.eval.aggregator import ResultsAggregator
 
-# Try to import GraphSAGE components (optional dependency)
+logger = logging.getLogger(__name__)
+
 try:
     from ml.eval.models.graphsage_wrapper import GraphSAGEWrapper
+    from ml.eval.models.graph_builder import build_similarity_graph
     GRAPHSAGE_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     GRAPHSAGE_AVAILABLE = False
-    logger.warning("GraphSAGE not available - install torch and torch-geometric for GraphSAGE support")
-
-logger = logging.getLogger(__name__)
+    logger.warning(f"GraphSAGE modules not available: {e}")
 
 
 class EvaluationOrchestrator:
@@ -53,7 +55,9 @@ class EvaluationOrchestrator:
                 embedding_dim=getattr(config, 'graphsage_embedding_dim', 64),
                 num_layers=getattr(config, 'graphsage_num_layers', 2),
                 dropout=getattr(config, 'graphsage_dropout', 0.1),
-                edge_dropout=getattr(config, 'graphsage_edge_dropout', 0.1)
+                edge_dropout=getattr(config, 'graphsage_edge_dropout', 0.1),
+                tau=getattr(config, 'graphsage_tau', 0.5),
+                loss_type=getattr(config, 'graphsage_loss_type', 'contrastive'),
             )
 
     def run(self) -> dict[str, Any]:
@@ -83,12 +87,125 @@ class EvaluationOrchestrator:
         if self.graphsage_wrapper is not None:
             logger.info("Running GraphSAGE evaluation...")
             try:
-                # For now, we'll just verify the GraphSAGE wrapper can be instantiated
-                # In a full implementation, this would load data, build graph, train, and infer
-                logger.info("GraphSAGE wrapper initialized successfully")
-                graphsage_results = {"graphsage_enabled": True, "status": "initialized"}
+                fragrance_ids = df["fragrance_id"].tolist()
+                logger.info(f"Building similarity graph for {len(fragrance_ids)} nodes...")
+                edge_index, edge_scores, node_id_to_idx, idx_to_node_id = build_similarity_graph(
+                    fragrance_ids=fragrance_ids,
+                    embeddings_path="ml/data/embeddings.npy",
+                    embedding_index_path="ml/data/embedding_index.json",
+                    k=self.config.graphsage_knn_k,
+                    threshold=self.config.graphsage_similarity_threshold,
+                )
+                logger.info(f"Graph built: {edge_index.shape[1]} edges")
+
+                node_features, node_ids = self._build_features(df)
+                logger.info(f"Features assembled: {node_features.shape}")
+
+                warm_ids = split_result.warm_items
+                cold_ids = split_result.cold_items
+                warm_idx = [node_id_to_idx[nid] for nid in warm_ids if nid in node_id_to_idx]
+                cold_idx = [node_id_to_idx[nid] for nid in cold_ids if nid in node_id_to_idx]
+                logger.info(f"Warm nodes: {len(warm_idx)}, Cold nodes: {len(cold_idx)}")
+
+                warm_node_set = set(warm_idx)
+                warm_edge_mask = np.array([
+                    edge_index[0, i] in warm_node_set and edge_index[1, i] in warm_node_set
+                    for i in range(edge_index.shape[1])
+                ])
+                warm_edge_index = edge_index[:, warm_edge_mask] if edge_index.shape[1] > 0 else edge_index
+                logger.info(f"Warm-subgraph edges: {warm_edge_index.shape[1]}")
+
+                if node_features.shape[0] < 2:
+                    logger.warning("Too few nodes for GraphSAGE — skipping")
+                    graphsage_results = {"graphsage_enabled": True, "status": "skipped", "reason": "too_few_nodes"}
+                elif edge_index.shape[1] == 0:
+                    logger.warning("Graph has no edges — all nodes treated as degree-0 cold")
+                    self.graphsage_wrapper.node_features = torch.FloatTensor(node_features).to(self.graphsage_wrapper.device)
+                    self.graphsage_wrapper.node_ids = node_ids
+                    self.graphsage_wrapper.is_trained = True
+                    predictions = self.graphsage_wrapper.predict_cold_start(
+                        node_features=node_features,
+                        edge_index=edge_index,
+                        train_node_ids=[node_ids[i] for i in warm_idx],
+                        test_node_ids=[node_ids[i] for i in cold_idx],
+                        k=self.config.k_values[0],
+                    )
+                    ground_truth = self._build_ground_truth(cold_ids, node_ids, edge_index, node_id_to_idx)
+                    metrics = self.metrics_wrapper.compute_all(predictions, ground_truth)
+                    self.results_aggregator.add_model_results("graphsage", metrics)
+                    graphsage_results = {
+                        "graphsage_enabled": True,
+                        "status": "success",
+                        "metrics": metrics,
+                        "mode": "feature_only",
+                    }
+                elif warm_edge_index.shape[1] == 0:
+                    logger.warning("Warm subgraph has no edges — training skipped, using feature-only fallback")
+                    self.graphsage_wrapper.is_trained = True
+                    predictions = self.graphsage_wrapper.predict_cold_start(
+                        node_features=node_features,
+                        edge_index=edge_index,
+                        train_node_ids=[node_ids[i] for i in warm_idx],
+                        test_node_ids=[node_ids[i] for i in cold_idx],
+                        k=self.config.k_values[0],
+                    )
+                    ground_truth = self._build_ground_truth(cold_ids, node_ids, edge_index, node_id_to_idx)
+                    metrics = self.metrics_wrapper.compute_all(predictions, ground_truth)
+                    self.results_aggregator.add_model_results("graphsage", metrics)
+                    graphsage_results = {
+                        "graphsage_enabled": True,
+                        "status": "success",
+                        "metrics": metrics,
+                        "mode": "warm_no_edges_feature_only",
+                    }
+                else:
+                    device = self.graphsage_wrapper.device
+
+                    self.graphsage_wrapper.train(
+                        node_features=node_features,
+                        edge_index=warm_edge_index,
+                        node_ids=node_ids,
+                        num_epochs=self.config.graphsage_epochs,
+                        learning_rate=self.config.graphsage_learning_rate,
+                    )
+
+                    predictions = self.graphsage_wrapper.predict_cold_start(
+                        node_features=node_features,
+                        edge_index=edge_index,
+                        train_node_ids=[node_ids[i] for i in warm_idx],
+                        test_node_ids=[node_ids[i] for i in cold_idx],
+                        k=self.config.k_values[0],
+                    )
+
+                    ground_truth = self._build_ground_truth(cold_ids, node_ids, edge_index, node_id_to_idx)
+                    metrics = self.metrics_wrapper.compute_all(predictions, ground_truth)
+                    logger.info(f"GraphSAGE metrics: {metrics}")
+                    self.results_aggregator.add_model_results("graphsage", metrics)
+
+                    model_path = run_dir / "models"
+                    model_path.mkdir(exist_ok=True)
+                    self.graphsage_wrapper.save(str(model_path / "graphsage_model.pt"))
+
+                    features_tensor = torch.FloatTensor(node_features).to(device)
+                    edge_index_tensor = torch.LongTensor(edge_index).to(device)
+                    self.graphsage_wrapper.model.eval()
+                    with torch.no_grad():
+                        node_embeddings = self.graphsage_wrapper.model(features_tensor, edge_index_tensor).cpu().numpy()
+                    np.save(model_path / "node_embeddings.npy", node_embeddings)
+                    np.save(model_path / "edge_index.npy", edge_index)
+                    with open(model_path / "node_ids.json", "w") as f:
+                        json.dump(node_ids, f)
+
+                    graphsage_results = {
+                        "graphsage_enabled": True,
+                        "status": "success",
+                        "metrics": metrics,
+                        "model_path": str(model_path),
+                        "mode": "contrastive",
+                    }
+
             except Exception as e:
-                logger.warning(f"GraphSAGE evaluation failed: {e}")
+                logger.warning(f"GraphSAGE evaluation failed: {e}", exc_info=True)
                 graphsage_results = {"graphsage_enabled": True, "status": "failed", "error": str(e)}
         else:
             graphsage_results = {"graphsage_enabled": False}
@@ -133,6 +250,58 @@ class EvaluationOrchestrator:
             })
 
         return pd.DataFrame(records)
+
+    def _build_features(self, df: pd.DataFrame) -> tuple[np.ndarray, list[str]]:
+        embeddings = np.load("ml/data/embeddings.npy")
+        with open("ml/data/embedding_index.json", "r") as f:
+            embedding_index = json.load(f)
+
+        all_accords = sorted(df["primary_accord"].unique())
+        accord_to_idx = {a: i for i, a in enumerate(all_accords)}
+
+        node_features_list = []
+        node_ids = []
+
+        for _, row in df.iterrows():
+            fragrance_id = row["fragrance_id"]
+            if fragrance_id not in embedding_index:
+                logger.warning(f"Fragrance {fragrance_id} not in embedding index — skipping")
+                continue
+
+            accord = row.get("primary_accord", "Unknown")
+            accord_vec = np.zeros(len(all_accords), dtype=np.float32)
+            if accord in accord_to_idx:
+                accord_vec[accord_to_idx[accord]] = 1.0
+
+            emb_idx = embedding_index[fragrance_id]
+            emb_vec = embeddings[emb_idx].astype(np.float32)
+
+            feature_vec = np.concatenate([accord_vec, emb_vec])
+            node_features_list.append(feature_vec)
+            node_ids.append(fragrance_id)
+
+        return np.array(node_features_list, dtype=np.float32), node_ids
+
+    def _build_ground_truth(
+        self,
+        cold_ids: list[str],
+        node_ids: list[str],
+        full_edge_index: np.ndarray,
+        node_id_to_idx: dict[str, int],
+    ) -> dict[str, set[str]]:
+        ground_truth = {}
+        for cold_id in cold_ids:
+            if cold_id not in node_id_to_idx:
+                continue
+            idx = node_id_to_idx[cold_id]
+            neighbor_mask = (full_edge_index[0] == idx) | (full_edge_index[1] == idx)
+            neighbor_indices = np.unique(np.concatenate([
+                full_edge_index[0, neighbor_mask],
+                full_edge_index[1, neighbor_mask],
+            ]))
+            neighbor_ids = [node_ids[n] for n in neighbor_indices if node_ids[n] != cold_id]
+            ground_truth[cold_id] = set(neighbor_ids)
+        return ground_truth
 
     def _save_splits(self, split_result: SplitResult, run_dir: Path) -> None:
         split_result.warm_df.to_csv(
