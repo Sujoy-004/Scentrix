@@ -34,6 +34,11 @@ class EvalConfig(BaseSettings):
     graphsage_knn_k: int = 10
     graphsage_similarity_threshold: float = 0.5
 
+    # Quiz-init evaluation mode (Phase 5)
+    evaluation_mode: str = Field(default="pure_cold", pattern="^(pure_cold|quiz_init|warm_ref)$")
+    quiz_length: int = Field(default=5, ge=1, le=10)
+    quiz_noise: float = Field(default=0.1, ge=0.0, le=1.0)
+
     @field_validator("cold_ratio")
     @classmethod
     def validate_cold_ratio(cls, v: float) -> float:

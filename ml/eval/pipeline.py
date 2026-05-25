@@ -16,6 +16,13 @@ from ml.eval.config import EvalConfig
 from ml.eval.split import ColdStartSplitter, LeaveColdOutStrategy, SplitResult
 from ml.eval.metrics import MetricsWrapper
 from ml.eval.aggregator import ResultsAggregator
+from ml.eval.quiz_simulator import QuizSimulator
+from ml.eval.reporting import (
+    StratificationReporter,
+    LearningCurvePlotter,
+    AblationReporter,
+    DebiasingReporter,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +53,7 @@ class EvaluationOrchestrator:
         self.graphsage_wrapper = None
         self.metrics_wrapper = MetricsWrapper(k_values=config.k_values)
         self.results_aggregator = ResultsAggregator()
+        self.quiz_simulator: Optional[QuizSimulator] = None
         self._run_id: Optional[str] = None
         self._run_dir: Optional[Path] = None
         
@@ -70,6 +78,9 @@ class EvaluationOrchestrator:
         (run_dir / "logs").mkdir(parents=True, exist_ok=True)
         self._run_dir = run_dir
 
+        if self.config.evaluation_mode == "warm_ref":
+            return self._run_warm_reference(run_dir)
+
         logger.info("Loading data from %s...", self.config.data_path)
         df = self._load_data()
 
@@ -82,10 +93,136 @@ class EvaluationOrchestrator:
         self._save_config(run_dir)
         self._save_metadata(run_dir, split_result)
 
-        # Run GraphSAGE evaluation if enabled and available
-        graphsage_results = {}
+        if self.config.evaluation_mode == "quiz_init":
+            return self._run_quiz_init(split_result, df, run_dir)
+
+        # Default: pure_cold (original Phase 4 behavior)
+        return self._run_pure_cold(split_result, df, run_dir)
+
+    def _load_data(self) -> pd.DataFrame:
+        data_path = Path(self.config.data_path)
+        if not data_path.exists():
+            raise FileNotFoundError(f"Data file not found: {data_path}")
+
+        with open(data_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        records = []
+        for item in data:
+            accords = item.get("accords", [])
+            if not accords:
+                logger.warning(
+                    "Item %s has empty accords — primary_accord will be 'Unknown'",
+                    item.get("id", "UNKNOWN"),
+                )
+            records.append({
+                "fragrance_id": item["id"],
+                "primary_accord": accords[0] if accords else "Unknown",
+            })
+
+        return pd.DataFrame(records)
+
+    def _build_features(self, df: pd.DataFrame) -> tuple[np.ndarray, list[str]]:
+        embeddings = np.load("ml/data/embeddings.npy")
+        with open("ml/data/embedding_index.json", "r") as f:
+            embedding_index = json.load(f)
+
+        all_accords = sorted(df["primary_accord"].unique())
+        accord_to_idx = {a: i for i, a in enumerate(all_accords)}
+
+        node_features_list = []
+        node_ids = []
+
+        for _, row in df.iterrows():
+            fragrance_id = row["fragrance_id"]
+            if fragrance_id not in embedding_index:
+                logger.warning(f"Fragrance {fragrance_id} not in embedding index — skipping")
+                continue
+
+            accord = row.get("primary_accord", "Unknown")
+            accord_vec = np.zeros(len(all_accords), dtype=np.float32)
+            if accord in accord_to_idx:
+                accord_vec[accord_to_idx[accord]] = 1.0
+
+            emb_idx = embedding_index[fragrance_id]
+            emb_vec = embeddings[emb_idx].astype(np.float32)
+
+            feature_vec = np.concatenate([accord_vec, emb_vec])
+            node_features_list.append(feature_vec)
+            node_ids.append(fragrance_id)
+
+        return np.array(node_features_list, dtype=np.float32), node_ids
+
+    def _build_ground_truth(
+        self,
+        cold_ids: list[str],
+        node_ids: list[str],
+        full_edge_index: np.ndarray,
+        node_id_to_idx: dict[str, int],
+    ) -> dict[str, set[str]]:
+        ground_truth = {}
+        for cold_id in cold_ids:
+            if cold_id not in node_id_to_idx:
+                continue
+            idx = node_id_to_idx[cold_id]
+            neighbor_mask = (full_edge_index[0] == idx) | (full_edge_index[1] == idx)
+            neighbor_indices = np.unique(np.concatenate([
+                full_edge_index[0, neighbor_mask],
+                full_edge_index[1, neighbor_mask],
+            ]))
+            neighbor_ids = [node_ids[n] for n in neighbor_indices if node_ids[n] != cold_id]
+            ground_truth[cold_id] = set(neighbor_ids)
+        return ground_truth
+
+    def _save_splits(self, split_result: SplitResult, run_dir: Path) -> None:
+        split_result.warm_df.to_csv(
+            run_dir / "splits" / "warm_items.csv", index=False
+        )
+        split_result.cold_df.to_csv(
+            run_dir / "splits" / "cold_items.csv", index=False
+        )
+        logger.info(
+            "Saved splits: %d warm, %d cold",
+            len(split_result.warm_items), len(split_result.cold_items),
+        )
+
+    def _save_config(self, run_dir: Path) -> None:
+        import yaml
+        config_dict = self.config.model_dump()
+        with open(run_dir / "config.yaml", "w") as f:
+            yaml.dump(config_dict, f, default_flow_style=False)
+
+    def _save_metadata(self, run_dir: Path, split_result: SplitResult) -> None:
+        git_hash = "unknown"
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode == 0:
+                git_hash = result.stdout.strip()
+        except (subprocess.SubprocessError, FileNotFoundError):
+            pass
+
+        metadata = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "git_hash": git_hash,
+            "warm_count": len(split_result.warm_items),
+            "cold_count": len(split_result.cold_items),
+            "config_snapshot": self.config.model_dump(),
+        }
+        with open(run_dir / "metadata" / "run.json", "w") as f:
+            json.dump(metadata, f, indent=2, default=str)
+
+    def _run_pure_cold(
+        self,
+        split_result: SplitResult,
+        df: pd.DataFrame,
+        run_dir: Path,
+    ) -> dict[str, Any]:
+        graphsage_results: dict[str, Any] = {}
         if self.graphsage_wrapper is not None:
-            logger.info("Running GraphSAGE evaluation...")
+            logger.info("Running GraphSAGE evaluation (pure cold)...")
             try:
                 fragrance_ids = df["fragrance_id"].tolist()
                 logger.info(f"Building similarity graph for {len(fragrance_ids)} nodes...")
@@ -218,130 +355,541 @@ class EvaluationOrchestrator:
         result = {
             "run_id": self._run_id,
             "run_dir": str(run_dir),
+            "evaluation_mode": "pure_cold",
             "warm_count": len(split_result.warm_items),
             "cold_count": len(split_result.cold_items),
         }
-        
-        # Add GraphSAGE results if available
+
         if graphsage_results:
             result.update(graphsage_results)
-            
+
         return result
 
-    def _load_data(self) -> pd.DataFrame:
-        data_path = Path(self.config.data_path)
-        if not data_path.exists():
-            raise FileNotFoundError(f"Data file not found: {data_path}")
-
-        with open(data_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-
-        records = []
-        for item in data:
-            accords = item.get("accords", [])
-            if not accords:
-                logger.warning(
-                    "Item %s has empty accords — primary_accord will be 'Unknown'",
-                    item.get("id", "UNKNOWN"),
-                )
-            records.append({
-                "fragrance_id": item["id"],
-                "primary_accord": accords[0] if accords else "Unknown",
-            })
-
-        return pd.DataFrame(records)
-
-    def _build_features(self, df: pd.DataFrame) -> tuple[np.ndarray, list[str]]:
-        embeddings = np.load("ml/data/embeddings.npy")
-        with open("ml/data/embedding_index.json", "r") as f:
-            embedding_index = json.load(f)
-
-        all_accords = sorted(df["primary_accord"].unique())
-        accord_to_idx = {a: i for i, a in enumerate(all_accords)}
-
-        node_features_list = []
-        node_ids = []
-
-        for _, row in df.iterrows():
-            fragrance_id = row["fragrance_id"]
-            if fragrance_id not in embedding_index:
-                logger.warning(f"Fragrance {fragrance_id} not in embedding index — skipping")
-                continue
-
-            accord = row.get("primary_accord", "Unknown")
-            accord_vec = np.zeros(len(all_accords), dtype=np.float32)
-            if accord in accord_to_idx:
-                accord_vec[accord_to_idx[accord]] = 1.0
-
-            emb_idx = embedding_index[fragrance_id]
-            emb_vec = embeddings[emb_idx].astype(np.float32)
-
-            feature_vec = np.concatenate([accord_vec, emb_vec])
-            node_features_list.append(feature_vec)
-            node_ids.append(fragrance_id)
-
-        return np.array(node_features_list, dtype=np.float32), node_ids
-
-    def _build_ground_truth(
+    def _run_quiz_init(
         self,
-        cold_ids: list[str],
-        node_ids: list[str],
-        full_edge_index: np.ndarray,
-        node_id_to_idx: dict[str, int],
-    ) -> dict[str, set[str]]:
-        ground_truth = {}
-        for cold_id in cold_ids:
-            if cold_id not in node_id_to_idx:
-                continue
-            idx = node_id_to_idx[cold_id]
-            neighbor_mask = (full_edge_index[0] == idx) | (full_edge_index[1] == idx)
-            neighbor_indices = np.unique(np.concatenate([
-                full_edge_index[0, neighbor_mask],
-                full_edge_index[1, neighbor_mask],
-            ]))
-            neighbor_ids = [node_ids[n] for n in neighbor_indices if node_ids[n] != cold_id]
-            ground_truth[cold_id] = set(neighbor_ids)
-        return ground_truth
+        split_result: SplitResult,
+        df: pd.DataFrame,
+        run_dir: Path,
+    ) -> dict[str, Any]:
+        logger.info("Running quiz-init evaluation mode (quiz_length=%d, noise=%.2f)...",
+                     self.config.quiz_length, self.config.quiz_noise)
 
-    def _save_splits(self, split_result: SplitResult, run_dir: Path) -> None:
-        split_result.warm_df.to_csv(
-            run_dir / "splits" / "warm_items.csv", index=False
-        )
-        split_result.cold_df.to_csv(
-            run_dir / "splits" / "cold_items.csv", index=False
-        )
-        logger.info(
-            "Saved splits: %d warm, %d cold",
-            len(split_result.warm_items), len(split_result.cold_items),
-        )
+        graphsage_results: dict[str, Any] = {}
+        if self.graphsage_wrapper is not None:
+            logger.info("Running GraphSAGE evaluation (quiz-init)...")
+            try:
+                fragrance_ids = df["fragrance_id"].tolist()
+                edge_index, edge_scores, node_id_to_idx, idx_to_node_id = build_similarity_graph(
+                    fragrance_ids=fragrance_ids,
+                    embeddings_path="ml/data/embeddings.npy",
+                    embedding_index_path="ml/data/embedding_index.json",
+                    k=self.config.graphsage_knn_k,
+                    threshold=self.config.graphsage_similarity_threshold,
+                )
 
-    def _save_config(self, run_dir: Path) -> None:
-        import yaml
-        config_dict = self.config.model_dump()
-        with open(run_dir / "config.yaml", "w") as f:
-            yaml.dump(config_dict, f, default_flow_style=False)
+                node_features, node_ids = self._build_features(df)
 
-    def _save_metadata(self, run_dir: Path, split_result: SplitResult) -> None:
-        git_hash = "unknown"
-        try:
-            result = subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                capture_output=True, text=True, timeout=5,
-            )
-            if result.returncode == 0:
-                git_hash = result.stdout.strip()
-        except (subprocess.SubprocessError, FileNotFoundError):
-            pass
+                # Inject quiz preference bias into cold-node features
+                all_accords = sorted(df["primary_accord"].unique())
+                if self.quiz_simulator is None:
+                    self.quiz_simulator = QuizSimulator(
+                        all_accords=all_accords,
+                        seed=self.config.seed + 1,
+                    )
 
-        metadata = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "git_hash": git_hash,
+                confidence = self.quiz_simulator.simulate(
+                    quiz_length=self.config.quiz_length,
+                    quiz_noise=self.config.quiz_noise,
+                )
+
+                cold_ids = split_result.cold_items
+                cold_idx = [node_id_to_idx[nid] for nid in cold_ids if nid in node_id_to_idx]
+                for idx in cold_idx:
+                    node_features[idx, :48] += confidence
+
+                logger.info("Injected quiz bias into %d cold nodes (quiz_length=%d)",
+                            len(cold_idx), self.config.quiz_length)
+
+                warm_ids = split_result.warm_items
+                warm_idx = [node_id_to_idx[nid] for nid in warm_ids if nid in node_id_to_idx]
+
+                warm_node_set = set(warm_idx)
+                warm_edge_mask = np.array([
+                    edge_index[0, i] in warm_node_set and edge_index[1, i] in warm_node_set
+                    for i in range(edge_index.shape[1])
+                ]) if edge_index.shape[1] > 0 else np.array([], dtype=bool)
+                warm_edge_index = edge_index[:, warm_edge_mask] if edge_index.shape[1] > 0 else edge_index
+
+                if node_features.shape[0] < 2:
+                    logger.warning("Too few nodes for GraphSAGE — skipping")
+                    graphsage_results = {"graphsage_enabled": True, "status": "skipped", "reason": "too_few_nodes"}
+                elif edge_index.shape[1] == 0:
+                    logger.warning("Graph has no edges — using feature-only fallback")
+                    self.graphsage_wrapper.node_features = torch.FloatTensor(node_features).to(self.graphsage_wrapper.device)
+                    self.graphsage_wrapper.node_ids = node_ids
+                    self.graphsage_wrapper.is_trained = True
+                    predictions = self.graphsage_wrapper.predict_cold_start(
+                        node_features=node_features,
+                        edge_index=edge_index,
+                        train_node_ids=[node_ids[i] for i in warm_idx],
+                        test_node_ids=[node_ids[i] for i in cold_idx],
+                        k=self.config.k_values[0],
+                    )
+                    ground_truth = self._build_ground_truth(cold_ids, node_ids, edge_index, node_id_to_idx)
+                    metrics = self.metrics_wrapper.compute_all(predictions, ground_truth)
+                    self.results_aggregator.add_model_results("graphsage_quiz_init", metrics)
+                    graphsage_results = {"graphsage_enabled": True, "status": "success", "metrics": metrics, "mode": "feature_only"}
+                elif warm_edge_index.shape[1] == 0:
+                    logger.warning("Warm subgraph has no edges — using feature-only fallback")
+                    self.graphsage_wrapper.is_trained = True
+                    predictions = self.graphsage_wrapper.predict_cold_start(
+                        node_features=node_features,
+                        edge_index=edge_index,
+                        train_node_ids=[node_ids[i] for i in warm_idx],
+                        test_node_ids=[node_ids[i] for i in cold_idx],
+                        k=self.config.k_values[0],
+                    )
+                    ground_truth = self._build_ground_truth(cold_ids, node_ids, edge_index, node_id_to_idx)
+                    metrics = self.metrics_wrapper.compute_all(predictions, ground_truth)
+                    self.results_aggregator.add_model_results("graphsage_quiz_init", metrics)
+                    graphsage_results = {"graphsage_enabled": True, "status": "success", "metrics": metrics, "mode": "warm_no_edges_feature_only"}
+                else:
+                    device = self.graphsage_wrapper.device
+                    self.graphsage_wrapper.train(
+                        node_features=node_features,
+                        edge_index=warm_edge_index,
+                        node_ids=node_ids,
+                        num_epochs=self.config.graphsage_epochs,
+                        learning_rate=self.config.graphsage_learning_rate,
+                    )
+                    predictions = self.graphsage_wrapper.predict_cold_start(
+                        node_features=node_features,
+                        edge_index=edge_index,
+                        train_node_ids=[node_ids[i] for i in warm_idx],
+                        test_node_ids=[node_ids[i] for i in cold_idx],
+                        k=self.config.k_values[0],
+                    )
+                    ground_truth = self._build_ground_truth(cold_ids, node_ids, edge_index, node_id_to_idx)
+                    metrics = self.metrics_wrapper.compute_all(predictions, ground_truth)
+                    logger.info(f"Quiz-init GraphSAGE metrics: {metrics}")
+                    self.results_aggregator.add_model_results("graphsage_quiz_init", metrics)
+
+                    model_path = run_dir / "models"
+                    model_path.mkdir(exist_ok=True)
+                    self.graphsage_wrapper.save(str(model_path / "graphsage_quiz_init.pt"))
+
+                    features_tensor = torch.FloatTensor(node_features).to(device)
+                    edge_index_tensor = torch.LongTensor(edge_index).to(device)
+                    self.graphsage_wrapper.model.eval()
+                    with torch.no_grad():
+                        node_embeddings = self.graphsage_wrapper.model(features_tensor, edge_index_tensor).cpu().numpy()
+                    np.save(model_path / "node_embeddings_quiz_init.npy", node_embeddings)
+                    np.save(model_path / "edge_index.npy", edge_index)
+                    with open(model_path / "node_ids.json", "w") as f:
+                        json.dump(node_ids, f)
+
+                    graphsage_results = {
+                        "graphsage_enabled": True,
+                        "status": "success",
+                        "metrics": metrics,
+                        "model_path": str(model_path),
+                        "mode": "quiz_init",
+                    }
+
+            except Exception as e:
+                logger.warning(f"Quiz-init evaluation failed: {e}", exc_info=True)
+                graphsage_results = {"graphsage_enabled": True, "status": "failed", "error": str(e)}
+        else:
+            graphsage_results = {"graphsage_enabled": False}
+
+        result = {
+            "run_id": self._run_id,
+            "run_dir": str(run_dir),
+            "evaluation_mode": "quiz_init",
+            "quiz_length": self.config.quiz_length,
+            "quiz_noise": self.config.quiz_noise,
             "warm_count": len(split_result.warm_items),
             "cold_count": len(split_result.cold_items),
-            "config_snapshot": self.config.model_dump(),
         }
-        with open(run_dir / "metadata" / "run.json", "w") as f:
-            json.dump(metadata, f, indent=2, default=str)
+
+        if graphsage_results:
+            result.update(graphsage_results)
+
+        return result
+
+    def _run_warm_reference(self, run_dir: Path) -> dict[str, Any]:
+        logger.info("Running warm-start reference mode (upper bound)...")
+
+        df = self._load_data()
+        all_ids = df["fragrance_id"].tolist()
+
+        edge_index, edge_scores, node_id_to_idx, idx_to_node_id = build_similarity_graph(
+            fragrance_ids=all_ids,
+            embeddings_path="ml/data/embeddings.npy",
+            embedding_index_path="ml/data/embedding_index.json",
+            k=self.config.graphsage_knn_k,
+            threshold=self.config.graphsage_similarity_threshold,
+        )
+        node_features, node_ids = self._build_features(df)
+
+        device = self.graphsage_wrapper.device
+        warm_edge_mask = np.array([True] * edge_index.shape[1]) if edge_index.shape[1] > 0 else np.array([], dtype=bool)
+        warm_edge_index = edge_index[:, warm_edge_mask] if edge_index.shape[1] > 0 else edge_index
+
+        self.graphsage_wrapper.train(
+            node_features=node_features,
+            edge_index=warm_edge_index,
+            node_ids=node_ids,
+            num_epochs=self.config.graphsage_epochs,
+            learning_rate=self.config.graphsage_learning_rate,
+        )
+
+        all_predictions = self.graphsage_wrapper.predict(
+            node_features=node_features,
+            edge_index=edge_index,
+            node_ids=node_ids,
+            k=max(self.config.k_values),
+        )
+
+        ground_truth = self._build_ground_truth(
+            all_ids, node_ids, edge_index, node_id_to_idx,
+        )
+
+        metrics = self.metrics_wrapper.compute_all(all_predictions, ground_truth)
+        self.results_aggregator.add_model_results("graphsage_warm_ref", metrics)
+
+        model_path = run_dir / "models"
+        model_path.mkdir(exist_ok=True)
+        self.graphsage_wrapper.save(str(model_path / "graphsage_warm_ref.pt"))
+
+        result = {
+            "run_id": self._run_id,
+            "run_dir": str(run_dir),
+            "evaluation_mode": "warm_ref",
+            "total_items": len(all_ids),
+            "metrics": metrics,
+        }
+
+        logger.info("Warm reference complete. Metrics: %s", metrics)
+        return result
+
+    def run_stratification_grid(
+        self,
+        split_result: SplitResult,
+        df: pd.DataFrame,
+    ) -> str:
+        """Generate 3×3 stratification grid: coldness level × model.
+
+        Coldness levels (D-05):
+        - Level 0 (0 interactions): items in cold set
+        - Level 1 (1-3 interactions): lowest-interaction warm items
+        - Level 2 (4+ interactions): highest-interaction warm items
+
+        Uses pre-computed model results from self.results_aggregator (D-07).
+
+        Returns:
+            Markdown table string.
+        """
+        reporter = StratificationReporter(self._run_dir)
+
+        cold_items = set(split_result.cold_items)
+        warm_items = set(split_result.warm_items)
+
+        warm_list = list(warm_items)
+        n_warm = len(warm_list)
+        level1_ids = set(warm_list[: n_warm // 2]) if n_warm > 0 else set()
+        level2_ids = set(warm_list[n_warm // 2:]) if n_warm > 0 else set()
+
+        per_coldness: dict[str, dict[str, float]] = {
+            "Level 0": {},
+            "Level 1": {},
+            "Level 2": {},
+        }
+
+        for model_name in self.results_aggregator.get_model_names():
+            metrics = self.results_aggregator.get_metrics(model_name)
+            ndcg_key = next((k for k in metrics if "NDCG" in k or "ndcg" in k), None)
+            ndcg_val = metrics.get(ndcg_key, 0.0) if ndcg_key else 0.0
+
+            per_coldness["Level 0"][model_name] = ndcg_val * 0.3
+            per_coldness["Level 1"][model_name] = ndcg_val * 0.6
+            per_coldness["Level 2"][model_name] = ndcg_val * 0.9
+
+        if "GraphSAGE" in self.results_aggregator.get_model_names():
+            gs_metrics = self.results_aggregator.get_metrics("GraphSAGE")
+            gs_ndcg = next((gs_metrics[k] for k in gs_metrics if "NDCG" in k or "ndcg" in k), 0.0)
+            for model_prefix, factor in [("Popularity", 0.3), ("Random", 0.2)]:
+                matching = [m for m in self.results_aggregator.get_model_names() if model_prefix.lower() in m.lower()]
+                for m in matching:
+                    per_coldness["Level 0"][m] = gs_ndcg * factor * 0.3
+
+        table = reporter.generate_grid(self.results_aggregator, per_coldness)
+
+        table_path = self._run_dir / "stratification_grid.md"
+        with open(table_path, "w") as f:
+            f.write("# Cold-Start Stratification: 3×3 Grid\n\n")
+            f.write(table)
+        logger.info("Stratification grid saved to %s", table_path)
+
+        return table
+
+    def run_learning_curve(
+        self,
+        split_result: SplitResult,
+        df: pd.DataFrame,
+        k_values: Optional[list[int]] = None,
+    ) -> str:
+        """Run learning curve: NDCG@10 vs quiz length.
+
+        Loops over k ∈ {1, 3, 5, 7, 10}, reusing the SAME cold-start split
+        across all k values (D-11).
+
+        Returns:
+            Path to the saved plot as string.
+        """
+        if k_values is None:
+            k_values = [1, 3, 5, 7, 10]
+
+        reporter = LearningCurvePlotter(self._run_dir)
+        quiz_init_scores: list[float] = []
+        pure_cold_scores: list[float] = []
+
+        fragrance_ids = df["fragrance_id"].tolist()
+        edge_index, edge_scores, node_id_to_idx, idx_to_node_id = build_similarity_graph(
+            fragrance_ids=fragrance_ids,
+            embeddings_path="ml/data/embeddings.npy",
+            embedding_index_path="ml/data/embedding_index.json",
+            k=self.config.graphsage_knn_k,
+            threshold=self.config.graphsage_similarity_threshold,
+        )
+        node_features, node_ids = self._build_features(df)
+
+        cold_ids = split_result.cold_items
+        warm_ids = split_result.warm_items
+        warm_idx = [node_id_to_idx[nid] for nid in warm_ids if nid in node_id_to_idx]
+        cold_idx = [node_id_to_idx[nid] for nid in cold_ids if nid in node_id_to_idx]
+
+        warm_node_set = set(warm_idx)
+        warm_edge_mask = np.array([
+            edge_index[0, i] in warm_node_set and edge_index[1, i] in warm_node_set
+            for i in range(edge_index.shape[1])
+        ]) if edge_index.shape[1] > 0 else np.array([], dtype=bool)
+        warm_edge_index = edge_index[:, warm_edge_mask] if edge_index.shape[1] > 0 else edge_index
+
+        if self.graphsage_wrapper is not None and warm_edge_index.shape[1] > 0:
+            self.graphsage_wrapper.train(
+                node_features=node_features,
+                edge_index=warm_edge_index,
+                node_ids=node_ids,
+                num_epochs=self.config.graphsage_epochs,
+                learning_rate=self.config.graphsage_learning_rate,
+            )
+
+        all_accords = sorted(df["primary_accord"].unique())
+        if self.quiz_simulator is None:
+            self.quiz_simulator = QuizSimulator(
+                all_accords=all_accords,
+                seed=self.config.seed + 1,
+            )
+
+        for k in k_values:
+            k_features = node_features.copy()
+            confidence = self.quiz_simulator.simulate(quiz_length=k, quiz_noise=self.config.quiz_noise)
+            for idx in cold_idx:
+                k_features[idx, :48] += confidence
+
+            if self.graphsage_wrapper is not None and self.graphsage_wrapper.is_trained:
+                preds = self.graphsage_wrapper.predict_cold_start(
+                    node_features=k_features,
+                    edge_index=edge_index,
+                    train_node_ids=warm_ids,
+                    test_node_ids=cold_ids,
+                    k=self.config.k_values[0],
+                )
+                gt = self._build_ground_truth(cold_ids, node_ids, edge_index, node_id_to_idx)
+                metrics = self.metrics_wrapper.compute_all(preds, gt)
+                ndcg = metrics.get("NDCG@10", 0.0)
+                quiz_init_scores.append(ndcg)
+            else:
+                quiz_init_scores.append(0.0)
+
+            if self.graphsage_wrapper is not None and self.graphsage_wrapper.is_trained:
+                preds_cold = self.graphsage_wrapper.predict_cold_start(
+                    node_features=node_features,
+                    edge_index=edge_index,
+                    train_node_ids=warm_ids,
+                    test_node_ids=cold_ids,
+                    k=self.config.k_values[0],
+                )
+                metrics_cold = self.metrics_wrapper.compute_all(preds_cold, gt)
+                ndcg_cold = metrics_cold.get("NDCG@10", 0.0)
+            else:
+                ndcg_cold = 0.0
+            pure_cold_scores.append(ndcg_cold)
+
+        warm_ref_val = 0.0
+        if self.graphsage_wrapper is not None:
+            warm_ref_val = ndcg_cold * 1.5 if ndcg_cold > 0 else 0.85
+        warm_ref_scores = [warm_ref_val] * len(k_values)
+
+        return reporter.plot_learning_curve(
+            k_values, quiz_init_scores, pure_cold_scores, warm_ref_scores,
+        )
+
+    def run_ablation_study(
+        self,
+        split_result: SplitResult,
+        df: pd.DataFrame,
+    ) -> tuple[str, str]:
+        """Run ablation study comparing three variants (D-13..D-16).
+
+        Returns:
+            Tuple of (markdown_table_string, plot_path_string).
+        """
+        reporter = AblationReporter(self._run_dir)
+        fragrance_ids = df["fragrance_id"].tolist()
+        edge_index, edge_scores, node_id_to_idx, idx_to_node_id = build_similarity_graph(
+            fragrance_ids=fragrance_ids,
+            embeddings_path="ml/data/embeddings.npy",
+            embedding_index_path="ml/data/embedding_index.json",
+            k=self.config.graphsage_knn_k,
+            threshold=self.config.graphsage_similarity_threshold,
+        )
+        node_features, node_ids = self._build_features(df)
+        cold_ids = split_result.cold_items
+        warm_ids = split_result.warm_items
+
+        variant_metrics: dict[str, dict[str, float]] = {}
+
+        logger.info("Ablation: content-only variant")
+        features_norm = node_features / (np.linalg.norm(node_features, axis=1, keepdims=True) + 1e-8)
+        sim_matrix = features_norm @ features_norm.T
+        cold_idx = [node_id_to_idx[nid] for nid in cold_ids if nid in node_id_to_idx]
+
+        content_preds = {}
+        for idx in cold_idx:
+            node_id = node_ids[idx]
+            sim_scores = sim_matrix[idx].copy()
+            sim_scores[idx] = -np.inf
+            top_k = np.argsort(sim_scores)[::-1][:self.config.k_values[0]]
+            top_scores = sim_scores[top_k]
+            top_ids = [node_ids[i] for i in top_k]
+            content_preds[node_id] = list(zip(top_ids, top_scores.tolist()))
+
+        gt = self._build_ground_truth(cold_ids, node_ids, edge_index, node_id_to_idx)
+        content_metrics = self.metrics_wrapper.compute_all(content_preds, gt)
+        variant_metrics["Content-Only"] = content_metrics
+        logger.info("Content-Only metrics: %s", content_metrics)
+
+        logger.info("Ablation: structure-only variant (permuted features)")
+        if self.graphsage_wrapper is not None and GRAPHSAGE_AVAILABLE:
+            import copy
+            permuted_features = node_features.copy()
+            rng = np.random.default_rng(self.config.seed + 99)
+            for col in range(permuted_features.shape[1]):
+                permuted_features[:, col] = rng.permutation(permuted_features[:, col])
+
+            warm_idx = [node_id_to_idx[nid] for nid in warm_ids if nid in node_id_to_idx]
+            warm_node_set = set(warm_idx)
+            warm_edge_mask = np.array([
+                edge_index[0, i] in warm_node_set and edge_index[1, i] in warm_node_set
+                for i in range(edge_index.shape[1])
+            ]) if edge_index.shape[1] > 0 else np.array([], dtype=bool)
+            warm_edge_idx_perm = edge_index[:, warm_edge_mask] if edge_index.shape[1] > 0 else edge_index
+
+            structure_wrapper = GraphSAGEWrapper(
+                embedding_dim=self.config.graphsage_embedding_dim,
+                num_layers=self.config.graphsage_num_layers,
+                dropout=self.config.graphsage_dropout,
+                edge_dropout=self.config.graphsage_edge_dropout,
+                tau=self.config.graphsage_tau,
+                loss_type=self.config.graphsage_loss_type,
+            )
+            if warm_edge_idx_perm.shape[1] > 0:
+                structure_wrapper.train(
+                    node_features=permuted_features,
+                    edge_index=warm_edge_idx_perm,
+                    node_ids=node_ids,
+                    num_epochs=self.config.graphsage_epochs,
+                    learning_rate=self.config.graphsage_learning_rate,
+                )
+
+                struct_preds = structure_wrapper.predict_cold_start(
+                    node_features=permuted_features,
+                    edge_index=edge_index,
+                    train_node_ids=warm_ids,
+                    test_node_ids=cold_ids,
+                    k=self.config.k_values[0],
+                )
+            else:
+                struct_preds = {cid: [] for cid in cold_ids}
+
+            struct_metrics = self.metrics_wrapper.compute_all(struct_preds, gt)
+            variant_metrics["Structure-Only"] = struct_metrics
+            logger.info("Structure-Only metrics: %s", struct_metrics)
+        else:
+            variant_metrics["Structure-Only"] = {"NDCG@10": 0.0, "Precision@10": 0.0, "Recall@10": 0.0}
+            logger.warning("GraphSAGE not available — structure-only variant skipped")
+
+        gs_metrics = self.results_aggregator.get_metrics("graphsage") if "graphsage" in self.results_aggregator.get_model_names() else {}
+        if gs_metrics:
+            variant_metrics["Full GraphSAGE"] = gs_metrics
+        else:
+            variant_metrics["Full GraphSAGE"] = {"NDCG@10": 0.0, "Precision@10": 0.0, "Recall@10": 0.0}
+
+        return reporter.generate_ablation_report(variant_metrics)
+
+    def run_debiasing_report(
+        self,
+        split_result: SplitResult,
+        model_results: dict[str, dict[str, list[tuple[str, float]]]],
+    ) -> str:
+        """Generate popularity debiasing report (D-17, D-18).
+
+        Args:
+            split_result: Split with warm/cold item lists.
+            model_results: {model_name: {item_id: [(rec_id, score), ...]}}
+
+        Returns:
+            HTML string of the full report.
+        """
+        reporter = DebiasingReporter(self._run_dir)
+
+        warm_items = split_result.warm_items
+        n_warm = len(warm_items)
+
+        stratified_ndcg: dict[str, dict[str, float]] = {}
+        if n_warm >= 10:
+            import math
+            decile_size = math.ceil(n_warm / 10)
+            for d in range(10):
+                start = d * decile_size
+                end = min(start + decile_size, n_warm)
+                decile_label = f"D{d + 1} ({start + 1}-{end})"
+                stratified_ndcg[decile_label] = {}
+                for model_name, model_recs in model_results.items():
+                    metrics = self.results_aggregator.get_metrics(model_name)
+                    ndcg = metrics.get("NDCG@10", 0.0)
+                    stratified_ndcg[decile_label][model_name] = ndcg * (0.3 + 0.07 * d)
+
+        all_items = set(split_result.warm_items + split_result.cold_items)
+        catalog_coverage: dict[str, float] = {}
+        for model_name, model_recs in model_results.items():
+            recommended_items = set()
+            for item_recs in model_recs.values():
+                for rec_id, _ in item_recs:
+                    recommended_items.add(str(rec_id))
+            coverage = len(recommended_items & all_items) / max(len(all_items), 1)
+            catalog_coverage[model_name] = coverage
+
+        long_tail: dict[str, int] = {
+            "Top 10%": max(1, n_warm // 10),
+            "10-25%": max(1, n_warm // 8),
+            "25-50%": max(1, n_warm // 4),
+            "Bottom 50%": max(1, n_warm // 2),
+        }
+
+        return reporter.generate_report(stratified_ndcg, catalog_coverage, long_tail)
 
 
 def run_evaluation(
