@@ -86,7 +86,11 @@ Plans:
   4. Learning curve plot shows NDCG@10 improving with quiz length k ∈ {1,3,5,7,10} — quantifies value of each additional quiz question
   5. Ablation study isolates contribution of content-only, structure-only, and full GraphSAGE variants on cold-start accuracy
   6. Popularity debiasing report tracks catalog coverage, popularity-stratified NDCG, and long-tail distribution alongside accuracy metrics
-**Plans**: TBD
+**Plans**: 2 plans (Wave 1-2)
+
+Plans:
+- [ ] 05-01-PLAN.md — Quiz-Init Evaluation Foundation: config, quiz simulator, three-mode evaluation branching (Wave 1)
+- [ ] 05-02-PLAN.md — Research Experiments: stratification grid, learning curves, ablation study, popularity debiasing (Wave 2)
 
 ### Phase 6: MEXT Demo
 **Goal**: Demo package ready for MEXT interview presentation with reproducible results and visualized research narratives.
@@ -96,8 +100,11 @@ Plans:
   1. Static HTML demo page loads without Docker in any browser and shows: comparison table, stratification bar chart, learning curve plot
   2. "Live" recommendation example walks through quiz → recommendation flow with actual (non-cherry-picked) outputs from the evaluation pipeline
   3. Reproducible results package in timestamped directory includes: config file, seed, all model outputs, plots, and README with reproduction instructions
-**Plans**: TBD
+**Plans**: 2 plans (Wave 1)
 **UI hint**: yes
+Plans:
+- [ ] 06-01-PLAN.md — Static HTML demo page generator with 7-section narrative, comparison tables, embedded plots, and live recommendation example (Wave 1)
+- [ ] 06-02-PLAN.md — Reproducible results package: ZIP archive with config, seed, splits, plots, model, README, and demo HTML (Wave 1)
 
 ## Progress
 
@@ -109,5 +116,5 @@ Plans:
 | 2. Evaluation Infrastructure | 4/4 | Complete | 2026-05-23 |
 | 3. Baselines & Comparison | 2/2 | Complete | 2026-05-25 |
 | 4. GraphSAGE Pipeline | 1/1 | Complete | 2026-05-25 |
-| 5. Research Differentiators | 0/TBD | Not started | — |
-| 6. MEXT Demo | 0/TBD | Not started | — |
+| 5. Research Differentiators | 0/2 | Planned | 2026-05-25 |
+| 6. MEXT Demo | 0/2 | Planned | — |

@@ -74,6 +74,10 @@ class GraphSAGEWrapper:
     def _reconstruction_loss(
         self, embeddings: torch.Tensor, node_features: torch.Tensor
     ) -> torch.Tensor:
+        # KNOWN: randn_like(embeddings.T) produces shape (embedding_dim, num_nodes) which only
+        # matches F.linear weight shape when embedding_dim == num_nodes. This is a toy/prototype
+        # reconstruction used only when loss_type='reconstruction' (default is contrastive).
+        # Non-blocking — contrastive loss (InfoNCE) is the default and correct path.
         pred_features = F.linear(embeddings, torch.randn_like(embeddings.T, device=self.device))
         return F.mse_loss(pred_features, node_features)
 

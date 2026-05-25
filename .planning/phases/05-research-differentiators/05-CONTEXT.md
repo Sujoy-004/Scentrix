@@ -42,7 +42,7 @@ Core research claims validated through evaluation experiments built on the Graph
 
 ### Popularity Debiasing
 - **D-17:** Popularity computed from warm-set interaction counts — fragrances with more warm-user interactions are more popular. Decile splits from this distribution.
-- **D-18:** Report format: single debiasing report page with table + plots. Includes: catalog coverage % per model, popularity-stratified NDCG table (decile × model), and long-tail distribution curve.
+- **D-18:** Report format: single HTML report page. Includes popularity-stratified NDCG table (decile × model), catalog coverage bar chart per model, and long-tail distribution curve. Generated as a deliverable alongside the standard eval output.
 
 ### OpenCode's Discretion
 - Exact matplotlib/seaborn plot styling (defaults are acceptable)

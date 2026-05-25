@@ -18,6 +18,51 @@ class MetricsWrapper:
             self._metric_list.append(f"ndcg@{k}")
             self._metric_list.append(f"recall@{k}")
 
+    def compute_all(
+        self,
+        predictions: dict[str, list[tuple[str, float]]],
+        ground_truth: dict[str, set[str]],
+        strata=None
+    ) -> dict:
+        cold_ids = list(predictions.keys())
+        aggregated = {}
+
+        for cold_id in cold_ids:
+            ranked = predictions.get(cold_id, [])
+            all_scores = {rec_id: score for rec_id, score in ranked}
+            relevant = ground_truth.get(cold_id, set())
+
+            if not relevant:
+                for k in self.k_values:
+                    aggregated.setdefault(f"Precision@{k}", []).append(0.0)
+                    aggregated.setdefault(f"NDCG@{k}", []).append(0.0)
+                    aggregated.setdefault(f"Recall@{k}", []).append(0.0)
+                continue
+
+            ranked_list = sorted(all_scores.items(), key=lambda x: -x[1])
+            found_any = False
+            for rank, (item_id, _) in enumerate(ranked_list, start=1):
+                if item_id in relevant:
+                    found_any = True
+                    for k in self.k_values:
+                        if rank <= k:
+                            aggregated.setdefault(f"Precision@{k}", []).append(1.0 / k)
+                            aggregated.setdefault(f"NDCG@{k}", []).append(1.0 / np.log2(rank + 1))
+                            aggregated.setdefault(f"Recall@{k}", []).append(1.0 / len(relevant))
+                        else:
+                            aggregated.setdefault(f"Precision@{k}", []).append(0.0)
+                            aggregated.setdefault(f"NDCG@{k}", []).append(0.0)
+                            aggregated.setdefault(f"Recall@{k}", []).append(0.0)
+                    break
+
+            if not found_any:
+                for k in self.k_values:
+                    aggregated.setdefault(f"Precision@{k}", []).append(0.0)
+                    aggregated.setdefault(f"NDCG@{k}", []).append(0.0)
+                    aggregated.setdefault(f"Recall@{k}", []).append(0.0)
+
+        return {metric: sum(vals) / len(vals) for metric, vals in aggregated.items()}
+
     def compute(
         self,
         cold_ids: list[str],
