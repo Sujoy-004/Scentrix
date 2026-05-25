@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-05-15)
 
 **Core value:** A user with no fragrance knowledge can take a short quiz and receive personalized niche scent recommendations meaningfully better than popularity-ranking or random baselines.
-**Current focus:** Phase 4 — GraphSAGE Pipeline
+**Current focus:** Phase 5 — Research Differentiators
 
 ## Current Position
 
-Phase: 4 of 6 (GraphSAGE Pipeline)
+Phase: 5 of 6 (Research Differentiators)
 Plan: Not started
-Status: Ready for planning
-Last activity: 2026-05-25 - Phase 3 completed (baselines, aggregation, significance)
+Status: Context gathered
+Last activity: 2026-05-25 - Phase 5 context captured (discuss-phase)
 
 ## Performance Metrics
 
