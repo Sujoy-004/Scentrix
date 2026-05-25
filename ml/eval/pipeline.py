@@ -5,12 +5,23 @@ import logging
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Dict, List
+import os
 
 import pandas as pd
 
 from ml.eval.config import EvalConfig
 from ml.eval.split import ColdStartSplitter, LeaveColdOutStrategy, SplitResult
+from ml.eval.metrics import MetricsWrapper
+from ml.eval.aggregator import ResultsAggregator
+
+# Try to import GraphSAGE components (optional dependency)
+try:
+    from ml.eval.models.graphsage_wrapper import GraphSAGEWrapper
+    GRAPHSAGE_AVAILABLE = True
+except ImportError:
+    GRAPHSAGE_AVAILABLE = False
+    logger.warning("GraphSAGE not available - install torch and torch-geometric for GraphSAGE support")
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +41,20 @@ class EvaluationOrchestrator:
     ):
         self.config = config
         self.splitter = splitter
+        self.graphsage_wrapper = None
+        self.metrics_wrapper = MetricsWrapper(k_values=config.k_values)
+        self.results_aggregator = ResultsAggregator()
         self._run_id: Optional[str] = None
         self._run_dir: Optional[Path] = None
+        
+        # Initialize GraphSAGE wrapper if enabled and available
+        if getattr(config, 'graphsage_enabled', False) and GRAPHSAGE_AVAILABLE:
+            self.graphsage_wrapper = GraphSAGEWrapper(
+                embedding_dim=getattr(config, 'graphsage_embedding_dim', 64),
+                num_layers=getattr(config, 'graphsage_num_layers', 2),
+                dropout=getattr(config, 'graphsage_dropout', 0.1),
+                edge_dropout=getattr(config, 'graphsage_edge_dropout', 0.1)
+            )
 
     def run(self) -> dict[str, Any]:
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -55,17 +78,38 @@ class EvaluationOrchestrator:
         self._save_config(run_dir)
         self._save_metadata(run_dir, split_result)
 
+        # Run GraphSAGE evaluation if enabled and available
+        graphsage_results = {}
+        if self.graphsage_wrapper is not None:
+            logger.info("Running GraphSAGE evaluation...")
+            try:
+                # For now, we'll just verify the GraphSAGE wrapper can be instantiated
+                # In a full implementation, this would load data, build graph, train, and infer
+                logger.info("GraphSAGE wrapper initialized successfully")
+                graphsage_results = {"graphsage_enabled": True, "status": "initialized"}
+            except Exception as e:
+                logger.warning(f"GraphSAGE evaluation failed: {e}")
+                graphsage_results = {"graphsage_enabled": True, "status": "failed", "error": str(e)}
+        else:
+            graphsage_results = {"graphsage_enabled": False}
+
         logger.info(
             "Pipeline complete. Run directory: %s (warm=%d, cold=%d)",
             run_dir, len(split_result.warm_items), len(split_result.cold_items),
         )
 
-        return {
+        result = {
             "run_id": self._run_id,
             "run_dir": str(run_dir),
             "warm_count": len(split_result.warm_items),
             "cold_count": len(split_result.cold_items),
         }
+        
+        # Add GraphSAGE results if available
+        if graphsage_results:
+            result.update(graphsage_results)
+            
+        return result
 
     def _load_data(self) -> pd.DataFrame:
         data_path = Path(self.config.data_path)
