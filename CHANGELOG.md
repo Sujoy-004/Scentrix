@@ -114,3 +114,16 @@ ablation supports.
 | 4 — GraphSAGE Pipeline | ✅ Complete (with rework) | Jaccard graph, ablation confirmed |
 | 5 — Research Differentiators | 🔲 Not started | — |
 | 6 — MEXT Demo | 🔲 Not started | — |
+
+---
+
+### Decision: Dataset size kept at ~5k (quality-filtered elite subset)
+
+Original catalog: ~22,740 items
+Current eval dataset: ~5,000 items (fra_elite_24k.json filtered via filter_elite.py)
+Reason for filter: quality gates applied during ml/pipeline/filter_elite.py
+Deployment constraint (Railway 512MB RAM) was original trigger but is no longer relevant.
+Decision: keep filtered dataset for all MEXT eval results for consistency.
+Rationale: all current eval numbers (NDCG, bootstrap, sweep) computed on this set.
+Reverting would invalidate all results and require full rerun — not feasible before June 28.
+Framing: "quality-filtered elite subset" in research write-up. Full 22k is future work.
