@@ -72,6 +72,97 @@ def build_similarity_graph(
     return edge_index, edge_scores, node_id_to_idx, idx_to_node_id
 
 
+def build_jaccard_graph(
+    fragrance_ids: List[str],
+    catalog_path: str = "ml/data/scentrix_master_cleaned.json",
+    k: int = 10,
+    threshold: float = 0.2,
+) -> Tuple[np.ndarray, np.ndarray, Dict[str, int], Dict[int, str]]:
+    with open(catalog_path, "r") as f:
+        catalog = json.load(f)
+
+    note_sets = {}
+    primary_accords = {}
+    for item in catalog:
+        fid = item.get("id", "")
+        top = {str(n).lower() for n in (item.get("top_notes") or []) if n}
+        mid = {str(n).lower() for n in (item.get("middle_notes") or []) if n}
+        base = {str(n).lower() for n in (item.get("base_notes") or []) if n}
+        note_sets[fid] = top | mid | base
+        accords = item.get("accords") or []
+        primary_accords[fid] = str(accords[0]).lower() if accords else "unknown"
+
+    local_ids = [fid for fid in fragrance_ids if fid in note_sets]
+    node_id_to_idx = {nid: i for i, nid in enumerate(local_ids)}
+    idx_to_node_id = {i: nid for i, nid in enumerate(local_ids)}
+
+    if len(local_ids) < 2:
+        logger.warning("Too few nodes for Jaccard graph — returning empty edge_index")
+        return np.empty((2, 0), dtype=np.int64), np.empty((0,), dtype=np.float32), node_id_to_idx, idx_to_node_id
+
+    n = len(local_ids)
+    all_scores = [[] for _ in range(n)]
+    for i in range(n):
+        id_i = local_ids[i]
+        notes_i = note_sets[id_i]
+        accord_i = primary_accords[id_i]
+        for j in range(i + 1, n):
+            id_j = local_ids[j]
+            if primary_accords[id_j] != accord_i:
+                continue
+            notes_j = note_sets[id_j]
+            union = notes_i | notes_j
+            jaccard = len(notes_i & notes_j) / len(union) if union else 0.0
+            if jaccard > threshold:
+                all_scores[i].append((j, jaccard))
+                all_scores[j].append((i, jaccard))
+
+    for i in range(n):
+        all_scores[i].sort(key=lambda x: -x[1])
+        all_scores[i] = all_scores[i][:k]
+
+    edge_list = []
+    score_list = []
+    for i, neighbors in enumerate(all_scores):
+        for j, score in neighbors:
+            if i < j:
+                edge_list.append((i, j))
+                score_list.append(score)
+
+    if len(edge_list) == 0:
+        logger.warning("No edges passed Jaccard threshold — returning empty edge_index")
+        return np.empty((2, 0), dtype=np.int64), np.empty((0,), dtype=np.float32), node_id_to_idx, idx_to_node_id
+
+    edge_index = np.array(edge_list, dtype=np.int64).T
+    edge_scores = np.array(score_list, dtype=np.float32)
+
+    logger.info(f"Built Jaccard graph: {len(local_ids)} nodes, {edge_index.shape[1]} edges (k={k}, threshold={threshold})")
+
+    return edge_index, edge_scores, node_id_to_idx, idx_to_node_id
+
+
+def build_jaccard_graph_sweep(
+    fragrance_ids: List[str],
+    catalog_path: str = "ml/data/scentrix_master_cleaned.json",
+    k: int = 10,
+    thresholds: List[float] = None,
+) -> Dict[float, Tuple[np.ndarray, np.ndarray, Dict[str, int], Dict[int, str]]]:
+    if thresholds is None:
+        thresholds = [0.10, 0.15, 0.20, 0.25, 0.30]
+
+    results = {}
+    for t in thresholds:
+        logger.info(f"Jaccard graph sweep: threshold={t}")
+        edge_index, edge_scores, nid2idx, idx2nid = build_jaccard_graph(
+            fragrance_ids=fragrance_ids,
+            catalog_path=catalog_path,
+            k=k,
+            threshold=t,
+        )
+        results[t] = (edge_index, edge_scores, nid2idx, idx2nid)
+    return results
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
