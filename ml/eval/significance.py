@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class BootstrapSignificance:
-    def __init__(self, n_resamples: int = 9999, random_seed: Optional[int] = None):
+    def __init__(self, n_resamples: int = 10000, random_seed: Optional[int] = None):
         self.n_resamples = n_resamples
         self._rng = np.random.default_rng(random_seed)
 
