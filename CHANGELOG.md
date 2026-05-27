@@ -53,9 +53,21 @@
 
 ## Open Questions (must resolve before Phase 5)
 
-1. **Sweep inflation unresolved** — run degree-0 vs degree>0 split on sweep results
-   If GroupA (degree>0) NDCG rises monotonically → threshold finding is real
-   If GroupA is flat/drops → aggregate rise is explained by Feature-Only fallback
+### Resolved: Threshold Sweep Finding (confirmed real)
+
+Degree-split analysis confirms sweep rise is genuine, not fallback inflation.
+Group A (degree>0) NDCG rises monotonically as threshold increases:
+  0.10 → 0.432, 0.15 → 0.455, 0.20 → 0.494, 0.25 → 0.554, 0.30 → 0.642
+
+Finding: Stricter Jaccard thresholds produce higher-quality edges and better 
+GraphSAGE representations, at the cost of coverage (843→551 connected items).
+
+Design decision: threshold=0.20 selected as primary operating point.
+Justification: 99.2% cold item coverage (836/843) with NDCG=0.494.
+Tradeoff explicitly acknowledged — not arbitrary.
+
+This is a second research finding beyond the Embedding vs Jaccard ablation:
+"Edge quality vs coverage tradeoff in graph-based cold-start recommendation."
 
 2. **Threshold 0.20 justification** — currently matches ground truth definition (circularity risk in framing)
    Need to either justify independently or acknowledge as a design choice
@@ -85,7 +97,7 @@ ablation supports.
 
 ## Next Steps (in order, before touching Phase 5)
 
-1. Run degree-split on sweep → confirm or discard threshold finding
+1. ~~Run degree-split on sweep → confirm or discard threshold finding~~ ✅ Done
 2. Update ROADMAP.md Phase 4 status to reflect rework
 3. Prepare spoken answer to "why use a graph if Feature-Only matches?"
 4. Then proceed to Phase 5
