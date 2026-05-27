@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 try:
     from ml.eval.models.graphsage_wrapper import GraphSAGEWrapper
-    from ml.eval.models.graph_builder import build_similarity_graph
+    from ml.eval.models.graph_builder import build_similarity_graph, build_jaccard_graph, build_jaccard_graph_sweep
     GRAPHSAGE_AVAILABLE = True
 except ImportError as e:
     GRAPHSAGE_AVAILABLE = False
@@ -156,22 +156,62 @@ class EvaluationOrchestrator:
     def _build_ground_truth(
         self,
         cold_ids: list[str],
-        node_ids: list[str],
-        full_edge_index: np.ndarray,
-        node_id_to_idx: dict[str, int],
     ) -> dict[str, set[str]]:
+        data_path = Path(self.config.data_path)
+        if not data_path.exists():
+            logger.error("Cannot build ground truth: data file not found at %s", data_path)
+            return {cid: set() for cid in cold_ids}
+
+        with open(data_path, "r", encoding="utf-8") as f:
+            all_items = json.load(f)
+
+        item_map: dict[str, dict] = {}
+        for item in all_items:
+            fid = item.get("id", "")
+            top = set(str(n).lower() for n in (item.get("top_notes") or []) if n)
+            mid = set(str(n).lower() for n in (item.get("middle_notes") or []) if n)
+            base = set(str(n).lower() for n in (item.get("base_notes") or []) if n)
+            raw_accords = [str(a).lower() for a in (item.get("accords") or []) if a]
+            item_map[fid] = {
+                "all_notes": top | mid | base,
+                "primary_accord": raw_accords[0] if raw_accords else "Unknown",
+                "accords": set(raw_accords),
+            }
+
         ground_truth = {}
         for cold_id in cold_ids:
-            if cold_id not in node_id_to_idx:
+            cold_item = item_map.get(cold_id)
+            if cold_item is None:
                 continue
-            idx = node_id_to_idx[cold_id]
-            neighbor_mask = (full_edge_index[0] == idx) | (full_edge_index[1] == idx)
-            neighbor_indices = np.unique(np.concatenate([
-                full_edge_index[0, neighbor_mask],
-                full_edge_index[1, neighbor_mask],
-            ]))
-            neighbor_ids = [node_ids[n] for n in neighbor_indices if node_ids[n] != cold_id]
-            ground_truth[cold_id] = set(neighbor_ids)
+
+            cold_notes = cold_item["all_notes"]
+            cold_primary = cold_item["primary_accord"]
+            relevant: set[str] = set()
+
+            for other_id, other_item in item_map.items():
+                if other_id == cold_id:
+                    continue
+
+                if other_item["primary_accord"] != cold_primary:
+                    continue
+
+                other_notes = other_item["all_notes"]
+                union = cold_notes | other_notes
+                jaccard = len(cold_notes & other_notes) / len(union) if union else 0.0
+
+                if jaccard > 0.20:
+                    relevant.add(other_id)
+
+            ground_truth[cold_id] = relevant
+
+        before = len(ground_truth)
+        ground_truth = {k: v for k, v in ground_truth.items() if v}
+        excluded = before - len(ground_truth)
+        if excluded:
+            logger.info(
+                "Excluded %d/%d cold items with empty relevant set from metrics (%.1f%%)",
+                excluded, before, 100.0 * excluded / before,
+            )
         return ground_truth
 
     def _save_splits(self, split_result: SplitResult, run_dir: Path) -> None:
@@ -221,6 +261,11 @@ class EvaluationOrchestrator:
         run_dir: Path,
     ) -> dict[str, Any]:
         graphsage_results: dict[str, Any] = {}
+        cold_ids = split_result.cold_items
+        ground_truth = self._build_ground_truth(cold_ids)
+        fragrance_ids = df["fragrance_id"].tolist()
+        node_features, node_ids = self._build_features(df)
+        logger.info(f"Features assembled: {node_features.shape}")
         if self.graphsage_wrapper is not None:
             logger.info("Running GraphSAGE evaluation (pure cold)...")
             try:
@@ -235,11 +280,7 @@ class EvaluationOrchestrator:
                 )
                 logger.info(f"Graph built: {edge_index.shape[1]} edges")
 
-                node_features, node_ids = self._build_features(df)
-                logger.info(f"Features assembled: {node_features.shape}")
-
                 warm_ids = split_result.warm_items
-                cold_ids = split_result.cold_items
                 warm_idx = [node_id_to_idx[nid] for nid in warm_ids if nid in node_id_to_idx]
                 cold_idx = [node_id_to_idx[nid] for nid in cold_ids if nid in node_id_to_idx]
                 logger.info(f"Warm nodes: {len(warm_idx)}, Cold nodes: {len(cold_idx)}")
@@ -267,9 +308,8 @@ class EvaluationOrchestrator:
                         test_node_ids=[node_ids[i] for i in cold_idx],
                         k=self.config.k_values[0],
                     )
-                    ground_truth = self._build_ground_truth(cold_ids, node_ids, edge_index, node_id_to_idx)
                     metrics = self.metrics_wrapper.compute_all(predictions, ground_truth)
-                    self.results_aggregator.add_model_results("graphsage", metrics)
+                    self.results_aggregator.add_model_results("GraphSAGE-Embedding", metrics)
                     graphsage_results = {
                         "graphsage_enabled": True,
                         "status": "success",
@@ -286,9 +326,8 @@ class EvaluationOrchestrator:
                         test_node_ids=[node_ids[i] for i in cold_idx],
                         k=self.config.k_values[0],
                     )
-                    ground_truth = self._build_ground_truth(cold_ids, node_ids, edge_index, node_id_to_idx)
                     metrics = self.metrics_wrapper.compute_all(predictions, ground_truth)
-                    self.results_aggregator.add_model_results("graphsage", metrics)
+                    self.results_aggregator.add_model_results("GraphSAGE-Embedding", metrics)
                     graphsage_results = {
                         "graphsage_enabled": True,
                         "status": "success",
@@ -314,10 +353,9 @@ class EvaluationOrchestrator:
                         k=self.config.k_values[0],
                     )
 
-                    ground_truth = self._build_ground_truth(cold_ids, node_ids, edge_index, node_id_to_idx)
                     metrics = self.metrics_wrapper.compute_all(predictions, ground_truth)
                     logger.info(f"GraphSAGE metrics: {metrics}")
-                    self.results_aggregator.add_model_results("graphsage", metrics)
+                    self.results_aggregator.add_model_results("GraphSAGE-Embedding", metrics)
 
                     model_path = run_dir / "models"
                     model_path.mkdir(exist_ok=True)
@@ -347,6 +385,259 @@ class EvaluationOrchestrator:
         else:
             graphsage_results = {"graphsage_enabled": False}
 
+        # --- Second GraphSAGE run: Jaccard-based graph ---
+        if self.graphsage_wrapper is not None:
+            logger.info("Running GraphSAGE-Jaccard evaluation (Jaccard-based graph)...")
+            try:
+                jaccard_wrapper = GraphSAGEWrapper(
+                    embedding_dim=self.config.graphsage_embedding_dim,
+                    num_layers=self.config.graphsage_num_layers,
+                    dropout=self.config.graphsage_dropout,
+                    edge_dropout=self.config.graphsage_edge_dropout,
+                    tau=self.config.graphsage_tau,
+                    loss_type=self.config.graphsage_loss_type,
+                )
+
+                fragrance_ids_j = df["fragrance_id"].tolist()
+                logger.info(f"Building Jaccard graph for {len(fragrance_ids_j)} nodes...")
+                edge_index_j, edge_scores_j, node_id_to_idx_j, idx_to_node_id_j = build_jaccard_graph(
+                    fragrance_ids=fragrance_ids_j,
+                    catalog_path=self.config.data_path,
+                    k=self.config.graphsage_knn_k,
+                    threshold=0.2,
+                )
+                logger.info(f"Jaccard graph built: {edge_index_j.shape[1]} edges")
+
+                warm_ids_j = split_result.warm_items
+                cold_ids_j = split_result.cold_items
+                warm_idx_j = [node_id_to_idx_j[nid] for nid in warm_ids_j if nid in node_id_to_idx_j]
+                cold_idx_j = [node_id_to_idx_j[nid] for nid in cold_ids_j if nid in node_id_to_idx_j]
+                logger.info(f"Warm nodes: {len(warm_idx_j)}, Cold nodes: {len(cold_idx_j)}")
+
+                warm_node_set_j = set(warm_idx_j)
+                warm_edge_mask_j = np.array([
+                    edge_index_j[0, i] in warm_node_set_j and edge_index_j[1, i] in warm_node_set_j
+                    for i in range(edge_index_j.shape[1])
+                ]) if edge_index_j.shape[1] > 0 else np.array([], dtype=bool)
+                warm_edge_index_j = edge_index_j[:, warm_edge_mask_j] if edge_index_j.shape[1] > 0 else edge_index_j
+                logger.info(f"Warm-subgraph edges: {warm_edge_index_j.shape[1]}")
+
+                if node_features.shape[0] < 2:
+                    logger.warning("Too few nodes for GraphSAGE-Jaccard — skipping")
+                elif edge_index_j.shape[1] == 0:
+                    logger.warning("Jaccard graph has no edges — skipping")
+                elif warm_edge_index_j.shape[1] == 0:
+                    logger.warning("Warm subgraph has no edges — using feature-only fallback")
+                    jaccard_wrapper.is_trained = True
+                    preds_j = jaccard_wrapper.predict_cold_start(
+                        node_features=node_features,
+                        edge_index=edge_index_j,
+                        train_node_ids=[node_ids[i] for i in warm_idx_j],
+                        test_node_ids=[node_ids[i] for i in cold_idx_j],
+                        k=self.config.k_values[0],
+                    )
+                    metrics_j = self.metrics_wrapper.compute_all(preds_j, ground_truth)
+                    self.results_aggregator.add_model_results("GraphSAGE-Jaccard", metrics_j)
+                else:
+                    device_j = jaccard_wrapper.device
+                    jaccard_wrapper.train(
+                        node_features=node_features,
+                        edge_index=warm_edge_index_j,
+                        node_ids=node_ids,
+                        num_epochs=self.config.graphsage_epochs,
+                        learning_rate=self.config.graphsage_learning_rate,
+                    )
+
+                    preds_j = jaccard_wrapper.predict_cold_start(
+                        node_features=node_features,
+                        edge_index=edge_index_j,
+                        train_node_ids=[node_ids[i] for i in warm_idx_j],
+                        test_node_ids=[node_ids[i] for i in cold_idx_j],
+                        k=self.config.k_values[0],
+                    )
+
+                    metrics_j = self.metrics_wrapper.compute_all(preds_j, ground_truth)
+                    logger.info(f"GraphSAGE-Jaccard metrics: {metrics_j}")
+                    self.results_aggregator.add_model_results("GraphSAGE-Jaccard", metrics_j)
+
+                    model_path_j = run_dir / "models"
+                    model_path_j.mkdir(exist_ok=True)
+                    jaccard_wrapper.save(str(model_path_j / "graphsage_jaccard.pt"))
+
+            except Exception as e:
+                logger.warning(f"GraphSAGE-Jaccard evaluation failed: {e}", exc_info=True)
+
+        # --- Baselines: Popularity, Random, Content-Only ---
+        logger.info("Running Popularity baseline...")
+        try:
+            from ml.eval.models.popularity import PopularityBaseline
+            pop = PopularityBaseline()
+            pop_preds = {}
+            for cid in cold_ids:
+                ranked = pop.get_rankings(k=self.config.k_values[0])
+                pop_preds[cid] = [(rid, len(ranked) - i) for i, rid in enumerate(ranked)]
+            pop_metrics = self.metrics_wrapper.compute_all(pop_preds, ground_truth)
+            self.results_aggregator.add_model_results("Popularity", pop_metrics)
+            logger.info("Popularity metrics: %s", pop_metrics)
+        except Exception as e:
+            logger.warning("Popularity baseline failed: %s", e)
+
+        logger.info("Running Random baseline...")
+        try:
+            from ml.eval.models.random_baseline import RandomBaseline
+            random_baseline = RandomBaseline()
+            random_preds = {}
+            for cid in cold_ids:
+                ranked = random_baseline.get_rankings(k=self.config.k_values[0])
+                random_preds[cid] = [(rid, len(ranked) - i) for i, rid in enumerate(ranked)]
+            random_metrics = self.metrics_wrapper.compute_all(random_preds, ground_truth)
+            self.results_aggregator.add_model_results("Random", random_metrics)
+            logger.info("Random metrics: %s", random_metrics)
+        except Exception as e:
+            logger.warning("Random baseline failed: %s", e)
+
+        logger.info("Running Content-Only baseline (Jaccard over notes)...")
+        try:
+            with open(self.config.data_path, "r", encoding="utf-8") as f:
+                all_data = json.load(f)
+            note_map = {}
+            for item in all_data:
+                fid = item.get("id", "")
+                top = {str(n).lower() for n in (item.get("top_notes") or []) if n}
+                mid = {str(n).lower() for n in (item.get("middle_notes") or []) if n}
+                base = {str(n).lower() for n in (item.get("base_notes") or []) if n}
+                note_map[fid] = top | mid | base
+
+            content_preds = {}
+            for cid in cold_ids:
+                cold_notes = note_map.get(cid, set())
+                scored = []
+                for oid, other_notes in note_map.items():
+                    if oid == cid:
+                        continue
+                    union = cold_notes | other_notes
+                    jaccard = len(cold_notes & other_notes) / len(union) if union else 0.0
+                    scored.append((oid, jaccard))
+                scored.sort(key=lambda x: -x[1])
+                content_preds[cid] = scored[:self.config.k_values[0]]
+            content_metrics = self.metrics_wrapper.compute_all(content_preds, ground_truth)
+            self.results_aggregator.add_model_results("Content-Only", content_metrics)
+            logger.info("Content-Only metrics: %s", content_metrics)
+        except Exception as e:
+            logger.warning("Content-Only baseline failed: %s", e)
+
+        logger.info("Running Feature-Only baseline (cosine sim on raw input features)...")
+        try:
+            features_norm = node_features / (np.linalg.norm(node_features, axis=1, keepdims=True) + 1e-8)
+            sim_matrix = features_norm @ features_norm.T
+            node_id_to_idx_f = {nid: i for i, nid in enumerate(node_ids)}
+            cold_idx_f = [node_id_to_idx_f[cid] for cid in cold_ids if cid in node_id_to_idx_f]
+
+            feature_preds = {}
+            for idx in cold_idx_f:
+                node_id = node_ids[idx]
+                sim_scores = sim_matrix[idx].copy()
+                sim_scores[idx] = -np.inf
+                top_k = np.argsort(sim_scores)[::-1][:self.config.k_values[0]]
+                top_scores = sim_scores[top_k]
+                top_ids = [node_ids[i] for i in top_k]
+                feature_preds[node_id] = list(zip(top_ids, top_scores.tolist()))
+            feature_metrics = self.metrics_wrapper.compute_all(feature_preds, ground_truth)
+            self.results_aggregator.add_model_results("Feature-Only", feature_metrics)
+            logger.info("Feature-Only metrics: %s", feature_metrics)
+        except Exception as e:
+            logger.warning("Feature-Only baseline failed: %s", e)
+
+        comparison = self.results_aggregator.generate_comparison_table(fmt="markdown")
+        print("\n" + "=" * 70)
+        print("COMPARISON TABLE")
+        print("=" * 70)
+        print(comparison)
+        print("=" * 70 + "\n")
+
+        # --- Jaccard threshold sweep with GraphSAGE ---
+        logger.info("Running Jaccard threshold sweep with GraphSAGE...")
+        try:
+            sweep_graphs = build_jaccard_graph_sweep(
+                fragrance_ids=fragrance_ids,
+                catalog_path=self.config.data_path,
+                k=self.config.graphsage_knn_k,
+                thresholds=[0.10, 0.15, 0.20, 0.25, 0.30],
+            )
+
+            warm_ids_sw = split_result.warm_items
+            cold_ids_sw = split_result.cold_items
+            sweep_results = []
+
+            for t in sorted(sweep_graphs.keys()):
+                ei, es, n2i, i2n = sweep_graphs[t]
+                n_edges = ei.shape[1]
+
+                if n_edges == 0 or node_features.shape[0] < 2:
+                    sweep_results.append((t, n_edges, len(cold_ids_sw), 0.0, 0.0, 0.0))
+                    continue
+
+                warm_idx = [n2i[nid] for nid in warm_ids_sw if nid in n2i]
+                warm_set = set(warm_idx)
+                mask = np.array([
+                    ei[0, i] in warm_set and ei[1, i] in warm_set
+                    for i in range(n_edges)
+                ]) if n_edges > 0 else np.array([], dtype=bool)
+                warm_ei = ei[:, mask] if n_edges > 0 else ei
+
+                if warm_ei.shape[1] == 0:
+                    sweep_results.append((t, n_edges, len(cold_ids_sw), 0.0, 0.0, 0.0))
+                    continue
+
+                cold_idx_sw = [n2i[cid] for cid in cold_ids_sw if cid in n2i]
+                deg = np.zeros(len(n2i), dtype=np.int64)
+                for e in range(n_edges):
+                    deg[ei[0, e]] += 1
+                    deg[ei[1, e]] += 1
+                n_cold_deg0 = sum(1 for idx in cold_idx_sw if deg[idx] == 0)
+
+                np.random.seed(self.config.seed)
+                torch.manual_seed(self.config.seed)
+                if torch.cuda.is_available():
+                    torch.cuda.manual_seed_all(self.config.seed)
+
+                wrapper = GraphSAGEWrapper(
+                    embedding_dim=self.config.graphsage_embedding_dim,
+                    num_layers=self.config.graphsage_num_layers,
+                    dropout=self.config.graphsage_dropout,
+                    edge_dropout=self.config.graphsage_edge_dropout,
+                    tau=self.config.graphsage_tau,
+                    loss_type=self.config.graphsage_loss_type,
+                )
+                wrapper.train(
+                    node_features=node_features, edge_index=warm_ei, node_ids=node_ids,
+                    num_epochs=self.config.graphsage_epochs,
+                    learning_rate=self.config.graphsage_learning_rate,
+                )
+                preds = wrapper.predict_cold_start(
+                    node_features=node_features, edge_index=ei,
+                    train_node_ids=warm_ids_sw, test_node_ids=cold_ids_sw,
+                    k=self.config.k_values[0],
+                )
+                m = self.metrics_wrapper.compute_all(preds, ground_truth)
+                sweep_results.append((
+                    t, n_edges, n_cold_deg0,
+                    m.get("NDCG@10", 0.0),
+                    m.get("Precision@10", 0.0),
+                    m.get("Recall@10", 0.0),
+                ))
+
+            print("\n" + "=" * 70)
+            print("JACCARD THRESHOLD SWEEP — GraphSAGE Embeddings")
+            print("=" * 70)
+            print(f"{'Threshold':>10s}  {'Edges':>8s}  {'Deg0':>6s}  {'NDCG@10':>10s}  {'Prec@10':>10s}  {'Rec@10':>10s}")
+            print("-" * 70)
+            for t, e, d, ndcg, prec, rec in sweep_results:
+                print(f"{t:>10.2f}  {e:>8d}  {d:>6d}  {ndcg:>10.6f}  {prec:>10.6f}  {rec:>10.6f}")
+            print("=" * 70 + "\n")
+        except Exception as e:
+            logger.warning(f"Jaccard threshold sweep failed: {e}", exc_info=True)
+
         logger.info(
             "Pipeline complete. Run directory: %s (warm=%d, cold=%d)",
             run_dir, len(split_result.warm_items), len(split_result.cold_items),
@@ -362,6 +653,8 @@ class EvaluationOrchestrator:
 
         if graphsage_results:
             result.update(graphsage_results)
+        result["all_metrics"] = self.results_aggregator.to_dict()
+        result["comparison_table"] = comparison
 
         return result
 
@@ -435,7 +728,7 @@ class EvaluationOrchestrator:
                         test_node_ids=[node_ids[i] for i in cold_idx],
                         k=self.config.k_values[0],
                     )
-                    ground_truth = self._build_ground_truth(cold_ids, node_ids, edge_index, node_id_to_idx)
+                    ground_truth = self._build_ground_truth(cold_ids)
                     metrics = self.metrics_wrapper.compute_all(predictions, ground_truth)
                     self.results_aggregator.add_model_results("graphsage_quiz_init", metrics)
                     graphsage_results = {"graphsage_enabled": True, "status": "success", "metrics": metrics, "mode": "feature_only"}
@@ -449,7 +742,7 @@ class EvaluationOrchestrator:
                         test_node_ids=[node_ids[i] for i in cold_idx],
                         k=self.config.k_values[0],
                     )
-                    ground_truth = self._build_ground_truth(cold_ids, node_ids, edge_index, node_id_to_idx)
+                    ground_truth = self._build_ground_truth(cold_ids)
                     metrics = self.metrics_wrapper.compute_all(predictions, ground_truth)
                     self.results_aggregator.add_model_results("graphsage_quiz_init", metrics)
                     graphsage_results = {"graphsage_enabled": True, "status": "success", "metrics": metrics, "mode": "warm_no_edges_feature_only"}
@@ -469,7 +762,7 @@ class EvaluationOrchestrator:
                         test_node_ids=[node_ids[i] for i in cold_idx],
                         k=self.config.k_values[0],
                     )
-                    ground_truth = self._build_ground_truth(cold_ids, node_ids, edge_index, node_id_to_idx)
+                    ground_truth = self._build_ground_truth(cold_ids)
                     metrics = self.metrics_wrapper.compute_all(predictions, ground_truth)
                     logger.info(f"Quiz-init GraphSAGE metrics: {metrics}")
                     self.results_aggregator.add_model_results("graphsage_quiz_init", metrics)
@@ -551,9 +844,7 @@ class EvaluationOrchestrator:
             k=max(self.config.k_values),
         )
 
-        ground_truth = self._build_ground_truth(
-            all_ids, node_ids, edge_index, node_id_to_idx,
-        )
+        ground_truth = self._build_ground_truth(all_ids)
 
         metrics = self.metrics_wrapper.compute_all(all_predictions, ground_truth)
         self.results_aggregator.add_model_results("graphsage_warm_ref", metrics)
@@ -706,7 +997,7 @@ class EvaluationOrchestrator:
                     test_node_ids=cold_ids,
                     k=self.config.k_values[0],
                 )
-                gt = self._build_ground_truth(cold_ids, node_ids, edge_index, node_id_to_idx)
+                gt = self._build_ground_truth(cold_ids)
                 metrics = self.metrics_wrapper.compute_all(preds, gt)
                 ndcg = metrics.get("NDCG@10", 0.0)
                 quiz_init_scores.append(ndcg)
@@ -776,7 +1067,7 @@ class EvaluationOrchestrator:
             top_ids = [node_ids[i] for i in top_k]
             content_preds[node_id] = list(zip(top_ids, top_scores.tolist()))
 
-        gt = self._build_ground_truth(cold_ids, node_ids, edge_index, node_id_to_idx)
+        gt = self._build_ground_truth(cold_ids)
         content_metrics = self.metrics_wrapper.compute_all(content_preds, gt)
         variant_metrics["Content-Only"] = content_metrics
         logger.info("Content-Only metrics: %s", content_metrics)
@@ -831,7 +1122,7 @@ class EvaluationOrchestrator:
             variant_metrics["Structure-Only"] = {"NDCG@10": 0.0, "Precision@10": 0.0, "Recall@10": 0.0}
             logger.warning("GraphSAGE not available — structure-only variant skipped")
 
-        gs_metrics = self.results_aggregator.get_metrics("graphsage") if "graphsage" in self.results_aggregator.get_model_names() else {}
+        gs_metrics = self.results_aggregator.get_metrics("GraphSAGE-Embedding") if "GraphSAGE-Embedding" in self.results_aggregator.get_model_names() else {}
         if gs_metrics:
             variant_metrics["Full GraphSAGE"] = gs_metrics
         else:
