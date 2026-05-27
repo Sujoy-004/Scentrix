@@ -127,3 +127,69 @@ Decision: keep filtered dataset for all MEXT eval results for consistency.
 Rationale: all current eval numbers (NDCG, bootstrap, sweep) computed on this set.
 Reverting would invalidate all results and require full rerun — not feasible before June 28.
 Framing: "quality-filtered elite subset" in research write-up. Full 22k is future work.
+
+---
+
+### Decision: Scentrix framed as hybrid research + engineering project
+
+Primary goal shifted from MEXT-only to dual-purpose:
+1. Research paper framing — cold-start GNN recommendation with ablation study,
+   significance tests, and quantified findings
+2. Full-stack engineering showcase — FastAPI + Next.js + Neo4j + PostgreSQL + 
+   Redis + Docker + GraphSAGE, production-grade, deployed
+
+This framing works for: MEXT interview, placement drives, portfolio, future publication.
+MEXT selection not yet confirmed — proceeding regardless as research output
+has independent value.
+
+---
+
+### Handoff Snapshot — Final Numbers (for new chat continuity)
+
+**Full results table:**
+| Model | Precision@10 | NDCG@10 | Recall@10 |
+|---|---|---|---|
+| GraphSAGE-Jaccard | 0.0745 | 0.494–0.523 | 0.0926 |
+| GraphSAGE-Embedding | 0.0306 | 0.183–0.191 | 0.0216 |
+| Feature-Only | 0.0782 | 0.557 | 0.0932 |
+| Content-Only (oracle/invalid) | 0.0860 | 0.581 | 0.1225 |
+| Popularity | 0.0019 | 0.008 | 0.0010 |
+| Random | 0.0045 | 0.031 | 0.0011 |
+
+Evaluated on 843 cold items (from 920 cold split, 77 excluded — zero relevant ground truth).
+Ground truth: primary accord match + Jaccard(notes) > 0.20. No embeddings.npy in GT.
+
+**Bootstrap significance tests (n=10000):**
+- Jaccard vs Embedding: p≤0.001, d=0.93 ✅
+- Jaccard vs Popularity: p≤0.001, d=1.87 ✅
+- Jaccard vs Random: p≤0.001, d=1.72 ✅
+- Jaccard vs Feature-Only: p=1.000, d=-0.149 ❌
+
+**Degree-split table (threshold sweep):**
+| Threshold | Edges | A_n | A_NDCG | B_n | B_NDCG | Aggregate_NDCG |
+|---|---|---|---|---|---|---|
+| 0.10 | 21452 | 843 | 0.432 | 0 | 0.000 | 0.432 |
+| 0.15 | 20124 | 843 | 0.455 | 0 | 0.000 | 0.455 |
+| 0.20 | 16244 | 836 | 0.494 | 7 | 0.255 | 0.492 |
+| 0.25 | 10821 | 716 | 0.554 | 127 | 0.241 | 0.507 |
+| 0.30 | 6341 | 551 | 0.642 | 292 | 0.317 | 0.529 |
+
+Finding: sweep rise is genuine (not fallback inflation). Stricter thresholds
+produce better representations at cost of coverage. Threshold=0.20 chosen:
+99.2% coverage (836/843) with NDCG=0.494.
+
+**Locked research claim:**
+"Graph construction methodology is the critical determinant of GNN performance
+in cold-start recommendation. Embedding-derived similarity graphs introduce
+feature circularity that degrades NDCG by 63% relative to independent baselines.
+Replacing circular edges with structurally independent Jaccard similarity over
+fragrance notes recovers 2.7× performance improvement (NDCG 0.183 → 0.494,
+p≤0.001, d=0.93)."
+
+Note: Claim does not assert GraphSAGE beats Feature-Only. It asserts graph
+construction methodology determines model quality. That is what the ablation supports.
+
+**Open questions still pending:**
+1. Threshold 0.20 matches ground truth definition — acknowledge as design choice in write-up
+2. Prepare spoken answer: "why use a graph if Feature-Only matches performance?"
+3. Phase 5 not started — quiz-init evaluation, stratification, learning curves
