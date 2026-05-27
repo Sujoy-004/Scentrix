@@ -24,20 +24,13 @@ class MetricsWrapper:
         ground_truth: dict[str, set[str]],
         strata=None
     ) -> dict:
-        cold_ids = list(predictions.keys())
+        cold_ids = [cid for cid in predictions if cid in ground_truth and ground_truth[cid]]
         aggregated = {}
 
         for cold_id in cold_ids:
             ranked = predictions.get(cold_id, [])
             all_scores = {rec_id: score for rec_id, score in ranked}
             relevant = ground_truth.get(cold_id, set())
-
-            if not relevant:
-                for k in self.k_values:
-                    aggregated.setdefault(f"Precision@{k}", []).append(0.0)
-                    aggregated.setdefault(f"NDCG@{k}", []).append(0.0)
-                    aggregated.setdefault(f"Recall@{k}", []).append(0.0)
-                continue
 
             ranked_list = sorted(all_scores.items(), key=lambda x: -x[1])
             found_any = False
