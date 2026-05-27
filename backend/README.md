@@ -1,15 +1,23 @@
 # Scentrix Backend API
 
-FastAPI-based REST API for the Scentrix fragrance discovery platform.
+FastAPI-based REST API for fragrance discovery, quiz onboarding, and recommendation serving.
 
-## Architecture
+## What It Does
+
+- User authentication (local + Supabase JWT) with PII encryption at rest
+- Fragrance catalog search and detail from Neo4j knowledge graph
+- Adaptive confidence-scored onboarding quiz
+- Hybrid recommendation engine (rule-based note/accord matching + optional semantic embeddings)
+- Lead capture and GDPR data deletion
+- Sommelier AI insight generation for fragrance collections
+
+## Stack
 
 - **Framework:** FastAPI with Uvicorn
-- **Database:** Supabase for auth/profile/preference data; Neo4j for knowledge graph data
-- **Cache/Queue:** Redis (Celery broker, recommendations cache)
-- **Vector DB:** Pinecone (derived fragrance embeddings)
-- **Auth:** Supabase JWTs verified by FastAPI
-- **Task Queue:** Celery (async recommendation generation, GDPR deletion, cache warmups)
+- **Databases:** PostgreSQL (auth, ratings, saved fragrances), Neo4j (knowledge graph, catalog)
+- **Cache:** Redis (recommendation caching)
+- **Auth:** Supabase JWTs verified by FastAPI, with local fallback
+- **ML Integration:** Optional — TextEncoder (Sentence-Transformers) and Pinecone vector index loaded on demand
 
 ## Local Development
 
@@ -23,7 +31,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 # Run tests
 pytest --cov=app
 
-# Lint and format
+# Lint
 ruff check . --fix
 mypy .
 ```
@@ -33,104 +41,45 @@ mypy .
 ```
 backend/
 ├── app/
-│   ├── main.py              # FastAPI app instance
-│   ├── config.py            # Configuration (settings)
-│   ├── routers/             # Route handlers (auth, fragrances, recommendations, ratings)
+│   ├── main.py              # FastAPI app instance, lifespan, routes
+│   ├── config.py            # Pydantic settings (env-based)
+│   ├── routers/             # auth, fragrances, recommendations, quiz, users, leads
 │   ├── models/              # SQLAlchemy ORM models
 │   ├── schemas/             # Pydantic request/response schemas
-│   ├── tasks/               # Celery async tasks
-│   └── core/                # Shared utilities (auth, db, neo4j, etc.)
+│   ├── services/            # catalog, graph, hybrid_search, quiz_store, supabase_auth, sommelier
+│   ├── auth/                # JWT, encryption, dependencies
+│   ├── database.py          # Async SQLAlchemy engine + session
+│   ├── cache.py             # Redis cache client
+│   └── limiter.py           # Rate limiting
 ├── tests/                   # Pytest test suite
 ├── migrations/              # Alembic DB migrations
-├── Dockerfile               # Container image
-├── pyproject.toml          # Dependencies and config
-├── ruff.toml               # Linting rules
-├── mypy.ini                # Type checking rules
-└── README.md
+├── Dockerfile
+├── pyproject.toml
+├── ruff.toml
+└── mypy.ini
 ```
 
-## API Endpoints
+## API Routes
 
-See the generated OpenAPI docs at `/docs` when the backend is running.
+| Prefix | Endpoints | Description |
+|--------|-----------|-------------|
+| `/auth` | register, login, refresh, logout, me | User auth |
+| `/fragrances` | catalog, search, detail, recommend/interactions | Fragrance discovery |
+| `/recommendations` | rate, batch-rate, guest, personalized, sommelier/insight | Recommendations |
+| `/fragrances/quiz/session` | start, answer, finalize, evaluate, next-questions | Adaptive quiz |
+| `/users` | profile, preferences, ratings, saved, delete | User management |
+| `/leads` | capture, feed | Lead capture |
 
-### Health Check
-```
-GET /health
-{
-  "status": "ok"
-}
-```
+See `/docs` when the backend is running for OpenAPI documentation.
 
 ## Configuration
 
-All configuration is loaded from environment variables. See `.env.example` for required keys.
+Key environment variables (see `.env.example`):
 
-Key settings:
-- `DATABASE_URL` — PostgreSQL connection string for the relational store; in production this can point to Supabase Postgres
-- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET` — Auth/profile/preference integration
+- `DATABASE_URL` — PostgreSQL connection string (asyncpg)
 - `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` — Knowledge graph
-- `REDIS_URL` — Cache and Celery broker
-- `PINECONE_API_KEY`, `PINECONE_INDEX_NAME` — Vector embeddings
-- `JWT_SECRET_KEY` — Legacy/local token signing during migration
-
-## Testing
-
-```bash
-# Run all tests
-pytest
-
-# Run with coverage report
-pytest --cov=app --cov-report=html
-
-# Run specific test file
-pytest tests/test_health.py
-
-# Run tests matching pattern
-pytest -k "test_auth"
-```
-
-## Database Migrations
-
-```bash
-# Create new migration
-alembic revision --autogenerate -m "Add user_table"
-
-# Apply migrations
-alembic upgrade head
-
-# Rollback last migration
-alembic downgrade -1
-```
-
-## Celery Tasks
-
-Async tasks are executed by Celery workers:
-
-```bash
-# Start Celery worker (in separate terminal)
-celery -A app.celery_app worker --loglevel=info
-
-# Monitor tasks
-celery -A app.celery_app events
-```
-
-## Security
-
-- All endpoints require HTTPS in production
-- Input validation and sanitization on all endpoints
-- Rate limiting on auth and search endpoints
-- SQL injection protection via SQLAlchemy ORM
-- CORS configured per environment
-
-## Deployment
-
-Target production deployment keeps FastAPI on Railway, the frontend on Vercel,
-and user-owned data in Supabase. The repo-level architecture note lives in
-[docs/architecture.md](../docs/architecture.md).
-
-## Contributing
-
-- Follow PEP 8 style guide (enforced by ruff)
-- Add type hints to all functions
-- Write tests for new endpoints
-- Update this README if adding new modules
+- `REDIS_URL` — Recommendation cache
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET` — Auth
+- `JWT_SECRET_KEY` — Local token signing
+- `DATA_ENCRYPTION_KEY` — AES-256 Fernet key for PII
+- `GOOGLE_API_KEY` — Gemini for Sommelier insights
