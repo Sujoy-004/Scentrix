@@ -188,6 +188,21 @@ The cost is coverage: at threshold 0.30, only 551 of 843 cold items have graph c
 
 **Design decision.** Threshold 0.20 is selected as the primary operating point, justified by near-total cold-item coverage (99.2%) while maintaining strong representation quality (Group A NDCG=0.494). This threshold is acknowledged to match the ground truth definition's Jaccard floor (>0.20), which is a design choice rather than circularity in evaluation — ground truth uses a one-sided threshold (minimum floor), not an exact match, and no embedding signal participates in either edge construction or ground truth definition.
 
+### D. Cold-Start Stratification by Coldness Level
+
+To understand how model performance varies with the degree of coldness, we stratify evaluation items into three levels: Level 0 (true cold-start, 0 interactions, n=920), Level 1 (1-3 implied interactions, n=1,819), and Level 2 (4+ implied interactions, n=1,820). Items are assigned to Levels 1 and 2 by splitting the warm set on accord-count popularity as a proxy for interaction frequency. For each level, the GraphSAGE models are evaluated on the corresponding test items using the same trained model, and baselines are recomputed against the per-level ground truth.
+
+| Model | Level 0 (0 int.) | Level 1 (1-3 int.) | Level 2 (4+ int.) |
+|---|---|---|---|
+| GraphSAGE-Embedding | 0.1975 | 0.1608 | 0.2293 |
+| GraphSAGE-Jaccard | 0.4955 | 0.4469 | 0.5201 |
+| Feature-Only | 0.5573 | 0.5464 | 0.5801 |
+| Popularity | 0.0078 | 0.0115 | 0.0113 |
+
+GraphSAGE-Jaccard and Feature-Only exhibit the expected monotonic trend — higher warm-item interaction levels yield better NDCG. GraphSAGE-Embedding deviates from monotonicity: it drops from Level 0 (0.1975) to Level 1 (0.1608) before recovering at Level 2 (0.2293). This non-monotonicity reflects the embedding-derived graph's inconsistent connectivity for low-popularity warm items — items with fewer accords have sparser embedding-similarity neighbourhoods, weakening the inductive inference signal.
+
+**Caveat.** Levels 1 and 2 evaluate warm items using models trained on the full warm set, introducing data leakage — per-stratum scores are optimistic. A leakage-free evaluation would require separate model training per stratum. This is left as future work.
+
 ---
 
 ## VI. Discussion
