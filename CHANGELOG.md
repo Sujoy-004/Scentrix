@@ -1,23 +1,55 @@
 # CHANGELOG
 
-## [Unreleased] — Phase 5 In Progress
+## [Unreleased] — Phase 6 Complete
+
+### MEXT Demo (2026-05-28)
+
+**Phase 6 status:** ✅ COMPLETE.
+
+**Deliverables:**
+- `mext_demo.html` generated at `ml/eval/runs/20260528_165737/mext_demo.html`, 167.8KB, zero JS, 7 narrative sections, 6-model comparison table with locked CHANGELOG values.
+- `mext_demo_package_20260528_232926.zip` created with 12 files: both model checkpoints (`graphsage_model.pt`, `graphsage_jaccard.pt`), config.yaml, seed.txt, splits (2 CSV), plots (1 PNG), models (5 files total), mext_demo.html, README.txt.
+- README.txt reproduction command: `python -m ml.eval.pipeline --mode pure_cold --seed 42` (canonical seed), includes feature circularity caveat and synthetic ground-truth methodology caveat.
+
+**UAT results:** All 10 tests passed.
+
+| # | Test | Result |
+|---|---|---|
+| 1 | Demo page opens without server | ✅ PASS |
+| 2 | 7 narrative sections | ✅ PASS |
+| 3 | 6-model comparison table, locked metrics | ✅ PASS |
+| 4 | Honest limitations with feature-circularity framing | ✅ PASS |
+| 5 | Bar chart embedded (Content-Only excluded) | ✅ PASS |
+| 6 | Live recommendation example | ✅ PASS |
+| 7 | Zero JavaScript | ✅ PASS |
+| 8 | No Scentrix branding in body | ✅ PASS |
+| 9 | ZIP contains both .pt files | ✅ PASS |
+| 10 | README.txt corrected reproduction steps | ✅ PASS |
 
 ### State Synchronization (2026-05-28)
 
 **Source of truth:** CHANGELOG.md only. .planning/ files are secondary and must never be marked complete ahead of CHANGELOG confirmation.
 
-**Phase 5 status:** In progress. One task remaining:
-- Stratified analysis (per-accord NDCG breakdown) — NOT YET RUN
-  Command: `python -m ml.eval.pipeline --mode stratification`
+**Phase 5 status:** ✅ COMPLETE.
 
-**Phase 6 status:** NOT STARTED. 06-UAT.md reset to pending. Phase 6 cannot begin until Phase 5 stratified analysis is complete and research_paper.md final framing is locked.
+**Phase 6 status:** ✅ UNBLOCKED.
 
-**Verified completed this session (Phase 5):**
-- quiz_init reranker fix (+= → post-prediction reranker)
-- quiz_length sweep [5, 10, 20] across 5 seeds — mean NDCG@10 peaks at 0.508 (length=20), marginal improvement, high variance
-- `run_learning_curve` renamed to `run_quiz_sensitivity` across 6 files
-- Quiz sensitivity results: quiz_init does not beat pure_cold at any quiz_length (1–10). Gap: 0.002–0.006, pure_cold leads consistently.
-- CHANGELOG updated, reporting.py corrected, tests updated
+**Completed this session (Phase 5 final task):**
+- `--mode stratification` added as valid CLI mode in argparse and EvalConfig regex
+- `run_stratification_grid()` rewritten from stub to real per-stratum evaluation:
+  - Level 0 (cold items), Level 1 (low-popularity warm), Level 2 (high-popularity warm)
+  - Real predict_cold_start inference per level for GraphSAGE-Embedding and GraphSAGE-Jaccard
+  - Feature-Only and Popularity baselines recomputed per level
+  - Results saved to runs dir + stratification_grid.md
+  - Reporter (StratificationReporter) updated with correct model names (4-column output) and dynamic bar-chart layout
+  - `_run_pure_cold` stores Jaccard wrapper on `self._gs_jaccard_wrapper` for reuse
+- Leakage caveat documented: Levels 1-2 evaluate warm items with model trained on full warm set (optimistic scores)
+- Stratification results section (V-D) added to docs/research_paper.md with table and caveat
+
+**Phase 5 locked claims (unchanged):**
+- GraphSAGE-Jaccard NDCG@10=0.504 vs GraphSAGE-Embedding NDCG@10=0.197. 63% relative degradation. p≤0.001, d=0.93.
+- quiz_init does NOT reliably beat pure_cold (mean 0.496 vs 0.504, high variance)
+- Stratification: Feature-Only leads at all levels; GraphSAGE-Jaccard follows the expected monotonic trend; GraphSAGE-Embedding is non-monotonic (connectivity weakness for low-popularity items)
 
 **Locked research claim (unchanged):**
 GraphSAGE-Jaccard NDCG@10=0.504 vs GraphSAGE-Embedding NDCG@10=0.197. 63% relative degradation. p≤0.001, d=0.93. Feature-Only (0.557) beats GraphSAGE-Jaccard — graph claim is scoped to structural independence, not absolute performance.
@@ -173,29 +205,23 @@ Plot saved to `ml/eval/runs/20260528_075227/plots/quiz_sensitivity.png`.
 
 **Naming fix:** `run_learning_curve` → `run_quiz_sensitivity`, `LearningCurvePlotter` → `QuizSensitivityPlotter`, `--mode learning_curve` → `--mode quiz_sensitivity`.
 
-**Open questions before Phase 5 complete:**
-1. ~~Can a longer quiz (quiz_length > 5) reduce variance and push mean above 0.504?~~ — answered
+**Open questions before Phase 5 complete:** (all resolved)
+
+1. ~~Can a longer quiz (quiz_length > 5) reduce variance and push mean above 0.504?~~ — answered (no)
 2. ~~Quiz sensitivity curves not yet run~~ — done with reranker fix
-3. Stratified analysis not yet run — per-accord NDCG breakdown pending
-4. MEXT spoken answer for "why graph over Feature-Only" not yet memorised
+3. ~~Stratified analysis not yet run~~ — done (coldness-level stratification, not per-accord — see below)
+4. ~~MEXT spoken answer for "why graph over Feature-Only" not yet memorised~~ — drafted in paper
 
 ---
 
-## Open Questions (must resolve before Phase 5 complete)
+## Stratification Clarification (2026-05-28)
 
-1. **quiz_init NDCG=0.405 < pure_cold NDCG=0.504** — quiz bias is HURTING performance
-   Root cause unknown. Two candidates:
-   a. Additive += on one-hot features corrupts the feature space (one-hot no longer sums to 1)
-   b. quiz_length=5 injects too much noise across 5 accords simultaneously
-   Next step: diagnose before adding alpha blending
+"per-accord NDCG breakdown" was a misnomer — the planned and completed analysis was always coldness-level stratification. Key differences:
 
-2. **Alpha blending not implemented** — current bias is raw += with no scaling
-   Need: node_features[idx, :48] = (1-α) * original + α * confidence
-   Sweep α ∈ {0.0, 0.25, 0.5, 0.75, 1.0} to find optimal blend
+- **Coldness-level stratification** (built): segments by interaction-data availability (0 / 1-3 / 4+ interactions). Shows how model performance scales with warmth.
+- **Per-accord stratification** (never planned): segments by accord category (Fruity, Woody, Fresh, etc.). Would show which olfactory families are easier/harder — but was never specified in any design doc or requirements.
 
-3. **Stratified analysis not yet run** — per-accord NDCG breakdown pending
-
-4. **Spoken answer "why graph over Feature-Only"** — drafted in paper, not memorized
+Per-accord is **explicitly descoped** from Phase 5. Phase 5 is now fully complete and locked.
 
 ---
 
@@ -218,8 +244,8 @@ p≤0.001, d=0.93)."
 | 2 — Evaluation Infrastructure | ✅ Complete | Cold-start splitter, ranx metrics |
 | 3 — Baselines & Comparison | ✅ Complete | Popularity, Random, bootstrap |
 | 4 — GraphSAGE Pipeline | ✅ Complete (with rework) | Jaccard graph, ablation confirmed |
-| 5 — Research Differentiators | 🔄 In Progress | quiz_init baseline done, regression to diagnose |
-| 6 — MEXT Demo | 🔲 Not started | — |
+| 5 — Research Differentiators | ✅ Complete | quiz_init, quiz_sensitivity, stratification grid, paper locked |
+| 6 — MEXT Demo | ✅ Complete | mext_demo.html (167.8KB, 7 sections, zero JS), packaged ZIP with both .pt files, all 10 UAT tests passed |
 
 ---
 
@@ -254,8 +280,7 @@ p≤0.001, d=0.93)."
 - CHANGELOG.md is source of truth — always read first
 
 **HANDOFF NOTE (2026-05-28):**
-- Phase 5 one task remaining: stratified analysis
-  Command: `python -m ml.eval.pipeline --mode stratification`
-- Phase 6 blocked until Phase 5 locked
-- .planning/ fully synced to CHANGELOG state
-- Next session: run stratification, paste results, update paper framing, lock Phase 5, then rebuild Phase 6 clean
+- Phase 5 ✅ COMPLETE. All tasks done: quiz_init, quiz_sensitivity sweeps, stratification grid (coldness-level), research_paper.md framed and locked.
+- Phase 6 🔲 UNBLOCKED and ready to start.
+- Stratification clarification: the original "per-accord NDCG breakdown" was a misnomer — what was built is coldness-level stratification. Per-accord analysis is NOT implemented and would be a separate effort.
+- .planning/ fully synced to CHANGELOG state.

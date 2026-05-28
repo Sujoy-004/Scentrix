@@ -2,60 +2,32 @@ SCENTRIX — SESSION HANDOFF
 
 FIRST THING: Read CHANGELOG.md — it is the source of truth.
 
-CURRENT STATE: Phase 5 in progress. quiz_init variance analysis complete.
-Next task: determine whether quiz_length > 5 reduces variance and pushes
-mean NDCG above pure_cold 0.504.
+CURRENT STATE: Phase 6 (MEXT Demo) complete. All 10 UAT tests passed.
+
+DELIVERABLES:
+- mext_demo.html at ml/eval/runs/20260528_165737/mext_demo.html (167.8KB)
+- mext_demo_package_20260528_232926.zip (12 files, both .pt checkpoints)
+- README.txt with reproduction command: python -m ml.eval.pipeline --mode pure_cold --seed 42
+- docs/scentrix_study_guide.html — interview defence study guide, 10 sections, 15 Q&amp;As, zero external deps
 
 REPO TREE:
 SCENTRIX/
 ├── backend/                          # FastAPI (Python 3.11+)
 │   ├── app/
 │   │   ├── auth/                     # JWT + Supabase auth
-│   │   │   ├── auth.py
-│   │   │   ├── dependencies.py
-│   │   │   └── encryption.py         # AES-256 Fernet
 │   │   ├── migrations/               # Alembic DB migrations
-│   │   │   ├── env.py
-│   │   │   └── versions/
 │   │   ├── models/
-│   │   │   └── models.py             # SQLAlchemy ORM
 │   │   ├── routers/                  # REST endpoints
-│   │   │   ├── auth.py
-│   │   │   ├── fragrances.py
-│   │   │   ├── leads.py
-│   │   │   ├── quiz.py
-│   │   │   ├── recommendations.py
-│   │   │   └── users.py
 │   │   ├── schemas/
-│   │   │   └── schemas.py            # Pydantic models
 │   │   ├── services/                 # Business logic
-│   │   │   ├── catalog.py
-│   │   │   ├── graph.py              # Neo4j graph queries
-│   │   │   ├── hybrid_search.py
-│   │   │   ├── job_store.py
-│   │   │   ├── prompt_loader.py
-│   │   │   ├── quiz_store.py         # Redis-backed quiz state
-│   │   │   ├── sommelier.py          # LLM sommelier agent
-│   │   │   ├── supabase_auth.py
-│   │   │   └── vault.py
 │   │   ├── cache.py
 │   │   ├── config.py
-│   │   ├── database.py               # SQLAlchemy async setup
-│   │   ├── limiter.py                # Rate limiting (slowapi)
-│   │   ├── main.py                   # FastAPI entry point
+│   │   ├── database.py
+│   │   ├── limiter.py
+│   │   ├── main.py
 │   │   └── sentry_config.py
 │   ├── tests/
-│   │   ├── test_adaptive_quiz.py
-│   │   ├── test_auth.py
-│   │   ├── test_health.py
-│   │   ├── test_integration.py
-│   │   ├── test_recommendation_lifecycle.py
-│   │   └── conftest.py
 │   ├── scripts/
-│   │   ├── migrate_db.py
-│   │   ├── reset_db.py
-│   │   ├── seed_data.py
-│   │   └── pg_reset_full.ps1
 │   ├── Dockerfile
 │   ├── pyproject.toml
 │   ├── requirements.txt
@@ -64,48 +36,12 @@ SCENTRIX/
 ├── frontend/                         # Next.js 16 (App Router)
 │   ├── src/
 │   │   ├── app/                      # Routes
-│   │   │   ├── auth/
-│   │   │   ├── collection/
-│   │   │   ├── families/
-│   │   │   ├── fragrances/
-│   │   │   ├── internal/
-│   │   │   ├── profile/
-│   │   │   ├── quiz/
-│   │   │   ├── recommendations/
-│   │   │   ├── layout.tsx
-│   │   │   └── page.tsx
 │   │   ├── components/               # UI components
-│   │   │   ├── CookieBanner.tsx
-│   │   │   ├── DiscoveryNeuralLoader.tsx
-│   │   │   ├── FinalCTA.tsx
-│   │   │   ├── FlashcardQuiz.tsx
-│   │   │   ├── FragranceCard.tsx
-│   │   │   ├── FragranceFamilies.tsx
-│   │   │   ├── HeroSection.tsx
-│   │   │   ├── HowItWorks.tsx
-│   │   │   ├── Navbar.tsx
-│   │   │   ├── PageTransition.tsx
-│   │   │   ├── PostHogPageView.tsx
-│   │   │   ├── Providers.tsx
-│   │   │   ├── ScentrixLogo.tsx
-│   │   │   ├── SocialProof.tsx
-│   │   │   ├── StandardQuiz.tsx
-│   │   │   ├── StringTuneManager.tsx
-│   │   │   └── VideoScrubber.tsx
 │   │   ├── lib/
-│   │   │   ├── api.ts
-│   │   │   ├── family-mapping.ts
-│   │   │   ├── hooks.ts
-│   │   │   └── quizTheme.ts
-│   │   ├── stores/
-│   │   │   └── app-store.ts          # Zustand state
+│   │   ├── stores/                   # Zustand state
 │   │   ├── styles/
 │   │   └── types/
 │   ├── tests/
-│   │   ├── e2e/
-│   │   ├── fixtures.ts
-│   │   ├── visual-regression.spec.ts
-│   │   └── mocks/
 │   ├── Dockerfile
 │   ├── next.config.ts
 │   ├── middleware.ts
@@ -114,68 +50,30 @@ SCENTRIX/
 │
 ├── ml/                               # ML pipeline & evaluation
 │   ├── data/                         # Datasets
-│   │   ├── scentrix_master_cleaned.json   # ~5k quality-filtered items
-│   │   ├── scentrix_master.json           # Full 22k catalog
-│   │   ├── embeddings.npy                 # 384-dim Sentence-BERT
-│   │   └── embedding_index.json
 │   ├── eval/                         # Cold-start evaluation suite
 │   │   ├── models/
-│   │   │   ├── graph_builder.py           # build_similarity_graph, build_jaccard_graph
-│   │   │   ├── graphsage_wrapper.py       # GraphSAGE + InfoNCE loss
-│   │   │   ├── popularity.py
-│   │   │   └── random_baseline.py
-│   │   ├── pipeline.py                    # EvaluationOrchestrator (main entry)
-│   │   ├── config.py                      # EvalConfig (Pydantic)
-│   │   ├── split.py                       # ColdStartSplitter, LeaveColdOutStrategy
-│   │   ├── metrics.py                     # MetricsWrapper (ranx)
-│   │   ├── aggregator.py                  # ResultsAggregator
-│   │   ├── quiz_simulator.py              # QuizSimulator (48-dim confidence)
-│   │   ├── significance.py                # Bootstrap significance + Cohen's d
-│   │   ├── reporting.py                   # StratificationReporter, LearningCurvePlotter
+│   │   ├── pipeline.py               # EvaluationOrchestrator (main entry)
+│   │   ├── config.py
+│   │   ├── split.py
+│   │   ├── metrics.py
+│   │   ├── aggregator.py
+│   │   ├── quiz_simulator.py
+│   │   ├── significance.py
+│   │   ├── reporting.py
 │   │   ├── run_bootstrap.py
-│   │   └── runs/                          # Run artifacts (timestamped)
-│   ├── pipeline/                     # Data pipeline scripts
-│   │   ├── clean.py
-│   │   ├── dataset_gate.py
-│   │   ├── diversity_audit.py
-│   │   ├── filter_elite.py               # Quality gates → 5k items
-│   │   ├── import_licensed_feed.py
-│   │   └── ingest.py
-│   ├── models/                       # ML model definitions
-│   │   ├── graph_sage.py
-│   │   ├── graph_sage_v2.py
-│   │   └── text_encoder.py
+│   │   └── runs/                     # Run artifacts (timestamped)
+│   ├── pipeline/
+│   ├── models/
 │   ├── scripts/
-│   │   ├── generate_embeddings.py
-│   │   ├── inspect_ground_truth.py
-│   │   └── sweep_degree_split.py
-│   ├── flows/                        # Prefect orchestration
-│   │   └── weekly_refresh.py
-│   ├── scraper/                      # Fragrantica scraper (Scrapy)
-│   │   ├── scraper/
-│   │   ├── fragrantica.py
-│   │   ├── run_scraper.py
-│   │   ├── source_registry.json
-│   │   └── requirements.txt
+│   ├── flows/
+│   ├── scraper/
 │   ├── tests/
-│   │   ├── test_graph_builder.py
-│   │   ├── test_graphsage.py
-│   │   ├── test_split.py
-│   │   ├── test_metrics.py
-│   │   ├── test_aggregator.py
-│   │   ├── test_significance.py
-│   │   ├── test_baselines.py
-│   │   ├── test_graph.py
-│   │   ├── test_integration.py
-│   │   ├── test_config.py
-│   │   ├── test_quiz_config.py
-│   │   └── test_reporting.py
-│   ├── training/
-│   └── README.md
+│   └── training/
 │
 ├── docs/
-│   ├── research_paper.md                 # IEEE-style research paper
-│   └── architecture.md
+│   ├── research_paper.md
+│   ├── architecture.md
+│   └── scentrix_study_guide.html    # Interview defence guide
 │
 ├── scripts/
 │   ├── generate_demo.py
@@ -183,24 +81,18 @@ SCENTRIX/
 │   ├── package_results.py
 │   └── perform_rebrand.py
 │
-├── .planning/                            # GSD project planning
-│   ├── phases/                           # 6 phase directories
-│   ├── graphs/                           # Knowledge graphs
-│   ├── codebase/                         # Codebase maps
-│   ├── research/                         # Domain research
-│   ├── PROJECT.md
-│   ├── ROADMAP.md
-│   ├── REQUIREMENTS.md
-│   ├── SPEC.md
-│   └── STATE.md
+├── .planning/                        # GSD project planning
+│   ├── phases/                       # 6 phase directories
+│   ├── graphs/                       # Knowledge graphs
+│   ├── codebase/
+│   ├── research/
+│   └── ...
 │
-├── docker-compose.yml                    # 5 services: PG, Neo4j, Redis, backend, frontend
-├── Makefile
-├── CHANGELOG.md                          # Source of truth — READ FIRST
-└── query.txt                             # This file
+├── graphify-out/                     # Knowledge graph outputs
+│
+├── query.txt                         # This file
+├── CHANGELOG.md                      # Source of truth — READ FIRST
+├── docker-compose.yml
+└── Makefile
 
-RESUME TASK:
-Run quiz_init with quiz_length values [5, 10, 20] at alpha=0.3,
-quiz_rerank_pool=50, across seeds [42,43,44,45,46] for each length.
-Report mean NDCG@10 and std per quiz_length as a table.
-Command: python -m ml.eval.pipeline --mode quiz_init
+PHASE 6 COMPLETE — next phase TBD.
