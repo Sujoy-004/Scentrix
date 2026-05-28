@@ -672,12 +672,10 @@ class EvaluationOrchestrator:
             logger.info("Running GraphSAGE evaluation (quiz-init)...")
             try:
                 fragrance_ids = df["fragrance_id"].tolist()
-                edge_index, edge_scores, node_id_to_idx, idx_to_node_id = build_similarity_graph(
+                edge_index, edge_scores, node_id_to_idx, idx_to_node_id = build_jaccard_graph(
                     fragrance_ids=fragrance_ids,
-                    embeddings_path="ml/data/embeddings.npy",
-                    embedding_index_path="ml/data/embedding_index.json",
-                    k=self.config.graphsage_knn_k,
-                    threshold=self.config.graphsage_similarity_threshold,
+                    catalog_path=self.config.catalog_path,
+                    threshold=self.config.jaccard_threshold,
                 )
 
                 node_features, node_ids = self._build_features(df)
@@ -946,12 +944,10 @@ class EvaluationOrchestrator:
         pure_cold_scores: list[float] = []
 
         fragrance_ids = df["fragrance_id"].tolist()
-        edge_index, edge_scores, node_id_to_idx, idx_to_node_id = build_similarity_graph(
+        edge_index, edge_scores, node_id_to_idx, idx_to_node_id = build_jaccard_graph(
             fragrance_ids=fragrance_ids,
-            embeddings_path="ml/data/embeddings.npy",
-            embedding_index_path="ml/data/embedding_index.json",
-            k=self.config.graphsage_knn_k,
-            threshold=self.config.graphsage_similarity_threshold,
+            catalog_path=self.config.catalog_path,
+            threshold=self.config.jaccard_threshold,
         )
         node_features, node_ids = self._build_features(df)
 
@@ -1039,12 +1035,10 @@ class EvaluationOrchestrator:
         """
         reporter = AblationReporter(self._run_dir)
         fragrance_ids = df["fragrance_id"].tolist()
-        edge_index, edge_scores, node_id_to_idx, idx_to_node_id = build_similarity_graph(
+        edge_index, edge_scores, node_id_to_idx, idx_to_node_id = build_jaccard_graph(
             fragrance_ids=fragrance_ids,
-            embeddings_path="ml/data/embeddings.npy",
-            embedding_index_path="ml/data/embedding_index.json",
-            k=self.config.graphsage_knn_k,
-            threshold=self.config.graphsage_similarity_threshold,
+            catalog_path=self.config.catalog_path,
+            threshold=self.config.jaccard_threshold,
         )
         node_features, node_ids = self._build_features(df)
         cold_ids = split_result.cold_items

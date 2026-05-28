@@ -34,6 +34,9 @@ class EvalConfig(BaseSettings):
     graphsage_knn_k: int = 10
     graphsage_similarity_threshold: float = 0.5
 
+    catalog_path: str = "ml/data/scentrix_master_cleaned.json"
+    jaccard_threshold: float = Field(default=0.2, ge=0.0, le=1.0)
+
     # Quiz-init evaluation mode (Phase 5)
     evaluation_mode: str = Field(default="pure_cold", pattern="^(pure_cold|quiz_init|warm_ref)$")
     quiz_length: int = Field(default=5, ge=1, le=10)
