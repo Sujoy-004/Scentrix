@@ -695,11 +695,9 @@ class EvaluationOrchestrator:
 
                 cold_ids = split_result.cold_items
                 cold_idx = [node_id_to_idx[nid] for nid in cold_ids if nid in node_id_to_idx]
-                for idx in cold_idx:
-                    node_features[idx, :48] += confidence
 
-                logger.info("Injected quiz bias into %d cold nodes (quiz_length=%d)",
-                            len(cold_idx), self.config.quiz_length)
+                logger.info("Skipping feature injection — using post-prediction reranker (quiz_length=%d)",
+                            self.config.quiz_length)
 
                 warm_ids = split_result.warm_items
                 warm_idx = [node_id_to_idx[nid] for nid in warm_ids if nid in node_id_to_idx]
@@ -724,8 +722,23 @@ class EvaluationOrchestrator:
                         edge_index=edge_index,
                         train_node_ids=[node_ids[i] for i in warm_idx],
                         test_node_ids=[node_ids[i] for i in cold_idx],
-                        k=self.config.k_values[0],
+                        k=max(self.config.k_values[0], self.config.quiz_rerank_pool),
                     )
+                    accord_lookup = df.set_index("fragrance_id")["primary_accord"].to_dict()
+                    alpha = self.config.quiz_alpha
+                    reranked_predictions = {}
+                    for cold_id, ranked_warm_ids in predictions.items():
+                        total = len(ranked_warm_ids)
+                        scored = []
+                        for rank, (warm_id, graphsage_score) in enumerate(ranked_warm_ids):
+                            accord = accord_lookup.get(warm_id, "")
+                            quiz_score = self.quiz_simulator.get_accord_confidence(accord)
+                            rank_score = 1.0 - (rank / total) if total > 1 else 1.0
+                            blended = (1 - alpha) * rank_score + alpha * quiz_score
+                            scored.append((warm_id, blended))
+                        scored.sort(key=lambda x: x[1], reverse=True)
+                        reranked_predictions[cold_id] = [(wid, s) for wid, s in scored][:self.config.k_values[0]]
+                    predictions = reranked_predictions
                     ground_truth = self._build_ground_truth(cold_ids)
                     metrics = self.metrics_wrapper.compute_all(predictions, ground_truth)
                     self.results_aggregator.add_model_results("graphsage_quiz_init", metrics)
@@ -738,8 +751,23 @@ class EvaluationOrchestrator:
                         edge_index=edge_index,
                         train_node_ids=[node_ids[i] for i in warm_idx],
                         test_node_ids=[node_ids[i] for i in cold_idx],
-                        k=self.config.k_values[0],
+                        k=max(self.config.k_values[0], self.config.quiz_rerank_pool),
                     )
+                    accord_lookup = df.set_index("fragrance_id")["primary_accord"].to_dict()
+                    alpha = self.config.quiz_alpha
+                    reranked_predictions = {}
+                    for cold_id, ranked_warm_ids in predictions.items():
+                        total = len(ranked_warm_ids)
+                        scored = []
+                        for rank, (warm_id, graphsage_score) in enumerate(ranked_warm_ids):
+                            accord = accord_lookup.get(warm_id, "")
+                            quiz_score = self.quiz_simulator.get_accord_confidence(accord)
+                            rank_score = 1.0 - (rank / total) if total > 1 else 1.0
+                            blended = (1 - alpha) * rank_score + alpha * quiz_score
+                            scored.append((warm_id, blended))
+                        scored.sort(key=lambda x: x[1], reverse=True)
+                        reranked_predictions[cold_id] = [(wid, s) for wid, s in scored][:self.config.k_values[0]]
+                    predictions = reranked_predictions
                     ground_truth = self._build_ground_truth(cold_ids)
                     metrics = self.metrics_wrapper.compute_all(predictions, ground_truth)
                     self.results_aggregator.add_model_results("graphsage_quiz_init", metrics)
@@ -758,8 +786,24 @@ class EvaluationOrchestrator:
                         edge_index=edge_index,
                         train_node_ids=[node_ids[i] for i in warm_idx],
                         test_node_ids=[node_ids[i] for i in cold_idx],
-                        k=self.config.k_values[0],
+                        k=max(self.config.k_values[0], self.config.quiz_rerank_pool),
                     )
+                    # Quiz reranking — boost warm candidates matching user's preferred accords
+                    accord_lookup = df.set_index("fragrance_id")["primary_accord"].to_dict()
+                    alpha = self.config.quiz_alpha
+                    reranked_predictions = {}
+                    for cold_id, ranked_warm_ids in predictions.items():
+                        total = len(ranked_warm_ids)
+                        scored = []
+                        for rank, (warm_id, graphsage_score) in enumerate(ranked_warm_ids):
+                            accord = accord_lookup.get(warm_id, "")
+                            quiz_score = self.quiz_simulator.get_accord_confidence(accord)
+                            rank_score = 1.0 - (rank / total) if total > 1 else 1.0
+                            blended = (1 - alpha) * rank_score + alpha * quiz_score
+                            scored.append((warm_id, blended))
+                        scored.sort(key=lambda x: x[1], reverse=True)
+                        reranked_predictions[cold_id] = [(wid, s) for wid, s in scored][:self.config.k_values[0]]
+                    predictions = reranked_predictions
                     ground_truth = self._build_ground_truth(cold_ids)
                     metrics = self.metrics_wrapper.compute_all(predictions, ground_truth)
                     logger.info(f"Quiz-init GraphSAGE metrics: {metrics}")

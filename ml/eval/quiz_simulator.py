@@ -85,4 +85,14 @@ class QuizSimulator:
             quiz_length, quiz_noise, len(sampled_indices), float(confidence.mean()),
         )
 
+        self._last_confidence = confidence
         return confidence
+
+    def get_accord_confidence(self, accord: str) -> float:
+        """Return quiz confidence score for a single accord label."""
+        if not hasattr(self, '_last_confidence') or self._last_confidence is None:
+            raise RuntimeError("simulate() must be called before get_accord_confidence()")
+        if accord not in self.all_accords:
+            return 0.0
+        idx = self.all_accords.index(accord)
+        return float(self._last_confidence[idx])
