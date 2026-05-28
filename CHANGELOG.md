@@ -40,6 +40,73 @@ quiz_init run details:
 - Bias mechanism: additive injection node_features[idx, :48] += confidence
 - No alpha blending implemented yet
 
+### quiz_init — Reranker Fix (current session)
+
+**Root cause diagnosed:** additive `+=` injection into one-hot item features caused two failures:
+1. Feature space corruption — one-hot constraint violated, warm/cold node distributions diverged
+2. Semantic mismatch — quiz signal (user preference) injected into item feature vectors (wrong side)
+
+**Fix applied:**
+- `quiz_simulator.py`: added `_last_confidence` cache in `simulate()` + `get_accord_confidence()` method
+- `pipeline.py` `_run_quiz_init`: removed `+=` injection block entirely, replaced with post-prediction reranker — warm candidates re-scored by quiz confidence of their `primary_accord`, item features untouched, graph structure preserved
+- `research_paper.md` line ~233: future work sentence updated to reflect reranker implementation
+
+**Expected outcome:** quiz_init NDCG@10 should meet or exceed pure_cold NDCG@10 = 0.504.
+If below 0.504 after fix, diagnose reranker — check accord_lookup coverage and predictions dict structure before concluding.
+
+---
+
+### quiz_init — Alpha Sweep + Variance Analysis (current session)
+
+**Reranker architecture finalised:**
+- quiz_rerank_pool=50: predict_cold_start retrieves top-50 candidates
+- Alpha blend: blended = (1-α) * rank_score + α * quiz_score
+  where rank_score = 1 - (rank / total), normalised over pool
+- Top-10 truncation after reranking for metric computation
+- quiz_alpha=0.3 set as default in EvalConfig
+
+**Alpha sweep results (seed=42, quiz_rerank_pool=50):**
+| alpha | NDCG@10 | delta vs pure_cold (0.504) |
+|-------|---------|---------------------------|
+| 0.0   | 0.49932 | -0.00468 (sanity check ✅) |
+| 0.1   | 0.49859 | -0.00541 |
+| 0.3   | 0.52081 | +0.01681 ✅ |
+| 0.5   | 0.49759 | -0.00641 |
+| 1.0   | 0.46965 | -0.03435 |
+
+**Variance analysis (alpha=0.3, quiz_rerank_pool=50, 5 seeds):**
+| seed | quiz seed | NDCG@10 |
+|------|-----------|---------|
+| 42   | 43        | 0.50920 |
+| 43   | 44        | 0.46108 |
+| 44   | 45        | 0.50318 |
+| 45   | 46        | 0.51907 |
+| 46   | 47        | 0.48625 |
+- mean: 0.49576
+- std:  0.02276
+- min:  0.46108 (seed=43)
+- max:  0.51907 (seed=45)
+- beats pure_cold: 2/5 runs
+
+**Interpretation:**
+quiz_init does NOT reliably beat pure_cold. Mean NDCG (0.496) is below
+pure_cold (0.504). High std (0.023) means result is seed-dependent.
+The improvement at alpha=0.3 seed=42 (0.521) was a favourable quiz draw,
+not a stable signal. Honest claim: quiz preference reranking is directionally
+correct but requires better quiz signal (longer quiz, real user data, or
+accord-matched simulation) to beat pure_cold consistently.
+
+**Current EvalConfig state:**
+- quiz_alpha: float = 0.3
+- quiz_rerank_pool: int = 50
+- seed: int = 42 (default restored)
+
+**Open questions before Phase 5 complete:**
+1. Can a longer quiz (quiz_length > 5) reduce variance and push mean above 0.504?
+2. Learning curves not yet run — run_learning_curve uses build_jaccard_graph (fixed)
+3. Stratified analysis not yet run — per-accord NDCG breakdown pending
+4. MEXT spoken answer for "why graph over Feature-Only" not yet memorised
+
 ---
 
 ## Open Questions (must resolve before Phase 5 complete)

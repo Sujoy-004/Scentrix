@@ -230,7 +230,7 @@ This study has several limitations that should be acknowledged:
 
 This paper demonstrates that graph construction methodology is the critical determinant of GraphSAGE performance in cold-start recommendation. Embedding-derived similarity graphs introduce feature circularity that degrades NDCG by 63%, while structurally independent Jaccard edges over fragrance notes recover a 2.7x improvement (NDCG 0.183 to 0.494, p<=0.001, d=0.93). A secondary finding quantifies the edge quality-versus-coverage tradeoff across a Jaccard threshold sweep, confirming that stricter thresholds produce better representations at the cost of cold-item coverage — with threshold 0.20 selected for 99.2% coverage. The Scentrix platform provides a reproducible full-stack testbed combining production-grade infrastructure (FastAPI, Next.js, Neo4j, PostgreSQL, Redis, Docker) with rigorous evaluation methodology (ranx metrics, bootstrap significance, degree-split analysis).
 
-Future work includes incorporating real user interaction data through quiz-initialised cold-start evaluation, extending the GraphSAGE model to incorporate user nodes for collaborative cold-start, validating the circularity finding across additional domains (wine, books, music), and scaling evaluation to the full 22,740-item catalog.
+Future work includes extending the quiz-initialised cold-start evaluation — currently implemented as a preference-signal reranker over GraphSAGE predictions — with real user interaction data and adaptive quiz strategies., extending the GraphSAGE model to incorporate user nodes for collaborative cold-start, validating the circularity finding across additional domains (wine, books, music), and scaling evaluation to the full 22,740-item catalog.
 
 ---
 
