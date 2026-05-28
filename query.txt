@@ -1,0 +1,43 @@
+SCENTRIX — SESSION HANDOFF
+
+Repo root: see directory tree below.
+
+FIRST THING TO DO IN NEW CHAT:
+Read CHANGELOG.md. First task is diagnosing why quiz_init NDCG=0.405 < pure_cold NDCG=0.504.
+Suspected cause: additive += on one-hot features corrupts feature space.
+Check: sed -n '690,710p' ml/eval/pipeline.py
+
+Working protocol: Claude inspects via shell commands, agent executes, paste output back.
+
+REPO TREE:
+SCENTRIX/
+├── .planning/
+├── backend/
+├── docs/
+│   ├── architecture.md
+│   └── research_paper.md
+├── frontend/
+├── ml/
+│   ├── data/
+│   ├── eval/
+│   │   ├── models/
+│   │   │   ├── graph_builder.py
+│   │   │   ├── graphsage_wrapper.py
+│   │   │   ├── popularity.py
+│   │   │   └── random_baseline.py
+│   │   ├── aggregator.py
+│   │   ├── config.py
+│   │   ├── metrics.py
+│   │   ├── pipeline.py
+│   │   ├── quiz_simulator.py
+│   │   ├── reporting.py
+│   │   ├── significance.py
+│   │   └── split.py
+│   ├── models/
+│   ├── pipeline/
+│   └── scripts/
+├── scripts/
+├── CHANGELOG.md
+├── docker-compose.yml
+├── Makefile
+└── query.txt

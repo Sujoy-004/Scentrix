@@ -1,106 +1,86 @@
-
 # CHANGELOG
 
-## [Unreleased] — Phase 4 Rework + Eval Hardening
+## [Unreleased] — Phase 5 In Progress
 
-### What happened (post-Phase 4 audit, this session)
+### Session Summary (post-Phase 4 audit + Phase 5 start)
 
-**Root cause identified and fixed — graph_builder.py**
-- Original GraphSAGE used KNN edges built from embeddings.npy (cosine distance)
-- Node features also contained embeddings.npy → feature circularity
-- GraphSAGE aggregated neighbors already maximally similar in the same space
-- Result: trained model worse than raw feature cosine similarity
-- Fix: replaced KNN edges with Jaccard similarity over fragrance notes
-  (primary_accord_i == primary_accord_j AND Jaccard(notes) > 0.20)
-- Zero embedding signal in edge construction
+**Paper audit complete — 6 fixes applied to docs/research_paper.md**
+1. Abstract: "capable of incorporating" → "designed to support" (unproven capability claim)
+2. Abstract + Intro: "63% NDCG degradation" → "63% relative NDCG degradation compared to corrected Jaccard baseline"
+3. Intro Contribution 3: threshold 0.20 = GT floor disclosure added
+4. Intro: NDCG range 0.494–0.523 stochasticity explanation added
+5. Section V-B: defensive "not a failure" phrasing → positive reframe
+6. Section VI: "capable of" → "designed to support / In future extensions"
+InfoNCE loss confirmed accurate — verified in ml/eval/models/graphsage_wrapper.py.
 
-**Results after fix**
-| Model | NDCG@10 |
-|---|---|
-| GraphSAGE-Embedding (original, circular) | 0.183 |
-| GraphSAGE-Jaccard (fixed) | 0.501–0.523 |
-| Feature-Only (raw 432-dim cosine, near-oracle) | 0.557 |
-| Content-Only (Jaccard notes, oracle/invalid) | 0.581 |
-| Popularity | 0.008 |
-| Random | 0.031 |
+**Pipeline bug fixes — ml/eval/pipeline.py**
+Three functions were using build_similarity_graph (circular KNN) instead of build_jaccard_graph:
+- _run_quiz_init (line 675) → fixed to build_jaccard_graph ✅
+- run_learning_curve (line 927) → fixed to build_jaccard_graph ✅
+- run_ablation_study (line 1018) → fixed to build_jaccard_graph ✅
+Only _run_warm_reference (line 797) correctly retains build_similarity_graph.
+EvalConfig now has catalog_path and jaccard_threshold fields with correct defaults.
 
-**Bootstrap significance tests (n=10000)**
-- Jaccard vs Embedding: p=0.001, d=0.93 ✅
-- Jaccard vs Popularity: p=0.001, d=1.87 ✅
-- Jaccard vs Random: p=0.001, d=1.72 ✅
-- Jaccard vs Feature-Only: p=1.000, d=-0.149 ❌ (Jaccard does NOT beat Feature-Only)
+**Phase 5 — quiz_init baseline run complete**
+| Model | NDCG@10 | Notes |
+|---|---|---|
+| GraphSAGE-Jaccard (pure_cold) | 0.504 | Within paper range 0.494–0.523 ✅ |
+| GraphSAGE-Embedding (pure_cold) | 0.197 | Slightly above 0.183–0.191, stochasticity ✅ |
+| Feature-Only | 0.557 | Matches paper exactly ✅ |
+| Content-Only | 0.581 | Matches paper exactly ✅ |
+| Popularity | 0.008 | Matches ✅ |
+| Random | 0.021 | Minor deviation from 0.031, acceptable ✅ |
+| GraphSAGE-Jaccard (quiz_init) | 0.405 | First run, injection-only, no alpha blending |
 
-**Threshold sweep — first attempt (INVALID, discarded)**
-- Sweep used raw Jaccard edge scores as recommendations
-- Ground truth also defined by Jaccard > threshold
-- When threshold ≤ 0.20, recommendations = ground truth → NDCG=0.992 (circular)
-- Discarded entirely
-
-**Threshold sweep — second attempt (valid)**
-- Each threshold: build graph → train GraphSAGE → embedding cosine sim → evaluate
-- Results:
-| Threshold | Edges | Deg0 | NDCG@10 |
-|---|---|---|---|
-| 0.10 | 21452 | 12 | 0.439 |
-| 0.15 | 20124 | 27 | 0.452 |
-| 0.20 | 16244 | 84 | 0.491 |
-| 0.25 | 10821 | 204 | 0.503 |
-| 0.30 | 6341 | 369 | 0.528 |
-- Monotonic rise is UNCONFIRMED as genuine — may be fallback inflation
-- Next step: split degree-0 vs degree>0 cold items and report NDCG separately
+quiz_init run details:
+- 4559 nodes, 16244 edges (threshold=0.20)
+- 920 cold nodes, quiz_length=5, quiz_noise=0.1
+- 209 degree-0 cold nodes (feature-only fallback)
+- 711 cold nodes with graph edges (inductive inference)
+- Bias mechanism: additive injection node_features[idx, :48] += confidence
+- No alpha blending implemented yet
 
 ---
 
-## Open Questions (must resolve before Phase 5)
+## Open Questions (must resolve before Phase 5 complete)
 
-### Resolved: Threshold Sweep Finding (confirmed real)
+1. **quiz_init NDCG=0.405 < pure_cold NDCG=0.504** — quiz bias is HURTING performance
+   Root cause unknown. Two candidates:
+   a. Additive += on one-hot features corrupts the feature space (one-hot no longer sums to 1)
+   b. quiz_length=5 injects too much noise across 5 accords simultaneously
+   Next step: diagnose before adding alpha blending
 
-Degree-split analysis confirms sweep rise is genuine, not fallback inflation.
-Group A (degree>0) NDCG rises monotonically as threshold increases:
-  0.10 → 0.432, 0.15 → 0.455, 0.20 → 0.494, 0.25 → 0.554, 0.30 → 0.642
+2. **Alpha blending not implemented** — current bias is raw += with no scaling
+   Need: node_features[idx, :48] = (1-α) * original + α * confidence
+   Sweep α ∈ {0.0, 0.25, 0.5, 0.75, 1.0} to find optimal blend
 
-Finding: Stricter Jaccard thresholds produce higher-quality edges and better 
-GraphSAGE representations, at the cost of coverage (843→551 connected items).
+3. **Learning curves not yet run** — run_learning_curve uses build_jaccard_graph (fixed) but not executed
 
-Design decision: threshold=0.20 selected as primary operating point.
-Justification: 99.2% cold item coverage (836/843) with NDCG=0.494.
-Tradeoff explicitly acknowledged — not arbitrary.
+4. **Stratified analysis not yet run** — per-accord NDCG breakdown pending
 
-This is a second research finding beyond the Embedding vs Jaccard ablation:
-"Edge quality vs coverage tradeoff in graph-based cold-start recommendation."
-
-2. **Threshold 0.20 justification** — currently matches ground truth definition (circularity risk in framing)
-   Need to either justify independently or acknowledge as a design choice
-
-3. **Feature-Only ceiling** — Jaccard does not significantly beat Feature-Only
-   Interview question: "Why use a graph at all?" needs a prepared answer
-
-4. **p-value floor** — all significant tests floor at p=0.001 (minimum for n=10000 is 0.0001)
-   Consider reporting as p≤0.001 not p=0.001
+5. **Spoken answer "why graph over Feature-Only"** — drafted in paper, not memorized
 
 ---
 
-## Locked Research Claim (current best language)
+## Next Steps (in order)
 
-"Graph construction methodology is the critical determinant of GNN performance 
-in cold-start recommendation. Embedding-derived similarity graphs introduce 
-feature circularity that degrades NDCG by 63% relative to independent baselines. 
-Replacing circular edges with structurally independent Jaccard similarity over 
-fragrance notes recovers 2.7× performance improvement (NDCG 0.183 → 0.501, 
+1. Diagnose quiz_init regression (0.405 < 0.504) — check feature corruption
+2. Implement alpha blending in _run_quiz_init
+3. Sweep alpha, report optimal blend NDCG
+4. Run learning curves (python -m ml.eval.pipeline --mode learning_curve)
+5. Run stratified analysis per accord family
+6. Memorize spoken answer for MEXT interview (June 28)
+
+---
+
+## Locked Research Claim (unchanged)
+
+"Graph construction methodology is the critical determinant of GNN performance
+in cold-start recommendation. Embedding-derived similarity graphs introduce
+feature circularity that degrades NDCG by 63% relative to independent baselines.
+Replacing circular edges with structurally independent Jaccard similarity over
+fragrance notes recovers 2.7× performance improvement (NDCG 0.183 → 0.494,
 p≤0.001, d=0.93)."
-
-Note: This claim does not assert GraphSAGE beats Feature-Only. It asserts 
-graph construction methodology determines model quality. That is what the 
-ablation supports.
-
----
-
-## Next Steps (in order, before touching Phase 5)
-
-1. ~~Run degree-split on sweep → confirm or discard threshold finding~~ ✅ Done
-2. Update ROADMAP.md Phase 4 status to reflect rework
-3. Prepare spoken answer to "why use a graph if Feature-Only matches?"
-4. Then proceed to Phase 5
 
 ---
 
@@ -112,84 +92,39 @@ ablation supports.
 | 2 — Evaluation Infrastructure | ✅ Complete | Cold-start splitter, ranx metrics |
 | 3 — Baselines & Comparison | ✅ Complete | Popularity, Random, bootstrap |
 | 4 — GraphSAGE Pipeline | ✅ Complete (with rework) | Jaccard graph, ablation confirmed |
-| 5 — Research Differentiators | 🔲 Not started | — |
+| 5 — Research Differentiators | 🔄 In Progress | quiz_init baseline done, regression to diagnose |
 | 6 — MEXT Demo | 🔲 Not started | — |
 
 ---
 
-### Decision: Dataset size kept at ~5k (quality-filtered elite subset)
-
-Original catalog: ~22,740 items
-Current eval dataset: ~5,000 items (fra_elite_24k.json filtered via filter_elite.py)
-Reason for filter: quality gates applied during ml/pipeline/filter_elite.py
-Deployment constraint (Railway 512MB RAM) was original trigger but is no longer relevant.
-Decision: keep filtered dataset for all MEXT eval results for consistency.
-Rationale: all current eval numbers (NDCG, bootstrap, sweep) computed on this set.
-Reverting would invalidate all results and require full rerun — not feasible before June 28.
-Framing: "quality-filtered elite subset" in research write-up. Full 22k is future work.
-
----
-
-### Decision: Scentrix framed as hybrid research + engineering project
-
-Primary goal shifted from MEXT-only to dual-purpose:
-1. Research paper framing — cold-start GNN recommendation with ablation study,
-   significance tests, and quantified findings
-2. Full-stack engineering showcase — FastAPI + Next.js + Neo4j + PostgreSQL + 
-   Redis + Docker + GraphSAGE, production-grade, deployed
-
-This framing works for: MEXT interview, placement drives, portfolio, future publication.
-MEXT selection not yet confirmed — proceeding regardless as research output
-has independent value.
-
----
-
-### Handoff Snapshot — Final Numbers (for new chat continuity)
+## Handoff Snapshot — for new chat continuity
 
 **Full results table:**
 | Model | Precision@10 | NDCG@10 | Recall@10 |
 |---|---|---|---|
-| GraphSAGE-Jaccard | 0.0745 | 0.494–0.523 | 0.0926 |
-| GraphSAGE-Embedding | 0.0306 | 0.183–0.191 | 0.0216 |
+| GraphSAGE-Jaccard (pure_cold) | 0.0745 | 0.504 | 0.0926 |
+| GraphSAGE-Embedding (pure_cold) | 0.0306 | 0.197 | 0.0216 |
+| GraphSAGE-Jaccard (quiz_init) | 0.063 | 0.405 | 0.057 |
 | Feature-Only | 0.0782 | 0.557 | 0.0932 |
-| Content-Only (oracle/invalid) | 0.0860 | 0.581 | 0.1225 |
+| Content-Only (oracle) | 0.0860 | 0.581 | 0.1225 |
 | Popularity | 0.0019 | 0.008 | 0.0010 |
-| Random | 0.0045 | 0.031 | 0.0011 |
+| Random | 0.0045 | 0.021 | 0.0011 |
 
-Evaluated on 843 cold items (from 920 cold split, 77 excluded — zero relevant ground truth).
-Ground truth: primary accord match + Jaccard(notes) > 0.20. No embeddings.npy in GT.
-
-**Bootstrap significance tests (n=10000):**
+**Bootstrap significance (pure_cold, n=10000):**
 - Jaccard vs Embedding: p≤0.001, d=0.93 ✅
 - Jaccard vs Popularity: p≤0.001, d=1.87 ✅
 - Jaccard vs Random: p≤0.001, d=1.72 ✅
 - Jaccard vs Feature-Only: p=1.000, d=-0.149 ❌
 
-**Degree-split table (threshold sweep):**
-| Threshold | Edges | A_n | A_NDCG | B_n | B_NDCG | Aggregate_NDCG |
-|---|---|---|---|---|---|---|
-| 0.10 | 21452 | 843 | 0.432 | 0 | 0.000 | 0.432 |
-| 0.15 | 20124 | 843 | 0.455 | 0 | 0.000 | 0.455 |
-| 0.20 | 16244 | 836 | 0.494 | 7 | 0.255 | 0.492 |
-| 0.25 | 10821 | 716 | 0.554 | 127 | 0.241 | 0.507 |
-| 0.30 | 6341 | 551 | 0.642 | 292 | 0.317 | 0.529 |
+**Pipeline bug fixes applied this session:**
+- _run_quiz_init, run_learning_curve, run_ablation_study: build_similarity_graph → build_jaccard_graph
+- EvalConfig: catalog_path + jaccard_threshold fields added
 
-Finding: sweep rise is genuine (not fallback inflation). Stricter thresholds
-produce better representations at cost of coverage. Threshold=0.20 chosen:
-99.2% coverage (836/843) with NDCG=0.494.
+**Working protocol:**
+- Claude inspects and directs via targeted shell commands
+- Agent executes, pastes output back
+- Every decision committed to CHANGELOG.md
+- No claims without results
+- CHANGELOG.md is source of truth — always read first
 
-**Locked research claim:**
-"Graph construction methodology is the critical determinant of GNN performance
-in cold-start recommendation. Embedding-derived similarity graphs introduce
-feature circularity that degrades NDCG by 63% relative to independent baselines.
-Replacing circular edges with structurally independent Jaccard similarity over
-fragrance notes recovers 2.7× performance improvement (NDCG 0.183 → 0.494,
-p≤0.001, d=0.93)."
-
-Note: Claim does not assert GraphSAGE beats Feature-Only. It asserts graph
-construction methodology determines model quality. That is what the ablation supports.
-
-**Open questions still pending:**
-1. Threshold 0.20 matches ground truth definition — acknowledge as design choice in write-up
-2. Prepare spoken answer: "why use a graph if Feature-Only matches performance?"
-3. Phase 5 not started — quiz-init evaluation, stratification, learning curves
+**To resume:** upload CHANGELOG.md + query.txt (repo tree). First task is diagnosing quiz_init regression.
