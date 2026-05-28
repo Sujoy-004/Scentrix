@@ -1,10 +1,10 @@
 # Scentrix
 
-graph-based cold-start fragrance recommendation. no cap.
+graph-based cold-start fragrance recommendation.
 
 ## what's the move?
 
-hybrid research + engineering. the thesis: **graph construction > model architecture**. embedding-derived similarity graphs introduce feature circularity that degrades NDCG by 63%. structurally independent Jaccard edges? 2.7× recovery. numbers don't lie, twin.
+hybrid research + engineering. the thesis: **graph construction > model architecture**. embedding-derived similarity graphs introduce feature circularity that degrades NDCG by 63%. structurally independent Jaccard edges? 2.7× recovery. numbers don't lie.
 
 ## the numbers (locked in)
 
@@ -27,13 +27,13 @@ hybrid research + engineering. the thesis: **graph construction > model architec
 | Jaccard vs Random | ≤0.001 | 1.72 | significant, huge effect. |
 | Jaccard vs Feature-Only | 1.000 | -0.149 | not significant. expected — claim isn't about beating it. |
 
-**the headline, homie:**
+**the headline:**
 
 GraphSAGE-Jaccard (0.504) vs GraphSAGE-Embedding (0.197). same model. different graph. **2.7× improvement**. p≤0.001, d=0.93. graph construction methodology is the critical determinant — not model architecture, not loss function, not training procedure.
 
 Feature-Only (0.557) doesn't get beat by GraphSAGE-Jaccard (p=1.000). and that's fine. Feature-Only hits its ceiling day one — no mechanism to incorporate user interactions. GraphSAGE-Jaccard provides an extensible foundation that scales with data. twin, it's about the ceiling, not the floor.
 
-## the architecture (no cap diagram)
+## the architecture 
 
 ```
              ┌──────────────────────────────┐
@@ -75,7 +75,7 @@ Feature-Only (0.557) doesn't get beat by GraphSAGE-Jaccard (p=1.000). and that's
 
 5 Docker containers. 5,000 quality-filtered items (from 22,740). 24 brands. 48 accords. 16,244 edges at threshold 0.20.
 
-## the threshold tea
+## the threshold
 
 | Threshold | Edges | Coverage | Group A NDCG | degree-0 items |
 |---|---|---|---|---|
@@ -85,7 +85,7 @@ Feature-Only (0.557) doesn't get beat by GraphSAGE-Jaccard (p=1.000). and that's
 | 0.25 | 10,821 | 84.9% | 0.554 | 127 |
 | 0.30 | 6,341 | 65.4% | 0.642 | 292 |
 
-stricter threshold → better quality → worse coverage. 0.20 is the sweet spot. 99.2% of cold items stay connected. the tradeoff is quantified. no guessing, homie.
+stricter threshold → better quality → worse coverage. 0.20 is the sweet spot. 99.2% of cold items stay connected. the tradeoff is quantified. no guessing.
 
 ## quiz_init — honest take
 
