@@ -80,10 +80,10 @@ Plans:
 **Depends on**: Phase 4
 **Requirements**: PIPE-03, RSCH-03, RSCH-04, RSCH-05, RSCH-06, RSCH-07
 **Success Criteria** (what must be TRUE):
-  1. Adaptive confidence-scored quiz connects to GraphSAGE inference → recommendation output E2E (no more 503 errors) — user can take quiz and see recommendations
+   1. Adaptive confidence-scored quiz connects to GraphSAGE inference → recommendation output E2E (no more 503 errors — resolved Phase 1) — user can take quiz and see recommendations
   2. Quiz-initialized GraphSAGE evaluation runs in three operational modes: pure cold-start, quiz-initiated cold-start, warm-start reference
   3. Cold-start stratification 3×3 grid (3 coldness levels × 3 models) shows differentiated performance — reveals where each model excels/fails
-  4. Learning curve plot shows NDCG@10 improving with quiz length k ∈ {1,3,5,7,10} — quantifies value of each additional quiz question
+   4. Quiz sensitivity plot generated. quiz_init does NOT beat pure_cold at any quiz_length (1–10). Honest result recorded. run_quiz_sensitivity implemented.
   5. Ablation study isolates contribution of content-only, structure-only, and full GraphSAGE variants on cold-start accuracy
   6. Popularity debiasing report tracks catalog coverage, popularity-stratified NDCG, and long-tail distribution alongside accuracy metrics
 **Plans**: 2 plans (Wave 1-2)
@@ -116,5 +116,5 @@ Plans:
 | 2. Evaluation Infrastructure | 4/4 | Complete | 2026-05-23 |
 | 3. Baselines & Comparison | 2/2 | Complete | 2026-05-25 |
 | 4. GraphSAGE Pipeline | 1/1 | Complete | 2026-05-25 |
-| 5. Research Differentiators | 0/2 | Planned | 2026-05-25 |
+| 5. Research Differentiators | 0/2 | In progress — stratified analysis pending | 2026-05-25 |
 | 6. MEXT Demo | 0/2 | Planned | — |
