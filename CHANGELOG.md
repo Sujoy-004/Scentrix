@@ -2,6 +2,34 @@
 
 ## [Unreleased] — Phase 5 In Progress
 
+### State Synchronization (2026-05-28)
+
+**Source of truth:** CHANGELOG.md only. .planning/ files are secondary and must never be marked complete ahead of CHANGELOG confirmation.
+
+**Phase 5 status:** In progress. One task remaining:
+- Stratified analysis (per-accord NDCG breakdown) — NOT YET RUN
+  Command: `python -m ml.eval.pipeline --mode stratification`
+
+**Phase 6 status:** NOT STARTED. 06-UAT.md reset to pending. Phase 6 cannot begin until Phase 5 stratified analysis is complete and research_paper.md final framing is locked.
+
+**Verified completed this session (Phase 5):**
+- quiz_init reranker fix (+= → post-prediction reranker)
+- quiz_length sweep [5, 10, 20] across 5 seeds — mean NDCG@10 peaks at 0.508 (length=20), marginal improvement, high variance
+- `run_learning_curve` renamed to `run_quiz_sensitivity` across 6 files
+- Quiz sensitivity results: quiz_init does not beat pure_cold at any quiz_length (1–10). Gap: 0.002–0.006, pure_cold leads consistently.
+- CHANGELOG updated, reporting.py corrected, tests updated
+
+**Locked research claim (unchanged):**
+GraphSAGE-Jaccard NDCG@10=0.504 vs GraphSAGE-Embedding NDCG@10=0.197. 63% relative degradation. p≤0.001, d=0.93. Feature-Only (0.557) beats GraphSAGE-Jaccard — graph claim is scoped to structural independence, not absolute performance.
+
+**Working protocol (reinstated):**
+- CHANGELOG.md is the ONLY source of truth
+- .planning/ files are supplementary — never mark complete before CHANGELOG confirms execution
+- No UAT result is valid unless the command was actually run and output was pasted and verified
+- Phase N cannot begin until Phase N-1 is fully locked in CHANGELOG.md
+
+---
+
 ### Session Summary (post-Phase 4 audit + Phase 5 start)
 
 **Paper audit complete — 6 fixes applied to docs/research_paper.md**
@@ -16,7 +44,7 @@ InfoNCE loss confirmed accurate — verified in ml/eval/models/graphsage_wrapper
 **Pipeline bug fixes — ml/eval/pipeline.py**
 Three functions were using build_similarity_graph (circular KNN) instead of build_jaccard_graph:
 - _run_quiz_init (line 675) → fixed to build_jaccard_graph ✅
-- run_learning_curve (line 927) → fixed to build_jaccard_graph ✅
+- run_quiz_sensitivity (was run_learning_curve, line 927) → fixed to build_jaccard_graph ✅
 - run_ablation_study (line 1018) → fixed to build_jaccard_graph ✅
 Only _run_warm_reference (line 797) correctly retains build_similarity_graph.
 EvalConfig now has catalog_path and jaccard_threshold fields with correct defaults.
@@ -101,9 +129,53 @@ accord-matched simulation) to beat pure_cold consistently.
 - quiz_rerank_pool: int = 50
 - seed: int = 42 (default restored)
 
+### quiz_init — Quiz Length Variance Sweep
+
+**Setup:** alpha=0.3, quiz_rerank_pool=50, 5 seeds per length.
+
+| quiz_length | seed_42 | seed_43 | seed_44 | seed_45 | seed_46 | mean | std |
+|-------------|---------|---------|---------|---------|---------|------|-----|
+| 5 | 0.50920 | 0.46108 | 0.50318 | 0.51907 | 0.48625 | 0.49576 | 0.02276 |
+| 10 | 0.52234 | 0.49760 | 0.48042 | 0.49598 | 0.50752 | 0.50077 | 0.01548 |
+| 20 | 0.47267 | 0.50251 | 0.52336 | 0.52670 | 0.51239 | 0.50753 | 0.02169 |
+
+**Interpretation:**
+- quiz_length=20 clears pure_cold mean (0.504) by 0.003 — marginal
+- std=0.022 at length=20 means individual runs still fall below baseline
+- quiz_length=10 is the variance minimum (std=0.015) but undershoots mean
+- No quiz_length produces a reliable, consistent improvement over pure_cold
+
+### quiz_init — Quiz Sensitivity Analysis
+
+**Reranker fix applied to `run_quiz_sensitivity`** — same post-prediction reranker pattern as `_run_quiz_init`.
+
+**Run:** `python -m ml.eval.pipeline --mode quiz_sensitivity` (seed=42, alpha=0.3, quiz_rerank_pool=50)
+
+**Raw scores (NDCG@10 vs quiz length k):**
+
+| k (quiz_length) | quiz_init NDCG@10 | pure_cold NDCG@10 |
+|-----------------|-------------------|-------------------|
+| 1               | 0.50907           | 0.51072           |
+| 3               | 0.50652           | 0.51072           |
+| 5               | 0.50534           | 0.51072           |
+| 7               | 0.50489           | 0.51072           |
+| 10              | 0.50609           | 0.51072           |
+
+**Interpretation:**
+- quiz_init does NOT beat pure_cold at any quiz_length (1–10)
+- Gap is small and consistent: pure_cold leads by 0.002–0.006
+- Reranker fix confirmed working — no corruption artifacts
+- k-axis is quiz_length, NOT warm interaction count (this is a quiz sensitivity curve, not a true learning curve)
+- Simulated quiz signal insufficient to beat pure_cold; real user interaction data expected to widen the gap
+- A true learning curve (NDCG vs warm interaction count) is NOT yet implemented
+
+Plot saved to `ml/eval/runs/20260528_075227/plots/quiz_sensitivity.png`.
+
+**Naming fix:** `run_learning_curve` → `run_quiz_sensitivity`, `LearningCurvePlotter` → `QuizSensitivityPlotter`, `--mode learning_curve` → `--mode quiz_sensitivity`.
+
 **Open questions before Phase 5 complete:**
-1. Can a longer quiz (quiz_length > 5) reduce variance and push mean above 0.504?
-2. Learning curves not yet run — run_learning_curve uses build_jaccard_graph (fixed)
+1. ~~Can a longer quiz (quiz_length > 5) reduce variance and push mean above 0.504?~~ — answered
+2. ~~Quiz sensitivity curves not yet run~~ — done with reranker fix
 3. Stratified analysis not yet run — per-accord NDCG breakdown pending
 4. MEXT spoken answer for "why graph over Feature-Only" not yet memorised
 
@@ -121,22 +193,9 @@ accord-matched simulation) to beat pure_cold consistently.
    Need: node_features[idx, :48] = (1-α) * original + α * confidence
    Sweep α ∈ {0.0, 0.25, 0.5, 0.75, 1.0} to find optimal blend
 
-3. **Learning curves not yet run** — run_learning_curve uses build_jaccard_graph (fixed) but not executed
+3. **Stratified analysis not yet run** — per-accord NDCG breakdown pending
 
-4. **Stratified analysis not yet run** — per-accord NDCG breakdown pending
-
-5. **Spoken answer "why graph over Feature-Only"** — drafted in paper, not memorized
-
----
-
-## Next Steps (in order)
-
-1. Diagnose quiz_init regression (0.405 < 0.504) — check feature corruption
-2. Implement alpha blending in _run_quiz_init
-3. Sweep alpha, report optimal blend NDCG
-4. Run learning curves (python -m ml.eval.pipeline --mode learning_curve)
-5. Run stratified analysis per accord family
-6. Memorize spoken answer for MEXT interview (June 28)
+4. **Spoken answer "why graph over Feature-Only"** — drafted in paper, not memorized
 
 ---
 
@@ -184,7 +243,7 @@ p≤0.001, d=0.93)."
 - Jaccard vs Feature-Only: p=1.000, d=-0.149 ❌
 
 **Pipeline bug fixes applied this session:**
-- _run_quiz_init, run_learning_curve, run_ablation_study: build_similarity_graph → build_jaccard_graph
+- _run_quiz_init, run_quiz_sensitivity (was run_learning_curve), run_ablation_study: build_similarity_graph → build_jaccard_graph
 - EvalConfig: catalog_path + jaccard_threshold fields added
 
 **Working protocol:**
@@ -194,4 +253,9 @@ p≤0.001, d=0.93)."
 - No claims without results
 - CHANGELOG.md is source of truth — always read first
 
-**To resume:** upload CHANGELOG.md + query.txt (repo tree). First task is diagnosing quiz_init regression.
+**HANDOFF NOTE (2026-05-28):**
+- Phase 5 one task remaining: stratified analysis
+  Command: `python -m ml.eval.pipeline --mode stratification`
+- Phase 6 blocked until Phase 5 locked
+- .planning/ fully synced to CHANGELOG state
+- Next session: run stratification, paste results, update paper framing, lock Phase 5, then rebuild Phase 6 clean
