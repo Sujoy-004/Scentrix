@@ -19,7 +19,7 @@ from ml.eval.aggregator import ResultsAggregator
 from ml.eval.quiz_simulator import QuizSimulator
 from ml.eval.reporting import (
     StratificationReporter,
-    LearningCurvePlotter,
+    QuizSensitivityPlotter,
     AblationReporter,
     DebiasingReporter,
 )
@@ -95,6 +95,11 @@ class EvaluationOrchestrator:
 
         if self.config.evaluation_mode == "quiz_init":
             return self._run_quiz_init(split_result, df, run_dir)
+
+        if self.config.evaluation_mode == "quiz_sensitivity":
+            plot_path, scores = self.run_quiz_sensitivity(split_result, df)
+            print(json.dumps({"status": "success", "plot_path": plot_path, "scores": scores, "run_id": self._run_id}, indent=2))
+            sys.exit(0)
 
         # Default: pure_cold (original Phase 4 behavior)
         return self._run_pure_cold(split_result, df, run_dir)
@@ -966,24 +971,25 @@ class EvaluationOrchestrator:
 
         return table
 
-    def run_learning_curve(
+    def run_quiz_sensitivity(
         self,
         split_result: SplitResult,
         df: pd.DataFrame,
         k_values: Optional[list[int]] = None,
-    ) -> str:
-        """Run learning curve: NDCG@10 vs quiz length.
+    ) -> tuple[str, dict[str, list[float]]]:
+        """Run quiz sensitivity: NDCG@10 vs quiz length.
 
         Loops over k ∈ {1, 3, 5, 7, 10}, reusing the SAME cold-start split
-        across all k values (D-11).
+        across all k values (D-11). k-axis is quiz_length, NOT warm interaction
+        count — this is a quiz sensitivity curve, not a true learning curve.
 
         Returns:
-            Path to the saved plot as string.
+            Tuple of (plot_path, scores_dict).
         """
         if k_values is None:
             k_values = [1, 3, 5, 7, 10]
 
-        reporter = LearningCurvePlotter(self._run_dir)
+        reporter = QuizSensitivityPlotter(self._run_dir)
         quiz_init_scores: list[float] = []
         pure_cold_scores: list[float] = []
 
@@ -1024,21 +1030,36 @@ class EvaluationOrchestrator:
             )
 
         for k in k_values:
-            k_features = node_features.copy()
-            confidence = self.quiz_simulator.simulate(quiz_length=k, quiz_noise=self.config.quiz_noise)
-            for idx in cold_idx:
-                k_features[idx, :48] += confidence
+            # Simulate quiz preference for this quiz_length k
+            self.quiz_simulator.simulate(quiz_length=k, quiz_noise=self.config.quiz_noise)
+            # Note: simulate() caches confidence — get_accord_confidence() reads the cache
 
             if self.graphsage_wrapper is not None and self.graphsage_wrapper.is_trained:
+                # Predict on CLEAN features (no injection) at rerank pool size
                 preds = self.graphsage_wrapper.predict_cold_start(
-                    node_features=k_features,
+                    node_features=node_features,
                     edge_index=edge_index,
                     train_node_ids=warm_ids,
                     test_node_ids=cold_ids,
-                    k=self.config.k_values[0],
+                    k=max(self.config.k_values[0], self.config.quiz_rerank_pool),
                 )
+                # Post-prediction reranker — boost warm candidates matching quiz accords
+                accord_lookup = df.set_index("fragrance_id")["primary_accord"].to_dict()
+                alpha = self.config.quiz_alpha
+                reranked_predictions = {}
+                for cold_id, ranked_warm_ids in preds.items():
+                    total = len(ranked_warm_ids)
+                    scored = []
+                    for rank, (warm_id, graphsage_score) in enumerate(ranked_warm_ids):
+                        accord = accord_lookup.get(warm_id, "")
+                        quiz_score = self.quiz_simulator.get_accord_confidence(accord)
+                        rank_score = 1.0 - (rank / total) if total > 1 else 1.0
+                        blended = (1 - alpha) * rank_score + alpha * quiz_score
+                        scored.append((warm_id, blended))
+                    scored.sort(key=lambda x: x[1], reverse=True)
+                    reranked_predictions[cold_id] = [(wid, s) for wid, s in scored][:self.config.k_values[0]]
                 gt = self._build_ground_truth(cold_ids)
-                metrics = self.metrics_wrapper.compute_all(preds, gt)
+                metrics = self.metrics_wrapper.compute_all(reranked_predictions, gt)
                 ndcg = metrics.get("NDCG@10", 0.0)
                 quiz_init_scores.append(ndcg)
             else:
@@ -1063,9 +1084,14 @@ class EvaluationOrchestrator:
             warm_ref_val = ndcg_cold * 1.5 if ndcg_cold > 0 else 0.85
         warm_ref_scores = [warm_ref_val] * len(k_values)
 
-        return reporter.plot_learning_curve(
+        plot_path = reporter.plot_quiz_sensitivity(
             k_values, quiz_init_scores, pure_cold_scores, warm_ref_scores,
         )
+        return plot_path, {
+            "k_values": k_values,
+            "quiz_init_ndcg": quiz_init_scores,
+            "pure_cold_ndcg": pure_cold_scores,
+        }
 
     def run_ablation_study(
         self,
@@ -1283,6 +1309,19 @@ if __name__ == "__main__":
         help="Override output directory for run artifacts",
     )
     parser.add_argument(
+        "--mode",
+        type=str,
+        default=None,
+        choices=["pure_cold", "quiz_init", "warm_ref", "quiz_sensitivity"],
+        help="Override evaluation mode",
+    )
+    parser.add_argument(
+        "--quiz-length",
+        type=int,
+        default=None,
+        help="Override quiz length (1-20)",
+    )
+    parser.add_argument(
         "--verbose", "-v",
         action="store_true",
         help="Enable debug-level logging",
@@ -1306,6 +1345,10 @@ if __name__ == "__main__":
             config.data_path = args.data_path
         if args.output_dir is not None:
             config.output_dir = args.output_dir
+        if args.mode is not None:
+            config.evaluation_mode = args.mode
+        if args.quiz_length is not None:
+            config.quiz_length = args.quiz_length
 
         strategy = LeaveColdOutStrategy(seed=config.seed)
         splitter = ColdStartSplitter(strategy=strategy)

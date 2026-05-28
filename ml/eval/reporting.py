@@ -110,9 +110,9 @@ class StratificationReporter:
         return table
 
 
-# ── Learning Curves (D-11, D-12) ──────────────────────────────────────────
+# ── Quiz Sensitivity (D-11, D-12) ──────────────────────────────────────────
 
-class LearningCurvePlotter:
+class QuizSensitivityPlotter:
     """Plots NDCG@10 vs quiz length for quiz-init, pure-cold, and warm-ref.
 
     Uses the SAME cold-start split across all k values (D-11).
@@ -120,20 +120,22 @@ class LearningCurvePlotter:
     - Quiz-init GraphSAGE: rising with k
     - Pure cold-start baseline: flat
     - Warm-start reference: flat upper bound
+    Note: despite the class name, the x-axis is quiz_length (k), NOT warm
+    interaction count — this is a quiz sensitivity curve, not a true learning curve.
     """
 
     def __init__(self, output_dir: Path):
         self.output_dir = output_dir
         (output_dir / "plots").mkdir(parents=True, exist_ok=True)
 
-    def plot_learning_curve(
+    def plot_quiz_sensitivity(
         self,
         k_values: list[int],
         quiz_init_scores: list[float],
         pure_cold_scores: list[float],
         warm_ref_scores: list[float],
     ) -> str:
-        """Generate learning curve plot and return path.
+        """Generate quiz sensitivity plot and return path.
 
         Args:
             k_values: Quiz lengths tested, e.g., [1, 3, 5, 7, 10].
@@ -155,16 +157,16 @@ class LearningCurvePlotter:
 
         ax.set_xlabel("Quiz Length (k)")
         ax.set_ylabel("NDCG@10")
-        ax.set_title("Learning Curve: NDCG@10 vs Quiz Length")
+        ax.set_title("Quiz Sensitivity: NDCG@10 vs Quiz Length (k)")
         ax.set_xticks(k_values)
         ax.legend()
         ax.grid(True, alpha=0.3)
 
-        path = self.output_dir / "plots" / "learning_curve.png"
+        path = self.output_dir / "plots" / "quiz_sensitivity.png"
         fig.tight_layout()
         fig.savefig(path, dpi=150)
         plt.close(fig)
-        logger.info("Learning curve saved to %s", path)
+        logger.info("Quiz sensitivity plot saved to %s", path)
 
         return str(path)
 

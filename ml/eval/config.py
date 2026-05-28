@@ -38,8 +38,8 @@ class EvalConfig(BaseSettings):
     jaccard_threshold: float = Field(default=0.2, ge=0.0, le=1.0)
 
     # Quiz-init evaluation mode (Phase 5)
-    evaluation_mode: str = Field(default="pure_cold", pattern="^(pure_cold|quiz_init|warm_ref)$")
-    quiz_length: int = Field(default=5, ge=1, le=10)
+    evaluation_mode: str = Field(default="pure_cold", pattern="^(pure_cold|quiz_init|warm_ref|quiz_sensitivity)$")
+    quiz_length: int = Field(default=5, ge=1, le=20)
     quiz_noise: float = Field(default=0.1, ge=0.0, le=1.0)
     quiz_alpha: float = 0.3
     quiz_rerank_pool: int = 50

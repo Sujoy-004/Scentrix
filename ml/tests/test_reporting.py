@@ -14,98 +14,18 @@ import pytest
 from ml.eval.reporting import (
     AblationReporter,
     DebiasingReporter,
-    LearningCurvePlotter,
-    StratificationReporter,
+    QuizSensitivityPlotter,
 )
 
 
-# ── RSCH-04: StratificationReporter ──────────────────────────────────────
+# ── RSCH-05: QuizSensitivityPlotter ────────────────────────────────────────
 
-class TestStratificationReporter:
-    """RSCH-04: StratificationReporter produces 3×3 NDCG@10 Markdown table + bar chart."""
-
-    @pytest.fixture
-    def reporter(self, tmp_path):
-        return StratificationReporter(output_dir=Path(tmp_path))
-
-    @pytest.fixture
-    def mock_metrics(self):
-        return {
-            "Level 0": {"Popularity": 0.45, "Random": 0.22, "GraphSAGE": 0.52},
-            "Level 1": {"Popularity": 0.55, "Random": 0.30, "GraphSAGE": 0.68},
-            "Level 2": {"Popularity": 0.72, "Random": 0.35, "GraphSAGE": 0.85},
-        }
-
-    def test_instantiation_creates_plots_dir(self, tmp_path):
-        """Constructor creates plots subdirectory."""
-        StratificationReporter(output_dir=Path(tmp_path))
-        assert (tmp_path / "plots").exists()
-
-    def test_generate_grid_returns_markdown_table(self, reporter, mock_metrics):
-        """generate_grid returns a non-empty Markdown table string."""
-        table = reporter.generate_grid(aggregator=None, per_coldness_metrics=mock_metrics)
-        assert isinstance(table, str)
-        assert len(table) > 0
-        assert "NDCG@10" in table
-        assert "Popularity" in table
-        assert "GraphSAGE" in table
-
-    def test_generate_grid_creates_bar_chart_file(self, reporter, mock_metrics):
-        """generate_grid saves a bar chart PNG."""
-        reporter.generate_grid(aggregator=None, per_coldness_metrics=mock_metrics)
-        chart_path = reporter.output_dir / "plots" / "stratification_3x3_grid.png"
-        assert chart_path.exists()
-        assert chart_path.stat().st_size > 0
-
-    def test_grid_table_contains_all_coldness_levels(self, reporter, mock_metrics):
-        """Markdown table includes all 3 coldness levels."""
-        table = reporter.generate_grid(aggregator=None, per_coldness_metrics=mock_metrics)
-        for level in ["Level 0", "Level 1", "Level 2"]:
-            assert level in table
-
-    def test_grid_table_contains_all_model_names(self, reporter, mock_metrics):
-        """Markdown table includes all 3 model names."""
-        table = reporter.generate_grid(aggregator=None, per_coldness_metrics=mock_metrics)
-        for model in ["Popularity", "Random", "GraphSAGE"]:
-            assert model in table
-
-    def test_grid_uses_provided_metric_values(self, reporter):
-        """generate_grid uses the provided metric values in output."""
-        metrics = {
-            "Level 0": {"Popularity": 0.1234, "Random": 0.5678, "GraphSAGE": 0.9012},
-            "Level 1": {"Popularity": 0.1111, "Random": 0.2222, "GraphSAGE": 0.3333},
-            "Level 2": {"Popularity": 0.4444, "Random": 0.5555, "GraphSAGE": 0.6666},
-        }
-        table = reporter.generate_grid(aggregator=None, per_coldness_metrics=metrics)
-        assert "0.1234" in table
-        assert "0.5678" in table
-        assert "0.9012" in table
-
-    def test_grid_with_missing_model_defaults_to_zero(self, reporter):
-        """Missing model for a level defaults to 0.0."""
-        metrics = {
-            "Level 0": {"Popularity": 0.5},
-            "Level 1": {"Random": 0.3},
-            "Level 2": {},
-        }
-        table = reporter.generate_grid(aggregator=None, per_coldness_metrics=metrics)
-        assert "0.0000" in table
-
-    def test_bar_chart_use_agg_backend(self, reporter, mock_metrics):
-        """Bar chart is generated with Agg backend (no display)."""
-        import matplotlib
-        assert matplotlib.get_backend() == "Agg"
-        reporter.generate_grid(aggregator=None, per_coldness_metrics=mock_metrics)
-
-
-# ── RSCH-05: LearningCurvePlotter ────────────────────────────────────────
-
-class TestLearningCurvePlotter:
-    """RSCH-05: LearningCurvePlotter produces a three-line plot."""
+class TestQuizSensitivityPlotter:
+    """RSCH-05: QuizSensitivityPlotter produces a three-line plot."""
 
     @pytest.fixture
     def plotter(self, tmp_path):
-        return LearningCurvePlotter(output_dir=Path(tmp_path))
+        return QuizSensitivityPlotter(output_dir=Path(tmp_path))
 
     @pytest.fixture
     def mock_curves(self):
@@ -118,12 +38,12 @@ class TestLearningCurvePlotter:
 
     def test_instantiation_creates_plots_dir(self, tmp_path):
         """Constructor creates plots subdirectory."""
-        LearningCurvePlotter(output_dir=Path(tmp_path))
+        QuizSensitivityPlotter(output_dir=Path(tmp_path))
         assert (tmp_path / "plots").exists()
 
-    def test_plot_learning_curve_returns_path_string(self, plotter, mock_curves):
-        """plot_learning_curve returns a string path to the saved plot."""
-        result = plotter.plot_learning_curve(
+    def test_plot_quiz_sensitivity_returns_path_string(self, plotter, mock_curves):
+        """plot_quiz_sensitivity returns a string path to the saved plot."""
+        result = plotter.plot_quiz_sensitivity(
             k_values=mock_curves["k_values"],
             quiz_init_scores=mock_curves["quiz_init"],
             pure_cold_scores=mock_curves["pure_cold"],
@@ -132,21 +52,21 @@ class TestLearningCurvePlotter:
         assert isinstance(result, str)
         assert len(result) > 0
 
-    def test_plot_learning_curve_creates_png_file(self, plotter, mock_curves):
-        """plot_learning_curve saves a PNG file."""
-        plotter.plot_learning_curve(
+    def test_plot_quiz_sensitivity_creates_png_file(self, plotter, mock_curves):
+        """plot_quiz_sensitivity saves a PNG file."""
+        plotter.plot_quiz_sensitivity(
             k_values=mock_curves["k_values"],
             quiz_init_scores=mock_curves["quiz_init"],
             pure_cold_scores=mock_curves["pure_cold"],
             warm_ref_scores=mock_curves["warm_ref"],
         )
-        path = plotter.output_dir / "plots" / "learning_curve.png"
+        path = plotter.output_dir / "plots" / "quiz_sensitivity.png"
         assert path.exists()
         assert path.stat().st_size > 0
 
     def test_plot_includes_three_lines(self, plotter, mock_curves):
         """Plot file is created with data from all three curves."""
-        result_path = plotter.plot_learning_curve(
+        result_path = plotter.plot_quiz_sensitivity(
             k_values=mock_curves["k_values"],
             quiz_init_scores=mock_curves["quiz_init"],
             pure_cold_scores=mock_curves["pure_cold"],
@@ -157,7 +77,7 @@ class TestLearningCurvePlotter:
 
     def test_with_different_k_values(self, plotter):
         """Works with different sets of k_values."""
-        result = plotter.plot_learning_curve(
+        result = plotter.plot_quiz_sensitivity(
             k_values=[1, 5, 10],
             quiz_init_scores=[0.3, 0.5, 0.7],
             pure_cold_scores=[0.4, 0.4, 0.4],
@@ -169,13 +89,12 @@ class TestLearningCurvePlotter:
         """Plot is generated with Agg backend (no display)."""
         import matplotlib
         assert matplotlib.get_backend() == "Agg"
-        plotter.plot_learning_curve(
+        plotter.plot_quiz_sensitivity(
             k_values=mock_curves["k_values"],
             quiz_init_scores=mock_curves["quiz_init"],
             pure_cold_scores=mock_curves["pure_cold"],
             warm_ref_scores=mock_curves["warm_ref"],
         )
-
 
 # ── RSCH-06: AblationReporter ────────────────────────────────────────────
 
