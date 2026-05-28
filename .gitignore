@@ -17,6 +17,10 @@ ml/scripts/tmp/
 !ml/data/scentrix_master.json
 !ml/data/embeddings.npy
 !ml/data/embedding_index.json
+# Results packages
+mext_demo_package_*.zip
+ml/eval/runs/
+
 # junk / generated
 _brain/
 graphify-out/
