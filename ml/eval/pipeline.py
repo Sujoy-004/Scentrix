@@ -101,6 +101,12 @@ class EvaluationOrchestrator:
             print(json.dumps({"status": "success", "plot_path": plot_path, "scores": scores, "run_id": self._run_id}, indent=2))
             sys.exit(0)
 
+        if self.config.evaluation_mode == "stratification":
+            self._run_pure_cold(split_result, df, run_dir)
+            table = self.run_stratification_grid(split_result, df)
+            print(table)
+            return {"status": "success", "run_id": self._run_id, "stratification_grid": table}
+
         # Default: pure_cold (original Phase 4 behavior)
         return self._run_pure_cold(split_result, df, run_dir)
 
@@ -394,7 +400,7 @@ class EvaluationOrchestrator:
         if self.graphsage_wrapper is not None:
             logger.info("Running GraphSAGE-Jaccard evaluation (Jaccard-based graph)...")
             try:
-                jaccard_wrapper = GraphSAGEWrapper(
+                self._gs_jaccard_wrapper = GraphSAGEWrapper(
                     embedding_dim=self.config.graphsage_embedding_dim,
                     num_layers=self.config.graphsage_num_layers,
                     dropout=self.config.graphsage_dropout,
@@ -402,6 +408,7 @@ class EvaluationOrchestrator:
                     tau=self.config.graphsage_tau,
                     loss_type=self.config.graphsage_loss_type,
                 )
+                jaccard_wrapper = self._gs_jaccard_wrapper
 
                 fragrance_ids_j = df["fragrance_id"].tolist()
                 logger.info(f"Building Jaccard graph for {len(fragrance_ids_j)} nodes...")
@@ -920,48 +927,141 @@ class EvaluationOrchestrator:
 
         Coldness levels (D-05):
         - Level 0 (0 interactions): items in cold set
-        - Level 1 (1-3 interactions): lowest-interaction warm items
-        - Level 2 (4+ interactions): highest-interaction warm items
+        - Level 1 (1-3 interactions): lowest-popularity warm items
+        - Level 2 (4+ interactions): highest-popularity warm items
 
-        Uses pre-computed model results from self.results_aggregator (D-07).
+        For each level, runs real inference — filters the test set to items
+        in that coldness bucket, runs predict_cold_start for GraphSAGE models,
+        and computes NDCG@10 via MetricsWrapper.  Uses accord-count popularity
+        as a proxy for interaction level on warm items.
 
         Returns:
             Markdown table string.
         """
         reporter = StratificationReporter(self._run_dir)
 
-        cold_items = set(split_result.cold_items)
-        warm_items = set(split_result.warm_items)
+        cold_items = list(split_result.cold_items)
+        warm_items = list(split_result.warm_items)
 
-        warm_list = list(warm_items)
-        n_warm = len(warm_list)
-        level1_ids = set(warm_list[: n_warm // 2]) if n_warm > 0 else set()
-        level2_ids = set(warm_list[n_warm // 2:]) if n_warm > 0 else set()
+        # ── Split warm items into two interaction-level buckets ──────────────
+        # Proxy for "interaction count": accord count (more accords → more
+        # well-known → higher implied interactions).
+        from ml.eval.models.popularity import PopularityBaseline
+        pop = PopularityBaseline(self.config.data_path)
+        pop_rankings = pop.get_rankings()
+        warm_set = set(warm_items)
+        warm_pop_ranked = [fid for fid in pop_rankings if fid in warm_set]
+        if len(warm_pop_ranked) < 2:
+            logger.warning("Too few ranked warm items — falling back to insertion-order split")
+            warm_pop_ranked = warm_items[:]
+        mid = len(warm_pop_ranked) // 2
+        level1_items = warm_pop_ranked[:mid]   # ≈ 1-3 interactions (lower popularity)
+        level2_items = warm_pop_ranked[mid:]   # ≈ 4+ interactions (higher popularity)
 
-        per_coldness: dict[str, dict[str, float]] = {
-            "Level 0": {},
-            "Level 1": {},
-            "Level 2": {},
+        levels = {
+            "Level 0": cold_items,
+            "Level 1": level1_items,
+            "Level 2": level2_items,
         }
 
-        for model_name in self.results_aggregator.get_model_names():
-            metrics = self.results_aggregator.get_metrics(model_name)
-            ndcg_key = next((k for k in metrics if "NDCG" in k or "ndcg" in k), None)
-            ndcg_val = metrics.get(ndcg_key, 0.0) if ndcg_key else 0.0
+        # ── Pre-compute resources shared across levels ──────────────────────
+        logger.info("Building features and graphs for stratification...")
+        node_features, node_ids = self._build_features(df)
+        fragrance_ids = df["fragrance_id"].tolist()
 
-            per_coldness["Level 0"][model_name] = ndcg_val * 0.3
-            per_coldness["Level 1"][model_name] = ndcg_val * 0.6
-            per_coldness["Level 2"][model_name] = ndcg_val * 0.9
+        from ml.eval.models.graph_builder import build_similarity_graph, build_jaccard_graph
 
-        if "GraphSAGE" in self.results_aggregator.get_model_names():
-            gs_metrics = self.results_aggregator.get_metrics("GraphSAGE")
-            gs_ndcg = next((gs_metrics[k] for k in gs_metrics if "NDCG" in k or "ndcg" in k), 0.0)
-            for model_prefix, factor in [("Popularity", 0.3), ("Random", 0.2)]:
-                matching = [m for m in self.results_aggregator.get_model_names() if model_prefix.lower() in m.lower()]
-                for m in matching:
-                    per_coldness["Level 0"][m] = gs_ndcg * factor * 0.3
+        edge_index_emb, _, _, _ = build_similarity_graph(
+            fragrance_ids=fragrance_ids,
+            embeddings_path="ml/data/embeddings.npy",
+            embedding_index_path="ml/data/embedding_index.json",
+            k=self.config.graphsage_knn_k,
+            threshold=self.config.graphsage_similarity_threshold,
+        )
 
+        edge_index_jac, _, _, _ = build_jaccard_graph(
+            fragrance_ids=fragrance_ids,
+            catalog_path=self.config.data_path,
+            k=self.config.graphsage_knn_k,
+            threshold=0.2,
+        )
+
+        # Normalised feature matrix for Feature-Only baseline (pre-computed)
+        features_norm = node_features / (np.linalg.norm(node_features, axis=1, keepdims=True) + 1e-8)
+        sim_matrix = features_norm @ features_norm.T
+        node_id_to_idx_f = {nid: i for i, nid in enumerate(node_ids)}
+
+        # ── Evaluate each coldness level ────────────────────────────────────
+        MODEL_NAMES = ["GraphSAGE-Embedding", "GraphSAGE-Jaccard", "Feature-Only", "Popularity"]
+        per_coldness: dict[str, dict[str, float]] = {}
+
+        for level_name, test_items in levels.items():
+            logger.info("Stratification level %s: %d test items", level_name, len(test_items))
+            ground_truth = self._build_ground_truth(test_items)
+            test_set = set(test_items)
+            train_items = [fid for fid in warm_items if fid not in test_set]
+            level_metrics: dict[str, float] = {}
+
+            # ── GraphSAGE-Embedding ────────────────────────────────────────
+            if self.graphsage_wrapper is not None and self.graphsage_wrapper.is_trained:
+                preds = self.graphsage_wrapper.predict_cold_start(
+                    node_features=node_features,
+                    edge_index=edge_index_emb,
+                    train_node_ids=train_items,
+                    test_node_ids=test_items,
+                    k=self.config.k_values[0],
+                )
+                m = self.metrics_wrapper.compute_all(preds, ground_truth)
+                level_metrics["GraphSAGE-Embedding"] = m.get("NDCG@10", 0.0)
+            else:
+                level_metrics["GraphSAGE-Embedding"] = 0.0
+
+            # ── GraphSAGE-Jaccard ──────────────────────────────────────────
+            jaccard = getattr(self, '_gs_jaccard_wrapper', None)
+            if jaccard is not None and jaccard.is_trained:
+                preds = jaccard.predict_cold_start(
+                    node_features=node_features,
+                    edge_index=edge_index_jac,
+                    train_node_ids=train_items,
+                    test_node_ids=test_items,
+                    k=self.config.k_values[0],
+                )
+                m = self.metrics_wrapper.compute_all(preds, ground_truth)
+                level_metrics["GraphSAGE-Jaccard"] = m.get("NDCG@10", 0.0)
+            else:
+                level_metrics["GraphSAGE-Jaccard"] = 0.0
+
+            # ── Feature-Only (cosine sim on raw features) ──────────────────
+            test_idx = [node_id_to_idx_f[cid] for cid in test_items if cid in node_id_to_idx_f]
+            feat_preds = {}
+            for idx in test_idx:
+                node_id = node_ids[idx]
+                scores = sim_matrix[idx].copy()
+                scores[idx] = -np.inf
+                top_k = np.argsort(scores)[::-1][:self.config.k_values[0]]
+                top_ids = [node_ids[i] for i in top_k]
+                feat_preds[node_id] = list(zip(top_ids, scores[top_k].tolist()))
+            feat_m = self.metrics_wrapper.compute_all(feat_preds, ground_truth)
+            level_metrics["Feature-Only"] = feat_m.get("NDCG@10", 0.0)
+
+            # ── Popularity baseline ────────────────────────────────────────
+            pop_preds = {}
+            for tid in test_items:
+                ranked = pop.get_rankings(k=self.config.k_values[0])
+                pop_preds[tid] = [(rid, len(ranked) - i) for i, rid in enumerate(ranked)]
+            pop_m = self.metrics_wrapper.compute_all(pop_preds, ground_truth)
+            level_metrics["Popularity"] = pop_m.get("NDCG@10", 0.0)
+
+            per_coldness[level_name] = level_metrics
+
+        # ── Generate output ────────────────────────────────────────────────
         table = reporter.generate_grid(self.results_aggregator, per_coldness)
+
+        print("\n" + "=" * 70)
+        print("COLD-START STRATIFICATION: 3×3 GRID")
+        print("=" * 70)
+        print(table)
+        print("=" * 70 + "\n")
 
         table_path = self._run_dir / "stratification_grid.md"
         with open(table_path, "w") as f:
@@ -1312,7 +1412,7 @@ if __name__ == "__main__":
         "--mode",
         type=str,
         default=None,
-        choices=["pure_cold", "quiz_init", "warm_ref", "quiz_sensitivity"],
+        choices=["pure_cold", "quiz_init", "warm_ref", "quiz_sensitivity", "stratification"],
         help="Override evaluation mode",
     )
     parser.add_argument(

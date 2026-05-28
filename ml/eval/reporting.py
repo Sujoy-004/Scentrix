@@ -41,12 +41,12 @@ class StratificationReporter:
     - Level 1: 1-3 interactions
     - Level 2: 4+ interactions (warm reference)
 
-    Models (D-06): Popularity, Random, GraphSAGE
+    Models (D-06): GraphSAGE-Embedding, GraphSAGE-Jaccard, Feature-Only, Popularity
     Primary metric (D-07): NDCG@10
     """
 
     COLDNESS_LEVELS = ["Level 0\n(0 int.)", "Level 1\n(1-3 int.)", "Level 2\n(4+ int.)"]
-    MODEL_NAMES = ["Popularity", "Random", "GraphSAGE"]
+    MODEL_NAMES = ["GraphSAGE-Embedding", "GraphSAGE-Jaccard", "Feature-Only", "Popularity"]
 
     def __init__(self, output_dir: Path):
         self.output_dir = output_dir
@@ -66,27 +66,29 @@ class StratificationReporter:
         Returns:
             Markdown table string of the 3×3 grid.
         """
-        header = f"| {'Coldness Level':<20} | {'Popularity NDCG@10':<20} | {'Random NDCG@10':<20} | {'GraphSAGE NDCG@10':<20} |"
-        sep = "|" + "|".join("-" * 22 for _ in range(4)) + "|"
+        col_labels = [f"{m} NDCG@10" for m in self.MODEL_NAMES]
+        col_widths = [20] + [24 for _ in self.MODEL_NAMES]
+        header_parts = [f"{'Coldness Level':<{col_widths[0]}}"]
+        for i, label in enumerate(col_labels):
+            header_parts.append(f"{label:<{col_widths[i + 1]}}")
+        header = "| " + " | ".join(header_parts) + " |"
+        sep = "|" + "|".join("-" * (w + 2) for w in col_widths) + "|"
+
         rows = []
         for level_label in self.COLDNESS_LEVELS:
             level_key = level_label.split("\n")[0]
-            pops = per_coldness_metrics.get(level_key, {}).get("Popularity", 0.0)
-            rnd = per_coldness_metrics.get(level_key, {}).get("Random", 0.0)
-            gs = per_coldness_metrics.get(level_key, {}).get("GraphSAGE", 0.0)
-            row = (
-                f"| {level_label:<20}"
-                f"| {pops:.4f}{' ' * (16 - 6)}"
-                f"| {rnd:.4f}{' ' * (16 - 6)}"
-                f"| {gs:.4f}{' ' * (16 - 6)} |"
-            )
-            rows.append(row)
+            row_parts = [f"{level_label:<{col_widths[0]}}"]
+            for mn in self.MODEL_NAMES:
+                val = per_coldness_metrics.get(level_key, {}).get(mn, 0.0)
+                row_parts.append(f"{val:.4f}")
+            rows.append("| " + " | ".join(row_parts) + " |")
 
         table = "\n".join([header, sep] + rows)
 
         levels = [l.split("\n")[0] for l in self.COLDNESS_LEVELS]
         x = np.arange(len(levels))
-        width = 0.25
+        n_models = len(self.MODEL_NAMES)
+        width = 0.8 / n_models
 
         fig, ax = plt.subplots(figsize=(10, 6))
         for i, model in enumerate(self.MODEL_NAMES):
@@ -96,10 +98,11 @@ class StratificationReporter:
         ax.set_xlabel("Coldness Level")
         ax.set_ylabel("NDCG@10")
         ax.set_title("Cold-Start Stratification: NDCG@10 by Coldness Level and Model")
-        ax.set_xticks(x + width)
+        ax.set_xticks(x + (n_models - 1) * width / 2)
         ax.set_xticklabels(self.COLDNESS_LEVELS, fontsize=10)
         ax.legend()
-        ax.set_ylim(0, max(1.0, max(v for d in per_coldness_metrics.values() for v in d.values()) * 1.1))
+        max_val = max(1.0, max(v for d in per_coldness_metrics.values() for v in d.values()))
+        ax.set_ylim(0, max_val * 1.1)
 
         path = self.output_dir / "plots" / "stratification_3x3_grid.png"
         fig.tight_layout()
