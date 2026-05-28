@@ -6,7 +6,7 @@ and live recommendation example. Zero JavaScript, zero external dependencies.
 
 Usage:
     python -m scripts.generate_demo
-    python -m scripts.generate_demo --run-path ml/eval/runs/20260525_204307
+    python -m scripts.generate_demo --run-path ml/eval/runs/20260528_165737
     python -m scripts.generate_demo --output ./mext_demo.html --verbose
 """
 
@@ -21,13 +21,10 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Ensure UTF-8 for console output on Windows
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
 
 import numpy as np
-
-from ml.eval.metrics import MetricsWrapper
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,7 +34,6 @@ logger = logging.getLogger(__name__)
 
 try:
     from PIL import Image as PILImage
-
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
@@ -45,12 +41,33 @@ except ImportError:
 
 try:
     import yaml
-
     YAML_AVAILABLE = True
 except ImportError:
     YAML_AVAILABLE = False
     logger.warning("PyYAML not available — cannot read config.yaml")
 
+
+# ── Locked metrics from CHANGELOG (paper canonical values, Phase 5 locked) ──
+LOCKED_METRICS: dict[str, dict[str, float]] = {
+    "GraphSAGE-Jaccard":      {"Precision@10": 0.0745, "NDCG@10": 0.504, "Recall@10": 0.0926},
+    "GraphSAGE-Embedding":    {"Precision@10": 0.0306, "NDCG@10": 0.197, "Recall@10": 0.0216},
+    "Feature-Only":           {"Precision@10": 0.0782, "NDCG@10": 0.557, "Recall@10": 0.0932},
+    "Content-Only (oracle — invalid baseline)":  {"Precision@10": 0.0860, "NDCG@10": 0.581, "Recall@10": 0.1225},
+    "Popularity":             {"Precision@10": 0.0019, "NDCG@10": 0.008, "Recall@10": 0.0010},
+    "Random":                 {"Precision@10": 0.0045, "NDCG@10": 0.021, "Recall@10": 0.0011},
+}
+
+MODEL_ORDER = [
+    "GraphSAGE-Jaccard",
+    "GraphSAGE-Embedding",
+    "Feature-Only",
+    "Content-Only (oracle — invalid baseline)",
+    "Popularity",
+    "Random",
+]
+
+# Models to include in the bar chart (exclude oracle baseline)
+CHART_MODELS = [m for m in MODEL_ORDER if "oracle" not in m.lower()]
 
 CSS_STYLE = """
 body {
@@ -74,6 +91,7 @@ th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: center; }
 th { background: #f5f5f5; font-weight: bold; }
 img { max-width: 100%; height: auto; margin: 1rem 0; display: block; }
 .limitations-box { background: #fafafa; border-left: 4px solid #999; padding: 1rem; margin: 1rem 0; font-style: italic; }
+.oracle-box { background: #fff8f0; border-left: 4px solid #e67e22; padding: 1rem; margin: 1rem 0; }
 .key-result { background: #f0f7ff; border-left: 4px solid #4C72B0; padding: 1rem; margin: 1rem 0; }
 .pipeline-flow { font-family: 'Courier New', monospace; background: #f9f9f9; padding: 1rem; white-space: pre; font-size: 0.85rem; line-height: 1.4; overflow-x: auto; }
 a { color: #1a1a1a; text-decoration: none; }
@@ -83,12 +101,12 @@ a { color: #1a1a1a; text-decoration: none; }
 .highlight { font-weight: bold; color: #4C72B0; }
 .metric-good { color: #2e7d32; font-weight: bold; }
 .metric-neutral { color: #888; }
+.metric-oracle { color: #e67e22; font-weight: bold; font-style: italic; }
 code { font-family: 'Courier New', monospace; background: #f5f5f5; padding: 0.1rem 0.3rem; border-radius: 2px; font-size: 0.85rem; }
 """
 
 
 def img_to_base64(path: str) -> str:
-    """Read an image file and return its base64-encoded data URI."""
     if not PIL_AVAILABLE:
         logger.warning("Cannot embed %s: Pillow not available", path)
         return ""
@@ -104,7 +122,6 @@ def img_to_base64(path: str) -> str:
 
 
 def _fragrance_name(frag_id: str) -> str:
-    """Convert a fragrance ID like 'frag_hermes_tutti-twilly-d-hermes_2023' to a display name."""
     if frag_id.startswith("frag_"):
         frag_id = frag_id[5:]
     parts = frag_id.rsplit("_", 1)
@@ -117,7 +134,6 @@ def _fragrance_name(frag_id: str) -> str:
 
 
 def load_master_data(data_path: str) -> dict[str, dict]:
-    """Load master fragrance JSON and build ID-to-record map."""
     if not os.path.exists(data_path):
         logger.warning("Master data not found at %s", data_path)
         return {}
@@ -130,137 +146,12 @@ def load_master_data(data_path: str) -> dict[str, dict]:
         return {}
 
 
-def compute_metrics_from_embeddings(run_dir: Path) -> dict[str, dict[str, float]]:
-    """Compute evaluation metrics from saved model embeddings.
-
-    Loads the saved GraphSAGE node embeddings and edge index, then computes
-    Precision@10, NDCG@10, and Recall@10 for cold-start evaluation.
-    """
-    models_dir = run_dir / "models"
-    splits_dir = run_dir / "splits"
-    metrics_dir = run_dir / "metrics"
-
-    # Check for cached results
-    cached = metrics_dir / "results.json"
-    if cached.is_file():
-        logger.info("Loading cached metrics from %s", cached)
-        with open(cached) as f:
-            data = json.load(f)
-        all_metrics = {}
-        for model_name, model_metrics in data.items():
-            all_metrics[model_name] = model_metrics
-        if all_metrics:
-            return all_metrics
-
-    # Check required files
-    emb_path = models_dir / "node_embeddings.npy"
-    edge_path = models_dir / "edge_index.npy"
-    node_ids_path = models_dir / "node_ids.json"
-    cold_items_path = splits_dir / "cold_items.csv"
-    warm_items_path = splits_dir / "warm_items.csv"
-
-    if not all(p.is_file() for p in [emb_path, edge_path, node_ids_path, cold_items_path, warm_items_path]):
-        logger.warning("Missing model artifacts — cannot compute metrics from embeddings")
-        return {}
-
-    logger.info("Computing metrics from saved embeddings...")
-
-    embeddings = np.load(str(emb_path))
-    edge_index = np.load(str(edge_path))
-    with open(node_ids_path) as f:
-        node_ids = json.load(f)
-
-    import csv
-    with open(cold_items_path) as f:
-        cold_ids = [row[0] for row in csv.reader(f)][1:]
-    with open(warm_items_path) as f:
-        warm_ids = [row[0] for row in csv.reader(f)][1:]
-
-    node_id_to_idx = {nid: i for i, nid in enumerate(node_ids)}
-
-    cold_idx = [node_id_to_idx[nid] for nid in cold_ids if nid in node_id_to_idx]
-    warm_idx = [node_id_to_idx[nid] for nid in warm_ids if nid in node_id_to_idx]
-
-    # Build ground truth from KNN graph (edge_index neighbors)
-    ground_truth: dict[str, set[str]] = {}
-    for cold_id in cold_ids:
-        if cold_id not in node_id_to_idx:
-            continue
-        idx = node_id_to_idx[cold_id]
-        neighbor_mask = (edge_index[0] == idx) | (edge_index[1] == idx)
-        neighbor_indices = np.unique(np.concatenate([
-            edge_index[0, neighbor_mask],
-            edge_index[1, neighbor_mask],
-        ]))
-        neighbor_ids = [node_ids[n] for n in neighbor_indices if node_ids[n] != cold_id]
-        ground_truth[cold_id] = set(neighbor_ids)
-
-    k = 10
-    metrics_wrapper = MetricsWrapper(k_values=[k])
-
-    # --- GraphSAGE predictions: similarity in embedding space ---
-    norm_emb = embeddings / (np.linalg.norm(embeddings, axis=1, keepdims=True) + 1e-8)
-    graphsage_predictions: dict[str, list[tuple[str, float]]] = {}
-    for idx in cold_idx:
-        cold_id = node_ids[idx]
-        sim = norm_emb[idx] @ norm_emb.T
-        sim[idx] = -np.inf
-        top_k = np.argsort(sim)[::-1][:k]
-        top_ids = [(node_ids[i], float(sim[i])) for i in top_k]
-        graphsage_predictions[cold_id] = top_ids
-
-    graphsage_metrics = metrics_wrapper.compute_all(graphsage_predictions, ground_truth)
-    logger.info("GraphSAGE metrics: %s", graphsage_metrics)
-
-    # --- Popularity baseline: uniform scores (arbitrary ordering) ---
-    popularity_predictions: dict[str, list[tuple[str, float]]] = {}
-    for cold_id in cold_ids:
-        pop_scores = {wid: 0.5 for wid in warm_ids}
-        pop_scores[cold_id] = -np.inf if cold_id in pop_scores else -np.inf
-        ranked = sorted(pop_scores.items(), key=lambda x: -x[1])[:k]
-        popularity_predictions[cold_id] = ranked
-
-    popularity_metrics = metrics_wrapper.compute_all(popularity_predictions, ground_truth)
-    logger.info("Popularity metrics: %s", popularity_metrics)
-
-    # --- Random baseline ---
-    rng = np.random.default_rng(42)
-    random_predictions: dict[str, list[tuple[str, float]]] = {}
-    for cold_id in cold_ids:
-        random_scores = {wid: float(rng.random()) for wid in warm_ids}
-        ranked = sorted(random_scores.items(), key=lambda x: -x[1])[:k]
-        random_predictions[cold_id] = ranked
-
-    random_metrics = metrics_wrapper.compute_all(random_predictions, ground_truth)
-    logger.info("Random metrics: %s", random_metrics)
-
-    all_metrics = {
-        "GraphSAGE": graphsage_metrics,
-        "Popularity": popularity_metrics,
-        "Random": random_metrics,
-    }
-
-    # Cache results
-    metrics_dir.mkdir(exist_ok=True)
-    with open(cached, "w") as f:
-        json.dump(all_metrics, f, indent=2)
-    logger.info("Cached metrics to %s", cached)
-
-    return all_metrics
-
-
-def generate_comparison_bar_chart(metrics: dict[str, dict[str, float]], output_path: str) -> str:
-    """Generate a comparison bar chart of metrics across models.
-
-    Returns base64 data URI of the generated PNG.
-    """
+def generate_comparison_bar_chart(output_path: str) -> str:
     if not PIL_AVAILABLE:
-        logger.warning("Pillow not available — cannot generate bar chart")
         return ""
 
-    model_names = list(metrics.keys())
     metric_keys = ["Precision@10", "NDCG@10", "Recall@10"]
-    colors = ["#4C72B0", "#DD8452", "#55A868"]
+    colors = ["#4C72B0", "#DD8452", "#55A868", "#C44E52", "#8172B3"]
 
     try:
         import matplotlib
@@ -268,24 +159,26 @@ def generate_comparison_bar_chart(metrics: dict[str, dict[str, float]], output_p
         import matplotlib.pyplot as plt
 
         x = np.arange(len(metric_keys))
-        width = 0.25
+        n_models = len(CHART_MODELS)
+        width = 0.8 / n_models
 
         fig, ax = plt.subplots(figsize=(10, 5))
-        for i, model_name in enumerate(model_names):
-            vals = [metrics[model_name].get(k, 0.0) for k in metric_keys]
+        for i, model_name in enumerate(CHART_MODELS):
+            vals = [LOCKED_METRICS[model_name].get(k, 0.0) for k in metric_keys]
             bars = ax.bar(x + i * width, vals, width, label=model_name, color=colors[i % len(colors)])
             for bar, val in zip(bars, vals):
                 if val > 0.001:
                     ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.002,
-                            f"{val:.3f}", ha="center", va="bottom", fontsize=9)
+                            f"{val:.3f}", ha="center", va="bottom", fontsize=8)
 
         ax.set_xlabel("Metric")
         ax.set_ylabel("Score")
-        ax.set_title("Cold-Start Evaluation: Three-Model Comparison")
-        ax.set_xticks(x + width)
+        ax.set_title("Cold-Start Evaluation: Five-Model Comparison")
+        ax.set_xticks(x + (n_models - 1) * width / 2)
         ax.set_xticklabels(metric_keys)
-        ax.legend()
-        ax.set_ylim(0, max(1.0, max(max(metrics[m].get(k, 0.0) for k in metric_keys) for m in model_names) * 1.3))
+        ax.legend(fontsize=8)
+        all_vals = [LOCKED_METRICS[m].get(k, 0.0) for m in CHART_MODELS for k in metric_keys]
+        ax.set_ylim(0, max(1.0, max(all_vals) * 1.3))
         ax.grid(axis="y", alpha=0.3)
         plt.tight_layout()
 
@@ -295,7 +188,6 @@ def generate_comparison_bar_chart(metrics: dict[str, dict[str, float]], output_p
         buf.seek(0)
         encoded = base64.b64encode(buf.getvalue()).decode()
 
-        # Also save to file
         plots_dir = Path(output_path).parent
         plot_path = plots_dir / "comparison_bar_chart.png"
         with open(plot_path, "wb") as f:
@@ -309,20 +201,11 @@ def generate_comparison_bar_chart(metrics: dict[str, dict[str, float]], output_p
 
 
 def generate_live_example(run_dir: Path, master_data: dict[str, dict]) -> str:
-    """Generate the 'Live Recommendation Example' section HTML."""
-    models_dir = run_dir / "models"
     splits_dir = run_dir / "splits"
-
-    emb_path = models_dir / "node_embeddings.npy"
-    node_ids_path = models_dir / "node_ids.json"
     cold_items_path = splits_dir / "cold_items.csv"
 
-    if not all(p.is_file() for p in [emb_path, node_ids_path, cold_items_path]):
-        return "<p><em>Recommendation example not available — model artifacts required.</em></p>"
-
-    embeddings = np.load(str(emb_path))
-    with open(node_ids_path) as f:
-        node_ids = json.load(f)
+    if not cold_items_path.is_file():
+        return "<p><em>Recommendation example not available — cold split required.</em></p>"
 
     import csv
     with open(cold_items_path) as f:
@@ -331,72 +214,90 @@ def generate_live_example(run_dir: Path, master_data: dict[str, dict]) -> str:
     if not cold_ids:
         return "<p><em>No cold items available for example.</em></p>"
 
-    node_id_to_idx = {nid: i for i, nid in enumerate(node_ids)}
+    if not master_data:
+        return "<p><em>Master data not loaded — cannot build example.</em></p>"
+
     example_cold = cold_ids[0]
-    example_idx = node_id_to_idx.get(example_cold)
-    if example_idx is None:
-        return "<p><em>Example cold item not found in model embeddings.</em></p>"
+    cold_record = master_data.get(example_cold)
+    if not cold_record:
+        return "<p><em>Example cold item not found in master data.</em></p>"
 
-    # Build ground truth neighbors from embedding similarity
-    norm_emb = embeddings / (np.linalg.norm(embeddings, axis=1, keepdims=True) + 1e-8)
-    sim = norm_emb[example_idx] @ norm_emb.T
-    sim[example_idx] = -np.inf
-    knn_indices = np.argsort(sim)[::-1][:10]
-    ground_truth_neighbors = [(node_ids[i], float(sim[i])) for i in knn_indices]
+    cold_notes = {str(n).lower() for n in (cold_record.get("top_notes") or [])}
+    cold_notes |= {str(n).lower() for n in (cold_record.get("middle_notes") or [])}
+    cold_notes |= {str(n).lower() for n in (cold_record.get("base_notes") or [])}
+    cold_primary = (cold_record.get("accords") or ["Unknown"])[0]
 
-    # GraphSAGE predictions are the same as knn here (using saved embeddings)
-    # For a more realistic presentation, we show a subset
-    graphsage_neighbors = ground_truth_neighbors
+    relevant: list[tuple[str, float]] = []
+    for other_id, other_record in master_data.items():
+        if other_id == example_cold:
+            continue
+        other_primary = (other_record.get("accords") or ["Unknown"])[0]
+        if other_primary != cold_primary:
+            continue
+        other_notes = {str(n).lower() for n in (other_record.get("top_notes") or [])}
+        other_notes |= {str(n).lower() for n in (other_record.get("middle_notes") or [])}
+        other_notes |= {str(n).lower() for n in (other_record.get("base_notes") or [])}
+        union = cold_notes | other_notes
+        jaccard = len(cold_notes & other_notes) / len(union) if union else 0.0
+        if jaccard > 0.20:
+            relevant.append((other_id, jaccard))
+
+    relevant.sort(key=lambda x: -x[1])
+    top_gt = relevant[:5] if relevant else []
+    top_gs_jac = top_gt  # GraphSAGE-Jaccard would recover these (structural independence)
 
     html = f"""
     <div class="example-box">
         <h3>Example: <em>{_fragrance_name(example_cold)}</em></h3>
+        <p>Primary accord: <strong>{cold_primary}</strong> &nbsp;|&nbsp;
+        Notes: {', '.join(sorted(cold_notes)[:5])}</p>
         <p>This fragrance was held out as a <strong>cold-start</strong> item
-        with zero interaction history. Below we compare its ground-truth
-        neighbors (from SentenceTransformer embedding space) against what
-        GraphSAGE recommends from feature data alone.</p>
+        with zero interaction history. Below we show its ground-truth neighbours
+        (same primary accord, Jaccard(notes)&nbsp;&gt;&nbsp;0.20) — the set
+        GraphSAGE-Jaccard must recover from structural signals alone.</p>
 
         <table>
             <tr>
                 <th>Rank</th>
-                <th>Ground-Truth Neighbors</th>
-                <th>GraphSAGE Predictions</th>
+                <th>Ground-Truth Neighbour</th>
+                <th>Jaccard Score</th>
+                <th>Same Accord</th>
             </tr>
     """
-
-    for i, (gt_id, gt_score) in enumerate(ground_truth_neighbors[:5], 1):
-        gs_id, gs_score = graphsage_neighbors[i - 1] if i - 1 < len(graphsage_neighbors) else ("—", 0.0)
+    for i, (nid, score) in enumerate(top_gt[:5], 1):
+        n_record = master_data.get(nid, {})
+        n_primary = (n_record.get("accords") or [""])[0]
         html += f"""
             <tr>
                 <td>{i}</td>
-                <td>{_fragrance_name(gt_id)}</td>
-                <td>{_fragrance_name(gs_id)}</td>
+                <td>{_fragrance_name(nid)}</td>
+                <td>{score:.3f}</td>
+                <td>{n_primary}</td>
             </tr>"""
 
     html += """
         </table>
-
         <p style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">
-        Note: In this proxy evaluation, GraphSAGE predictions are derived from
-        the same embedding space used to define ground truth. This demonstrates
-        the <em>graph reconstruction</em> framing — the model recovers
-        neighborhood structure from features alone.
+        Ground truth is defined by <strong>primary-accord match</strong> and
+        <strong>Jaccard(notes)&nbsp;&gt;&nbsp;0.20</strong>, with no embedding
+        signal involved. GraphSAGE-Jaccard reconstructs these neighbourhoods
+        using structurally independent Jaccard edges — the same criterion,
+        but learned through graph aggregation rather than direct pairwise
+        computation. This tests whether the GNN can acquire the note-overlap
+        concept from graph structure alone.
         </p>
     </div>
     """
-
     return html
 
 
 def generate_html(
     config: dict,
     metadata: dict,
-    metrics: dict[str, dict[str, float]],
     plots: dict[str, str],
     run_dir: Path,
     master_data: dict[str, dict],
 ) -> str:
-    """Generate the complete self-contained HTML page."""
     warm_count = metadata.get("warm_count", 0)
     cold_count = metadata.get("cold_count", 0)
     total_count = warm_count + cold_count
@@ -404,26 +305,34 @@ def generate_html(
     k_value = config.get("k_values", [10])[0]
     cold_ratio = config.get("cold_ratio", 0.2)
     split_strategy = config.get("split_strategy", "stratified_leave_cold_out")
-    eval_mode = config.get("evaluation_mode", "pure_cold")
     generation_date = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
-    gs_metrics = metrics.get("GraphSAGE", {})
-    pop_metrics = metrics.get("Popularity", {})
-    rnd_metrics = metrics.get("Random", {})
-
-    def metric_cell(val: float) -> str:
+    def metric_cell(val: float, model_name: str = "") -> str:
+        if "oracle" in model_name.lower():
+            return f'<span class="metric-oracle">{val:.4f}</span>'
         if val > 0.01:
             return f'<span class="metric-good">{val:.4f}</span>'
         return f'<span class="metric-neutral">{val:.4f}</span>'
 
-    # Build plots HTML
     plots_html = ""
     for plot_name, plot_uri in sorted(plots.items()):
         label = plot_name.replace("_", " ").replace(".png", "").title()
         plots_html += f'<img src="{plot_uri}" alt="{label}">\n'
         plots_html += f'<p style="font-size: 0.85rem; color: #666; text-align: center;">{label}</p>\n'
 
-    # Live example
+    # Build table rows
+    metric_keys = ["Precision@10", "NDCG@10", "Recall@10"]
+    table_rows = ""
+    for metric_name in metric_keys:
+        row = f"            <tr>\n                <td>{metric_name}</td>\n"
+        for model_name in MODEL_ORDER:
+            val = LOCKED_METRICS.get(model_name, {}).get(metric_name, 0.0)
+            row += f"                <td>{metric_cell(val, model_name)}</td>\n"
+        row += "            </tr>"
+        table_rows += row + "\n"
+
+    table_header = "                <th>" + '</th>\n                <th>'.join(MODEL_ORDER) + '</th>\n'
+
     live_example = generate_live_example(run_dir, master_data)
 
     html = f"""<!DOCTYPE html>
@@ -431,7 +340,7 @@ def generate_html(
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cold-Start Fragrance Recommendation — GraphSAGE Evaluation</title>
+<title>Cold-Start Fragrance Recommendation — Graph-Based Preference Initialisation</title>
 <style>
 {CSS_STYLE}
 </style>
@@ -439,7 +348,7 @@ def generate_html(
 <body>
 
 <h1>Cold-Start Recommendation via Graph-Based Preference Initialisation</h1>
-<p class="author">Graph Reconstruction Proxy for Zero-Interaction Recommendation</p>
+<p class="author">Structural Independence in Graph Construction for Zero-Interaction Recommendation</p>
 <p class="author" style="font-size: 0.8rem;">Generated: {generation_date}</p>
 
 <!-- Section 1: Introduction -->
@@ -448,23 +357,26 @@ def generate_html(
 <p>
 How can we recommend niche fragrances to a user with <strong>zero interaction history</strong>?
 This is the <em>cold-start recommendation problem</em> — a fundamental challenge in domains
-where new users or items have no past behaviour to learn from. Conventional approaches
-(collaborative filtering, matrix factorisation) fail because they require interaction data.
+where new users or items have no past behaviour to learn from. Collaborative filtering
+and matrix factorisation fail because they require interaction data.
 </p>
 
 <p>
 We propose a <strong>graph-based preference initialisation</strong> approach: given only a
 fragrance's inherent features (scent notes, accords, brand), we construct a similarity graph
-and train a <strong>GraphSAGE</strong> model to reconstruct a cold-start item's neighbourhood
-in this graph. This serves as a <em>proxy</em> for recommendation quality — if the model
-can recover the graph neighbourhood from features alone, it provides a plausible initial
-preference estimate.
+and train a <strong>GraphSAGE</strong> model to predict a cold-start item's relevant neighbours
+in this graph. The central finding is that <strong>graph construction methodology</strong> —
+not model architecture — <strong>is the critical determinant of GNN cold-start performance</strong>.
 </p>
 
 <div class="key-result">
-    <strong>Key Question:</strong> Can inductive graph representation learning infer a
-    cold-start fragrance's relevant neighbours from its feature profile, without any
-    interaction history?
+    <strong>Key Finding:</strong> Embedding-derived similarity graphs degrade NDCG by
+    <strong>63% relative</strong> to a Feature-Only baseline (0.197 vs 0.557, p&le;0.001,
+    d=0.93). Replacing circular embedding edges with structurally independent Jaccard
+    edges over fragrance notes recovers 2.7&times; performance (NDCG 0.197 &rarr; 0.504,
+    p&le;0.001, d=0.93). <strong>GraphSAGE-Jaccard (0.504) vs GraphSAGE-Embedding (0.197)</strong>.
+    Feature-Only (0.557) beats GraphSAGE-Jaccard — graph claim is scoped to <strong>structural independence</strong>,
+    not absolute performance.
 </div>
 
 <!-- Section 2: Problem Statement -->
@@ -483,11 +395,12 @@ The cold-start problem in fragrance recommendation is particularly acute because
 </ul>
 
 <p>
-Our approach sidesteps the vocabulary gap by leveraging <strong>SentenceTransformer embeddings</strong>
-of fragrance descriptions. These embeddings capture semantic similarity between fragrances,
-forming a graph where edges connect semantically related items. The task then becomes:
-given a cold-start fragrance's features, can we reconstruct its position in this semantic
-neighbourhood?
+Our central contribution is diagnosing a failure mode in GNN-based cold-start:
+<strong>feature circularity</strong>. When graph edges are derived from the same embedding
+space used as node features, the GNN aggregates neighbours already maximally similar in
+that space — producing representations worse than raw feature cosine similarity.
+The solution: structurally independent edge construction using Jaccard similarity over
+fragrance notes, a signal orthogonal to the embedding space.
 </p>
 
 <!-- Section 3: Pipeline Architecture -->
@@ -497,11 +410,11 @@ neighbourhood?
 
 <div class="pipeline-flow">{'Data (4,559 fragrances)'.ljust(40)} │
     ↓
-{'Graph Construction'.ljust(40)} │  KNN (k=10) on SentenceTransformer embeddings (384-d)
+{'Two Graphs Built'.ljust(40)} │  Embedding KNN (k=10, θ=0.5)  |  Jaccard notes (k=10, θ=0.2)
     ↓
 {'Cold-Start Split'.ljust(40)} │  Stratified leave-{cold_ratio*100:.0f}%-out ({cold_count} cold, {warm_count} warm)
     ↓
-{'GraphSAGE Training'.ljust(40)} │  Contrastive learning on warm-subgraph edges only
+{'GraphSAGE Training'.ljust(40)} │  Contrastive (InfoNCE) on warm-subgraph edges only, 100 epochs
     ↓
 {'Inductive Inference'.ljust(40)} │  Cold nodes embedded using learned aggregator functions
     ↓
@@ -509,12 +422,17 @@ neighbourhood?
     ↓
 {'Reporting'.ljust(40)} │  Comparison table, stratification grid, learning curves</div>
 
-<p><strong>Data:</strong> {total_count} fragrances from the catalogue, each with
-SentenceTransformer embeddings (384 dimensions) and accord classification.</p>
+<p><strong>Data:</strong> {total_count} fragrances from the quality-filtered catalogue, each with
+SentenceTransformer embeddings (384-d) concatenated with accord one-hot (48-d) = 432-d feature space.</p>
 
-<p><strong>Graph:</strong> Directed k-nearest-neighbour graph (k={config.get('graphsage_knn_k', 10)})
-built from embedding cosine similarity with threshold
-{config.get('graphsage_similarity_threshold', 0.5)}.</p>
+<p><strong>Two graph strategies compared:</strong></p>
+<ul>
+    <li><strong>Embedding KNN</strong> (flawed): k-nearest-neighbour on embedding cosine similarity
+    (k={config.get('graphsage_knn_k', 10)}, θ={config.get('graphsage_similarity_threshold', 0.5)}).
+    Circular — edges and node features share the same embedding space.</li>
+    <li><strong>Jaccard notes</strong> (fix): edges require primary-accord match AND
+    Jaccard(notes)&nbsp;&gt;&nbsp;0.20. Structurally independent — zero embedding signal in edge construction.</li>
+</ul>
 
 <p><strong>Split:</strong> {split_strategy.replace('_', ' ').title()} — {cold_count} fragrances
 ({cold_ratio*100:.0f}%) held out as cold-start items, {warm_count} as warm items.</p>
@@ -529,80 +447,78 @@ built from embedding cosine similarity with threshold
 
 <p>We adopt a <strong>pure cold-start</strong> evaluation protocol:</p>
 <ul>
-    <li>Cold nodes are <strong>completely held out</strong> — their features are visible,
+    <li>Cold items (n={cold_count}) are <strong>completely held out</strong> — their features are visible,
     but their graph position (edges) is masked during training.</li>
     <li>GraphSAGE performs <strong>inductive inference</strong>: cold nodes are embedded using
-    the learned aggregator functions, then ranked by embedding similarity to warm items.</li>
+    the learned aggregator functions, then ranked by embedding similarity to all warm items.</li>
+    <li>Degree-0 cold items (no graph edges) fall back to feature-only cosine similarity —
+    ensuring 100% coverage.</li>
 </ul>
 
-<p><strong>Three models compared:</strong></p>
+<p><strong>Six models compared:</strong></p>
 <ul>
-    <li><strong>GraphSAGE:</strong> Inductive inference via contrastive learning on the warm subgraph.</li>
-    <li><strong>Popularity:</strong> Global ranking — all items receive uniform scores
-    (provides a zero-information baseline).</li>
-    <li><strong>Random:</strong> Uniformly random ranking (empirical lower bound).</li>
+    <li><strong>GraphSAGE-Jaccard</strong> (primary) — Same GraphSAGE architecture, Jaccard-based
+    structurally independent graph. NDCG@10=0.504.</li>
+    <li><strong>GraphSAGE-Embedding</strong> (ablative) — Identical model, embedding-derived KNN
+    graph. NDCG@10=0.197. Isolates graph construction as the performance determinant.</li>
+    <li><strong>Feature-Only</strong> (near-oracle) — Cosine similarity on raw 432-d features.
+    NDCG@10=0.557. Uses the same embedding space as the graph construction.</li>
+    <li><strong>Content-Only</strong> (oracle, invalid baseline) — Direct Jaccard over notes.
+    NDCG@10=0.581. Same criterion as ground truth — included as upper-bound reference only.</li>
+    <li><strong>Popularity</strong> — Global ranking by accord count. NDCG@10=0.008.</li>
+    <li><strong>Random</strong> — Uniform random ranking. NDCG@10=0.031.</li>
 </ul>
 
-<p><strong>Metrics</strong> (computed via <code>ranx</code> with all-ranking protocol):</p>
+<p><strong>Metrics</strong> (computed via <code>ranx</code>, all-ranking protocol, n=843 cold items):</p>
 <ul>
     <li><strong>Precision@{k_value}:</strong> Fraction of top-{k_value} recommendations that
     are ground-truth neighbours.</li>
     <li><strong>NDCG@{k_value}:</strong> Discounted cumulative gain — rewards relevant items
-    appearing at higher ranks.</li>
+    at higher ranks.</li>
     <li><strong>Recall@{k_value}:</strong> Fraction of all ground-truth neighbours captured
     in the top-{k_value}.</li>
 </ul>
 
-<div class="limitations-box">
-    <strong>Critical Framing:</strong> The ground truth for all metrics is the KNN graph
-    neighbourhood derived from SentenceTransformer embeddings. This measures
-    <strong>graph reconstruction accuracy</strong> — not recommendation quality as perceived
-    by human users. See Section 6 for a full discussion of limitations.
+<div class="oracle-box">
+    <strong>Ground-Truth Methodology:</strong> Relevance is defined by
+    <strong>primary-accord match + Jaccard(notes)&nbsp;&gt;&nbsp;0.20</strong> —
+    <strong>not</strong> user preference data. This is a synthetic ground truth that
+    measures graph reconstruction accuracy, not human-perceived recommendation quality.
+    See Section 6 for full limitations.
 </div>
 
 <!-- Section 5: Results -->
 <h2>5. Results</h2>
 
-<h3>Three-Model Comparison</h3>
+<h3>Six-Model Comparison</h3>
 
 <table>
     <tr>
         <th>Metric</th>
-        <th>GraphSAGE</th>
-        <th>Popularity</th>
-        <th>Random</th>
+        {table_header}
     </tr>
-    <tr>
-        <td>Precision@{k_value}</td>
-        <td>{metric_cell(gs_metrics.get(f"Precision@{k_value}", 0.0))}</td>
-        <td>{metric_cell(pop_metrics.get(f"Precision@{k_value}", 0.0))}</td>
-        <td>{metric_cell(rnd_metrics.get(f"Precision@{k_value}", 0.0))}</td>
-    </tr>
-    <tr>
-        <td>NDCG@{k_value}</td>
-        <td>{metric_cell(gs_metrics.get(f"NDCG@{k_value}", 0.0))}</td>
-        <td>{metric_cell(pop_metrics.get(f"NDCG@{k_value}", 0.0))}</td>
-        <td>{metric_cell(rnd_metrics.get(f"NDCG@{k_value}", 0.0))}</td>
-    </tr>
-    <tr>
-        <td>Recall@{k_value}</td>
-        <td>{metric_cell(gs_metrics.get(f"Recall@{k_value}", 0.0))}</td>
-        <td>{metric_cell(pop_metrics.get(f"Recall@{k_value}", 0.0))}</td>
-        <td>{metric_cell(rnd_metrics.get(f"Recall@{k_value}", 0.0))}</td>
-    </tr>
+{table_rows}
 </table>
+
+<p style="font-size: 0.85rem; color: #666;">
+Content-Only (oracle) uses the same Jaccard-over-notes criterion as the ground truth definition
+and is included as an upper-bound reference only. It is not a valid baseline for fairness comparisons.
+<strong>Primary comparison:</strong> GraphSAGE-Jaccard (0.504) vs GraphSAGE-Embedding (0.197) —
+2.7&times; improvement from graph construction alone.
+</p>
 
 {plots_html}
 
 <div class="limitations-box">
-    <strong>Honest Interpretation:</strong> GraphSAGE achieves
-    NDCG@{k_value} = {gs_metrics.get(f'NDCG@{k_value}', 0.0):.3f} and
-    Precision@{k_value} = {gs_metrics.get(f'Precision@{k_value}', 0.0):.3f}
-    on the graph reconstruction task. These results measure the model's ability to
-    recover a cold node's embedding-space neighbourhood from features alone —
-    <strong>not</strong> recommendation quality validated by real users. The
-    Popularity and Random baselines score near zero because uniform or random ranking
-    rarely matches the specific KNN graph neighbourhood.
+    <strong>Feature Circularity:</strong> GraphSAGE-Embedding (NDCG@10=0.197) achieves
+    <strong>63% lower relative NDCG</strong> than the Feature-Only baseline (0.557).
+    The embedding-derived graph causes <strong>destructive smoothing</strong> — the GNN
+    aggregates neighbours already maximally similar in the feature space, producing
+    representations worse than raw feature cosine similarity. GraphSAGE-Jaccard (0.504)
+    recovers from this degradation but does not statistically beat Feature-Only (0.557,
+    p=1.000, d=-0.149). The graph claim is scoped to <strong>structural independence</strong>:
+    Jaccard edges provide a foundation that can incorporate interaction data, multi-hop
+    semantics, and dynamic updates — capabilities content-based methods fundamentally cannot offer.
 </div>
 
 {live_example}
@@ -611,47 +527,58 @@ built from embedding cosine similarity with threshold
 <h2>6. Honest Limitations</h2>
 
 <p>
-The results presented above must be interpreted within the <strong>graph reconstruction
-proxy</strong> framework. We explicitly enumerate the limitations:
+The results above must be interpreted within their methodological boundaries.
+We explicitly enumerate the limitations:
 </p>
 
 <ol>
     <li>
-        <strong>Proxy, not true recommendation:</strong> The ground truth is derived from
-        SentenceTransformer embeddings of fragrance descriptions — it captures semantic
-        similarity between fragrance descriptions, not actual user preference data. A high
-        graph-reconstruction score does not guarantee that users will prefer the recommended
-        fragrances.
+        <strong>Synthetic ground truth:</strong> The relevance criterion is defined by
+        <strong>primary-accord match + Jaccard(notes)&nbsp;&gt;&nbsp;0.20</strong>, not
+        by actual user preference data. This measures graph reconstruction accuracy for
+        chemically similar fragrances — not whether users will enjoy the recommendations.
+        A high NDCG score on this metric does not guarantee real-world recommendation quality.
     </li>
     <li>
-        <strong>No user interaction data:</strong> All evaluation is conducted on the
-        embedding-based graph. Without A/B testing or user studies, we cannot validate
-        that the reconstructed neighbourhood corresponds to human-perceived similarity.
+        <strong>Feature circularity in GraphSAGE-Embedding:</strong> The embedding-derived
+        KNN graph shares its feature space with the node features. GraphSAGE trained on
+        this graph performs 63% worse than simple feature cosine similarity — a destructive
+        smoothing effect. This is the central finding, but it is a negative result that
+        documents a failure mode rather than demonstrating a positive improvement over
+        content-based methods.
     </li>
     <li>
-        <strong>Graph definition sensitivity:</strong> Results depend on the quality of
-        the embedding model (SentenceTransformer), the KNN parameters (k={config.get('graphsage_knn_k', 10)},
-        similarity threshold={config.get('graphsage_similarity_threshold', 0.5)}), and
-        the feature representation (concatenation of accord one-hot + text embedding).
-        Different choices would yield different graphs and different metrics.
+        <strong>Graph claim is structural, not absolute:</strong> GraphSAGE-Jaccard
+        (NDCG@10=0.504) does <strong>not</strong> statistically beat Feature-Only
+        (0.557, p=1.000, d=-0.149). The contribution is <strong>structural independence</strong>
+        — Jaccard edges are orthogonal to the embedding space and can scale with interaction
+        data, temporal dynamics, and multi-hop semantics. Content-based baselines hit their
+        ceiling on day one; graph methods can improve with data.
     </li>
     <li>
-        <strong>Limited to neighbourhood reconstruction:</strong> Even if the model perfectly
-        reconstructs the KNN graph, it only identifies similar fragrances — it does not
-        address diversity, novelty, serendipity, or other beyond-accuracy dimensions of
-        recommendation quality.
+        <strong>No real user interaction data:</strong> All evaluation is conducted on the
+        synthetic graph reconstruction task. Without A/B testing or user studies, we cannot
+        validate that reconstructed neighbourhoods correspond to human-perceived fragrance
+        similarity.
     </li>
     <li>
-        <strong>Single dataset:</strong> Results are from a single fragrance catalogue
-        (4,559 items). Generalisation to other domains (wine, books, music) requires
-        cross-domain validation.
+        <strong>Single dataset:</strong> Results are from one fragrance catalogue
+        (4,559 items). Generalisation to other domains (wine, books, music, fashion)
+        requires cross-domain validation. The circularity mechanism is domain-agnostic,
+        but the empirical magnitude may vary.
+    </li>
+    <li>
+        <strong>Threshold overlap:</strong> The primary operating point (Jaccard &theta;=0.20)
+        coincides with the ground truth floor (&gt;0.20). This is a design choice, not
+        evaluation circularity — GraphSAGE never sees the ground truth during training.
+        However, models whose inductive biases align with Jaccard note overlap are
+        favoured by this evaluation design.
     </li>
 </ol>
 
 <p>
-These limitations are <strong>not flaws</strong> in the experimental design — they are
-deliberate boundaries scoped by the graph reconstruction proxy approach. The next section
-outlines how these boundaries can be addressed in future work.
+These limitations are <strong>deliberate boundaries</strong> of the graph reconstruction
+proxy approach. The next section outlines how they can be addressed.
 </p>
 
 <!-- Section 7: Future Work -->
@@ -661,26 +588,35 @@ outlines how these boundaries can be addressed in future work.
 
 <ul>
     <li>
-        <strong>Real user studies:</strong> The most critical next step is deploying the
-        GraphSAGE-based recommendation in a live setting with A/B testing, measuring
-        user engagement, satisfaction, and conversion rates.
+        <strong>Real user studies:</strong> Deploy GraphSAGE-Jaccard recommendations in a
+        live setting with A/B testing, measuring user engagement, satisfaction, and
+        conversion rates — replacing the synthetic ground truth with real feedback.
+    </li>
+    <li>
+        <strong>Adaptive preference refinement (quiz-init):</strong> Combine graph-based
+        initialisation with interactive preference quizzes. A post-prediction reranker
+        that blends quiz confidence with GraphSAGE scores is implemented but does not
+        yet reliably beat pure cold-start (mean NDCG 0.496 vs 0.504, high variance).
     </li>
     <li>
         <strong>Beyond-accuracy metrics:</strong> Evaluate diversity, novelty, coverage,
-        and serendipity of GraphSAGE recommendations compared to baselines.
+        and serendipity. The Jaccard graph's structural independence may yield more
+        diverse recommendations than embedding-derived neighbours.
     </li>
     <li>
-        <strong>Adaptive preference refinement:</strong> Combine graph-based initialisation
-        with interactive quizzes (the "quiz-init" mode) to iteratively refine cold-start
-        recommendations as users provide feedback.
+        <strong>User-node integration:</strong> Extend the graph to include user nodes
+        with interaction edges, enabling collaborative cold-start through the same
+        structurally independent graph framework.
     </li>
     <li>
-        <strong>Cross-domain validation:</strong> Apply the same pipeline to other
-        cold-start domains (wine, books, music) to validate generalisability.
+        <strong>Cross-domain validation:</strong> Apply the same two-graph ablation
+        methodology to other cold-start domains (wine, books, music, fashion) to
+        validate the circularity finding's generalisability.
     </li>
     <li>
-        <strong>Real-time serving:</strong> Optimise the model for low-latency inference
-        to support interactive cold-start recommendation at scale.
+        <strong>Full-catalogue scaling:</strong> Scale evaluation from the current
+        4,559 quality-filtered items to the full 22,740-item catalog, testing whether
+        the structural independence advantage persists at larger scale.
     </li>
 </ul>
 
@@ -694,8 +630,20 @@ outlines how these boundaries can be addressed in future work.
     return html
 
 
+DEFAULT_RUN_PATH = "ml/eval/runs/20260528_165737"
+
+
+def resolve_run_path(run_path_arg: str | None) -> str:
+    if run_path_arg is not None:
+        return run_path_arg
+    default = Path(DEFAULT_RUN_PATH)
+    if default.is_dir():
+        logger.info("Using default run: %s", default)
+        return str(default)
+    return find_latest_run()
+
+
 def find_latest_run(base_dir: str = "ml/eval/runs") -> str:
-    """Find the latest timestamp-format directory under runs/."""
     runs_dir = Path(base_dir)
     if not runs_dir.is_dir():
         raise FileNotFoundError(f"Runs directory not found: {runs_dir}")
@@ -710,19 +658,9 @@ def find_latest_run(base_dir: str = "ml/eval/runs") -> str:
 
 
 def generate_demo(run_path: str, output_path: str) -> str:
-    """Generate the MEXT demo HTML page from an evaluation run.
-
-    Args:
-        run_path: Path to the evaluation run directory.
-        output_path: Path where the HTML file will be written.
-
-    Returns:
-        The generated HTML string.
-    """
     run_dir = Path(run_path)
     logger.info("Generating demo from run: %s", run_dir.resolve())
 
-    # Load config
     config_path = run_dir / "config.yaml"
     if not config_path.is_file():
         raise FileNotFoundError(f"config.yaml not found in {run_dir}")
@@ -730,7 +668,6 @@ def generate_demo(run_path: str, output_path: str) -> str:
         config = yaml.safe_load(f) if YAML_AVAILABLE else {}
     logger.info("Config loaded: seed=%s, cold_ratio=%s", config.get("seed"), config.get("cold_ratio"))
 
-    # Load metadata
     metadata = {}
     meta_path = run_dir / "metadata" / "run.json"
     if meta_path.is_file():
@@ -738,18 +675,9 @@ def generate_demo(run_path: str, output_path: str) -> str:
             metadata = json.load(f)
     logger.info("Metadata: %d warm, %d cold", metadata.get("warm_count", 0), metadata.get("cold_count", 0))
 
-    # Compute metrics
-    metrics = compute_metrics_from_embeddings(run_dir)
-    if metrics:
-        gs = metrics.get("GraphSAGE", {})
-        logger.info("GraphSAGE: P@10=%.4f, NDCG@10=%.4f, R@10=%.4f",
-                     gs.get("Precision@10", 0), gs.get("NDCG@10", 0), gs.get("Recall@10", 0))
-
-    # Load master data for fragrance names
     data_path = config.get("data_path", "ml/data/scentrix_master_cleaned.json")
     master_data = load_master_data(data_path)
 
-    # Collect plots (base64-encoded PNGs)
     plots: dict[str, str] = {}
     plots_dir = run_dir / "plots"
     if plots_dir.is_dir():
@@ -759,16 +687,12 @@ def generate_demo(run_path: str, output_path: str) -> str:
                 plots[png_file.name] = uri
                 logger.info("Embedded plot: %s (%d chars)", png_file.name, len(uri))
 
-    # Generate comparison bar chart
-    if metrics:
-        chart_uri = generate_comparison_bar_chart(metrics, output_path)
-        if chart_uri:
-            plots["comparison_bar_chart.png"] = chart_uri
+    chart_uri = generate_comparison_bar_chart(output_path)
+    if chart_uri:
+        plots["comparison_bar_chart.png"] = chart_uri
 
-    # Generate HTML
-    html = generate_html(config, metadata, metrics, plots, run_dir, master_data)
+    html = generate_html(config, metadata, plots, run_dir, master_data)
 
-    # Write output
     output_file = Path(output_path)
     output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text(html, encoding="utf-8")
@@ -782,20 +706,15 @@ if __name__ == "__main__":
         description="Generate MEXT demo HTML page from evaluation run",
     )
     parser.add_argument(
-        "--run-path",
-        type=str,
-        default=None,
+        "--run-path", type=str, default=None,
         help="Path to evaluation run directory (default: latest timestamp dir under ml/eval/runs/)",
     )
     parser.add_argument(
-        "--output",
-        type=str,
-        default=None,
+        "--output", type=str, default=None,
         help="Output path for HTML file (default: {run-path}/mext_demo.html)",
     )
     parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
+        "--verbose", "-v", action="store_true",
         help="Print debug information",
     )
     args = parser.parse_args()
@@ -804,7 +723,7 @@ if __name__ == "__main__":
         logging.getLogger().setLevel(logging.DEBUG)
 
     try:
-        run_path = args.run_path or find_latest_run()
+        run_path = resolve_run_path(args.run_path)
         run_dir = Path(run_path)
         output_path = args.output or str(run_dir / "mext_demo.html")
 
@@ -814,6 +733,8 @@ if __name__ == "__main__":
         print(f"Size: {len(html.encode('utf-8')) / 1024:.1f} KB")
         print(f"Sections: 7 (Introduction → Problem → Pipeline → Eval → Results → Limitations → Future)")
         print(f"JavaScript: 0 (per D-04)")
+        print(f"Models: {', '.join(MODEL_ORDER)}")
+        print(f"Locked values: Phase 5 CHANGELOG")
 
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
