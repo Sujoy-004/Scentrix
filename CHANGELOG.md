@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## [Unreleased] — Phase 6 Complete
+## [Unreleased] — Phases 7–12 Planned (next milestone)
 
 ### MEXT Demo (2026-05-28)
 
@@ -239,13 +239,19 @@ p≤0.001, d=0.93)."
 ## Phase History
 
 | Phase | Status | Key Output |
-|---|---|---|
+|---|---|---|---|
 | 1 — Pipeline & Data Foundation | ✅ Complete | Clean dataset, Neo4j graph |
 | 2 — Evaluation Infrastructure | ✅ Complete | Cold-start splitter, ranx metrics |
 | 3 — Baselines & Comparison | ✅ Complete | Popularity, Random, bootstrap |
 | 4 — GraphSAGE Pipeline | ✅ Complete (with rework) | Jaccard graph, ablation confirmed |
 | 5 — Research Differentiators | ✅ Complete | quiz_init, quiz_sensitivity, stratification grid, paper locked |
 | 6 — MEXT Demo | ✅ Complete | mext_demo.html (167.8KB, 7 sections, zero JS), packaged ZIP with both .pt files, all 10 UAT tests passed |
+| 7 — ML Serving Layer | 🔲 Planned | Wire GraphSAGE into FastAPI, cold-start inference, health checks, model versioning |
+| 8 — Hybrid Recommendation Logic | 🔲 Planned | Single `/recommend` endpoint dispatching cold/quiz-init/warm by user state |
+| 9 — Data & Graph Sync | 🔲 Planned | Incremental Jaccard rebuild, Celery nightly graph refresh, stale embedding detection |
+| 10 — Auth, User State & Rating Loop | 🔲 Planned | JWT auth, rating → warm upgrade trigger, Redis per-user cache with TTL |
+| 11 — Frontend Integration | 🔲 Planned | Next.js wired to real endpoints, quiz flow UI, cold→warm transition UX, accord explanations |
+| 12 — Observability & Hardening | 🔲 Planned | Structured logging, quality metrics, load testing, Docker Compose production config |
 
 ---
 
@@ -279,8 +285,9 @@ p≤0.001, d=0.93)."
 - No claims without results
 - CHANGELOG.md is source of truth — always read first
 
-**HANDOFF NOTE (2026-05-28):**
-- Phase 5 ✅ COMPLETE. All tasks done: quiz_init, quiz_sensitivity sweeps, stratification grid (coldness-level), research_paper.md framed and locked.
-- Phase 6 🔲 UNBLOCKED and ready to start.
-- Stratification clarification: the original "per-accord NDCG breakdown" was a misnomer — what was built is coldness-level stratification. Per-accord analysis is NOT implemented and would be a separate effort.
-- .planning/ fully synced to CHANGELOG state.
+**HANDOFF NOTE (2026-05-30):**
+- Phase 6 ✅ COMPLETE. All 10 UAT tests passed. mext_demo.html + ZIP generated.
+- Phases 7–12 🔲 Planned. See ROADMAP.md for full scope.
+- Phase 7 (ML Serving Layer) is the next unblocked phase — wire GraphSAGE model into FastAPI.
+- Execution order: 7 → 8 → 9 → 10 → 11 → 12 (sequential).
+- .planning/ and ROADMAP.md synced to CHANGELOG state.
