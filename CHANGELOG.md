@@ -246,8 +246,8 @@ p≤0.001, d=0.93)."
 | 4 — GraphSAGE Pipeline | ✅ Complete (with rework) | Jaccard graph, ablation confirmed |
 | 5 — Research Differentiators | ✅ Complete | quiz_init, quiz_sensitivity, stratification grid, paper locked |
 | 6 — MEXT Demo | ✅ Complete | mext_demo.html (167.8KB, 7 sections, zero JS), packaged ZIP with both .pt files, all 10 UAT tests passed |
-| 7 — ML Serving Layer | 🔲 Planned | Wire GraphSAGE into FastAPI, cold-start inference, health checks, model versioning |
-| 8 — Hybrid Recommendation Logic | 🔲 Planned | Single `/recommend` endpoint dispatching cold/quiz-init/warm by user state |
+| 7 — ML Serving Layer | 🔲 Planned | GraphSAGE Preference Initialization Layer: weighted centroid retrieval, nearest-neighbor search, disagreement instrumentation, feature-based failover, model startup health verification per ARCHITECTURE-FREEZE.md |
+| 8 — Hybrid Recommendation Logic | 🔲 Planned | 5-state recommendation dispatcher: anonymous/popularity, quiz/GraphSAGE, cold/hybrid β-blend, warm/feature-based, mature/diversity injection per ARCHITECTURE-FREEZE.md |
 | 9 — Data & Graph Sync | 🔲 Planned | Incremental Jaccard rebuild, Celery nightly graph refresh, stale embedding detection |
 | 10 — Auth, User State & Rating Loop | 🔲 Planned | JWT auth, rating → warm upgrade trigger, Redis per-user cache with TTL |
 | 11 — Frontend Integration | 🔲 Planned | Next.js wired to real endpoints, quiz flow UI, cold→warm transition UX, accord explanations |
@@ -287,7 +287,8 @@ p≤0.001, d=0.93)."
 
 **HANDOFF NOTE (2026-05-30):**
 - Phase 6 ✅ COMPLETE. All 10 UAT tests passed. mext_demo.html + ZIP generated.
-- Phases 7–12 🔲 Planned. See ROADMAP.md for full scope.
-- Phase 7 (ML Serving Layer) is the next unblocked phase — wire GraphSAGE model into FastAPI.
+- Phase 6.5 ✅ COMPLETE. Architecture Freeze approved. See `.planning/ARCHITECTURE-FREEZE.md`.
+- Phases 7–12 🔲 Planned. Governed by ARCHITECTURE-FREEZE.md.
+- Phase 7 (ML Serving Layer) is the next unblocked phase — implement GraphSAGE Preference Initialization Layer per ARCHITECTURE-FREEZE.md (centroid retrieval, nearest-neighbor, disagreement instrumentation, feature-based failover).
 - Execution order: 7 → 8 → 9 → 10 → 11 → 12 (sequential).
-- .planning/ and ROADMAP.md synced to CHANGELOG state.
+- .planning/ and CHANGELOG.md synced to ARCHITECTURE-FREEZE.md state.
