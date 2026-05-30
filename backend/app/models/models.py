@@ -48,6 +48,13 @@ class User(Base):
         nullable=False,
     )
 
+    quiz_completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True,
+        default=None,
+        comment="When the user completed (finalized) the neural discovery quiz",
+    )
+
     # GDPR fields
     gdpr_deletion_requested_at: Mapped[datetime | None] = mapped_column(
         DateTime,

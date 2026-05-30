@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import get_current_user_id, get_optional_user_id
 from app.database import get_session
 from app.limiter import limiter
-from app.models.models import FragranceRating
+from app.models.models import FragranceRating, User
 from app.schemas.schemas import (
     QuizConfidenceComponents,
     QuizQuestion,
@@ -459,7 +459,13 @@ async def finalize_quiz_session(
     )
     responses = session_payload.get("responses") or []
 
+    user = await db.get(User, user_id)
+
     if not responses:
+        if user:
+            if user.quiz_completed_at is None:
+                user.quiz_completed_at = datetime.now(UTC).replace(tzinfo=None)
+            await db.commit()
         return {"status": "success", "data": {"message": "No data to sync"}}
 
     from sqlalchemy.dialects.postgresql import insert
@@ -478,6 +484,10 @@ async def finalize_quiz_session(
             )
         )
         await db.execute(stmt)
+
+    if user:
+        if user.quiz_completed_at is None:
+            user.quiz_completed_at = datetime.now(UTC).replace(tzinfo=None)
 
     await db.commit()
     logger.info(

@@ -433,7 +433,22 @@ class StandardResponse(BaseModel):
 class FragranceRecommendation(BaseModel):
     id: str
     name: str
-    match_score: float
+    brand: str = ""
+    match_score: float = 0.0
+    reason: str = ""
+    source: str = "unknown"
+    top_accords: list[str] = []
+    top_notes: list[str] = []
+
+
+class FragranceRatingInput(BaseModel):
+    fragrance_id: str
+    rating: float
+    top_notes: list[str] | None = None
+    accords: list[str] | None = None
+    description: str | None = None
+    name: str | None = None
+    brand: str | None = None
 
 
 class GuestRatingInput(BaseModel):
@@ -445,3 +460,4 @@ class GuestRatingInput(BaseModel):
 
 class GuestRecommendationRequest(BaseModel):
     ratings: list[GuestRatingInput]
+    quiz_confidence: dict[str, float] | None = None

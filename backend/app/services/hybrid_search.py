@@ -31,6 +31,21 @@ logger = logging.getLogger(__name__)
 _catalog_embeddings_cache = None
 _is_hydrating: bool = False
 
+# Fresh/Day Proxy Accords
+FRESH_ACCORDS = {"fresh", "citrus", "floral", "green", "aquatic", "aromatic", "fresh spicy"}
+# Warm/Night Proxy Accords
+WARM_ACCORDS = {
+    "warm spicy",
+    "amber",
+    "tobacco",
+    "leather",
+    "oud",
+    "sweet",
+    "vanilla",
+    "animalic",
+    "balsamic",
+}
+
 
 def log_mem(stage):
     import psutil
@@ -252,20 +267,6 @@ class HybridRecommender:
         # Check if we got a vector (legacy search pass) or ratings
         is_vector = len(ratings) > 0 and isinstance(ratings[0], (int, float))
 
-        # Fresh/Day Proxy Accords
-        FRESH_ACCORDS = {"fresh", "citrus", "floral", "green", "aquatic", "aromatic", "fresh spicy"}
-        # Warm/Night Proxy Accords
-        WARM_ACCORDS = {
-            "warm spicy",
-            "amber",
-            "tobacco",
-            "leather",
-            "oud",
-            "sweet",
-            "vanilla",
-            "animalic",
-            "balsamic",
-        }
 
         catalog_map = {str(item["id"]): item for item in catalog}
 

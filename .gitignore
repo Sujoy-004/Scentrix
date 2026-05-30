@@ -63,3 +63,6 @@ DESIGN.md
 .coverage
 # opencode tooling artifacts
 .opencode/
+
+# session report (regeneratable per query, not tracked)
+report.md
