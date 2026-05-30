@@ -33,47 +33,9 @@ GraphSAGE-Jaccard (0.504) vs GraphSAGE-Embedding (0.197). same model. different 
 
 Feature-Only (0.557) doesn't get beat by GraphSAGE-Jaccard (p=1.000). and that's fine. Feature-Only hits its ceiling day one — no mechanism to incorporate user interactions. GraphSAGE-Jaccard provides an extensible foundation that scales with data. twin, it's about the ceiling, not the floor.
 
-## the architecture 
+## the architecture
 
-```
-             ┌──────────────────────────────┐
-             │       🌐 Next.js 16          │
-             │   (app router, RSC, auth)     │
-             └──────────┬───────────────────┘
-                        │ REST (JSON)
-             ┌──────────▼───────────────────┐
-             │       ⚡ FastAPI              │
-             │  (Python 3.11+, async, JWT)   │
-             └──────┬──────────┬────────────┘
-                    │          │
-          ┌─────────▼──┐  ┌───▼──────────┐
-          │  🐘 PG 15  │  │  🌿 Neo4j 5  │
-          │  users     │  │  notes       │
-          │  ratings   │  │  accords     │
-          │  sessions  │  │  brands      │
-          └────────────┘  └──────────────┘
-          ┌────────────┐
-          │  🔴 Redis 7 │
-          │  rec cache  │
-          │  quiz state │
-          └────────────┘
-
-       ──── offline pipeline (doesn't clock in live) ────
-
-  ┌──────────┐   ┌───────────┐   ┌────────┐   ┌───────────┐
-  │ split.py │──▶│graphsage  │──▶│ ranx   │──▶│bootstrap  │
-  │ 80/20   │   │Jaccard    │   │metrics │   │n=10000    │
-  │stratifd │   │or KNN     │   │P@10,N@10│  │+ Cohen's d│
-  └──────────┘   └───────────┘   └────────┘   └───────────┘
-                        │
-              ┌─────────▼──────────┐
-              │  Jaccard threshold  │
-              │  sweep 0.10→0.30   │
-              │  degree-split      │
-              └────────────────────┘
-```
-
-5 Docker containers. 5,000 quality-filtered items (from 22,740). 24 brands. 48 accords. 16,244 edges at threshold 0.20.
+See [ARCHITECTURE-FREEZE.md](./ARCHITECTURE-FREEZE.md) for the canonical 5-state dispatch architecture. Quick summary: 5 Docker containers — Postgres 15, Neo4j 5, Redis 7, FastAPI backend, Next.js frontend. 5,000 quality-filtered items (from 22,740). 24 brands. 48 accords. 16,244 edges at threshold 0.20.
 
 ## the threshold
 
@@ -126,17 +88,6 @@ python -m ml.eval.pipeline --mode quiz_sensitivity
 # stratification grid
 python -m ml.eval.pipeline --mode stratification
 ```
-
-## phase status
-
-| Phase | Status |
-|---|---|
-| 1 — Pipeline & Data Foundation | ✅ complete |
-| 2 — Evaluation Infrastructure | ✅ complete |
-| 3 — Baselines & Comparison | ✅ complete |
-| 4 — GraphSAGE Pipeline | ✅ complete (with rework — fixed circular graph bug) |
-| 5 — Research Differentiators | ✅ complete |
-| 6 — MEXT Demo | ✅ complete (study guide, demo page, packaged ZIP, 10/10 UAT) |
 
 ## final word, homie
 
