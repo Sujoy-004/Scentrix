@@ -1,6 +1,90 @@
 # CHANGELOG
 
-## [Unreleased] — Phases 8–12 Planned (next milestone)
+## [Unreleased] — Phase 8 Complete, Repository Hardening
+
+### Repository Hardening (2026-05-31)
+
+**Scope:** Waves 1-4 per REPOSITORY_HARDENING_PLAN.md — delete, archive, test structure, doc pruning.
+
+**Deliverables:**
+- CHANGELOG.md updated with all entries
+- ARCHITECTURE-FREEZE.md promoted from `.planning/` to repository root
+- README.md pruned: phase status table removed, architecture diagram replaced with link to ARCHITECTURE-FREEZE.md
+- `.planning/PROJECT.md` pruned: redundant description replaced with pointer to README/CHANGELOG
+- `report.md` findings merged into CHANGELOG, report.md archived
+- `.planning/REPOSITORY_HARDENING_EXECUTION_1.md` created
+
+### Cleanup Wave 3 — Test Structure (2026-05-31)
+
+**Actions:**
+- `backend/tests/test_phase8_integration.py` — VERIFIED non-redundant (tests HTTP endpoint wiring layer, distinct from test_dispatcher.py), KEPT
+- `backend/tests/benchmark_sla.py` — MOVED to `backend/scripts/benchmark_sla.py` (not a pytest test, SLA benchmark script)
+- `ml/tests/test_graph.py` vs `backend/tests/test_graph.py` — VERIFIED no duplication (backend/test_graph.py does NOT exist), KEPT both
+
+### Cleanup Wave 2 — Archive Completed-Phase Docs (2026-05-31)
+
+**Archived to `.planning/_archive/`:**
+- `.planning/phases/08-dispatcher-integration/` (7 Phase 8 design docs)
+- `.planning/PHASE7_8_CLEANUP_WAVE1.md`, `WAVE2.md`, `WAVE3.md`
+- `.planning/PHASE7_8_CLEANUP_INVENTORY.md`
+- `docs/architecture.md` — pre-freeze, superseded by ARCHITECTURE-FREEZE.md
+- `.planning/codebase/ARCHITECTURE.md` — superseded by freeze
+
+### Cleanup Wave 1 — Delete Obsolete Files (2026-05-31)
+
+**Deleted:**
+- `query.txt` — session handoff, content subsumed by CHANGELOG
+- `.planning/SPEC.md` — trivial redirect stub
+- `.planning/_archive/SPEC.md` — obsolete pre-pivot Railway doc
+
+### 5-State Recommendation Dispatcher (2026-05-31)
+
+**Phase 8 status:** ✅ COMPLETE.
+
+**Deliverables:**
+- `backend/app/services/dispatcher.py` — 5-state dispatch tree: anonymous/popularity, quiz/GraphSAGE, cold/hybrid β-blend, warm/feature-based, mature/diversity injection
+- `backend/app/services/feature_based.py` — extracted from hybrid_search: accord/note scoring service
+- `backend/app/services/popularity.py` — extracted from hybrid_search: popularity ranking service
+- `backend/app/services/gs_embeddings.py` — extracted from ML-serving: GraphSAGE centroid+KNN retrieval
+- `backend/app/services/hybrid_search.py` — retained as legacy fallback behind `PHASE8_DISPATCHER_ENABLED` flag
+- `backend/tests/test_dispatcher.py` — 90+ tests covering all 5 states, fallback chains, error propagation, diversity injection
+- Integration wiring in `backend/app/routers/recommendations.py`
+
+**Architecture:** Per ARCHITECTURE-FREEZE.md. Dispatcher is the single entry point. Extracted services are peers. Legacy hybrid_search retained behind feature flag.
+
+**Known remaining items (not blocking):**
+1. `backend/app/config.py:18` — `phase8_dispatcher_enabled` defaults to `False`; flip to `True` to route all traffic through dispatcher
+2. `backend/app/services/catalog.py` — Neo4j Cypher query needs `f.rating_count as rating_count` for PopularityStrategy sorting
+3. Legacy code extraction from `backend/app/services/hybrid_search.py` — dead branches remain behind flag; planned for code purge (post-hardening)
+
+### GraphSAGE Preference Init Service (2026-05-30)
+
+**Phase 7 status:** ✅ COMPLETE.
+
+**Deliverables:**
+- `backend/app/services/gs_embeddings.py` — GraphSAGE Preference Initialization Service: loads precomputed Jaccard embeddings at startup, weighted centroid computation, cosine-similarity KNN retrieval, disagreement instrumentation
+- Canonic artifacts at `ml/models/serving/v1/`: `node_embeddings_jaccard.npy` [4559×64], `node_ids_jaccard.json`, `metadata.json`
+- Export pipeline: `ml/export/export_jaccard_embeddings.py`
+- Wired into `/health` endpoint and FastAPI lifespan — fails startup on invalid artifacts
+
+**Key property:** No checkpoint loading, no model inference, no torch runtime dependency.
+
+### Architecture Freeze (2026-05-30)
+
+**Phase 6.5 status:** ✅ COMPLETE.
+
+**Deliverables:**
+- `.planning/ARCHITECTURE-FREEZE.md` (403 lines, now promoted to `ARCHITECTURE-FREEZE.md` at root)
+- 5-state dispatch architecture with 9 principles:
+  1. Dispatcher is single entry point
+  2. State machine routes by user state
+  3. Extracted services over monolith
+  4. Feature flag with phased rollover
+  5. Disagreement instrumentation logged, not served
+  6. GraphSAGE is preference init, not inference runtime
+  7. Hybrid search retained as legacy fallback
+  8. Cache strategy: per-user TTL, no state in key
+  9. All extracted services are stateless
 
 ### MEXT Demo (2026-05-28)
 
@@ -247,7 +331,7 @@ p≤0.001, d=0.93)."
 | 5 — Research Differentiators | ✅ Complete | quiz_init, quiz_sensitivity, stratification grid, paper locked |
 | 6 — MEXT Demo | ✅ Complete | mext_demo.html (167.8KB, 7 sections, zero JS), packaged ZIP with both .pt files, all 10 UAT tests passed |
 | 7 — Preference Initialization Service | ✅ Complete | GraphSAGE Preference Initialization Service: loads precomputed Jaccard embeddings (`node_embeddings_jaccard.npy`), weighted centroid computation, cosine-similarity KNN retrieval, disagreement instrumentation, artifact startup validation. No checkpoint loading, no model inference, no torch runtime dependency. Per ARCHITECTURE-FREEZE.md. |
-| 8 — Hybrid Recommendation Logic | 🔲 Planned | 5-state recommendation dispatcher: anonymous/popularity, quiz/GraphSAGE, cold/hybrid β-blend, warm/feature-based, mature/diversity injection per ARCHITECTURE-FREEZE.md |
+| 8 — 5-State Recommendation Dispatcher | ✅ Complete | 5-state dispatch tree: anonymous/popularity, quiz/GraphSAGE, cold/hybrid β-blend, warm/feature-based, mature/diversity injection. Feature-based, popularity, and gs_embeddings extracted as peer services. Legacy hybrid_search retained behind flag. 90+ tests. Per ARCHITECTURE-FREEZE.md. |
 | 9 — Data & Graph Sync | 🔲 Planned | Incremental Jaccard rebuild, Celery nightly graph refresh, stale embedding detection |
 | 10 — Auth, User State & Rating Loop | 🔲 Planned | JWT auth, rating → warm upgrade trigger, Redis per-user cache with TTL |
 | 11 — Frontend Integration | 🔲 Planned | Next.js wired to real endpoints, quiz flow UI, cold→warm transition UX, accord explanations |
