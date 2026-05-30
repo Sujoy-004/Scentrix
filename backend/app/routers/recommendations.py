@@ -10,15 +10,53 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user_id, get_optional_user_id
 from app.cache import cache
+from app.config import settings
 from app.database import get_session
 from app.models.models import FragranceRating as DBFragranceRating
+from app.models.models import User
 from app.schemas.schemas import (
     FragranceRecommendation,
+    FragranceRatingInput,
     GuestRecommendationRequest,
     StandardResponse,
 )
 from app.services.catalog import load_recommendation_catalog
+from app.services.dispatcher import DispatchRequest, RecommendationDispatcher
+from app.services.feature_based import FeatureBasedService
+from app.services.gs_embeddings import gs_service
 from app.services.hybrid_search import _catalog_embeddings_cache, recommender
+from app.services.popularity import PopularityService
+
+# ── Feature flag ───────────────────────────────────────────────────────────────
+
+PHASE8_DISPATCHER_ENABLED: bool = settings.phase8_dispatcher_enabled
+
+# ── Phase 8 dispatcher singleton (lazy-initialised services) ──────────────────
+
+_feature_based_service: FeatureBasedService | None = None
+_popularity_service: PopularityService = PopularityService()
+_dispatcher: RecommendationDispatcher | None = None
+
+
+def _get_dispatcher() -> RecommendationDispatcher | None:
+    """Initialise and return the Phase 8 dispatcher singleton.
+
+    Services are created on first call so imports do not block startup.
+    ``gs_service`` is the module-level singleton from ``gs_embeddings``.
+    If its artifacts are unavailable the service remains uninitialised;
+    each strategy's fallback chain handles ``None`` gracefully.
+    """
+    global _feature_based_service, _dispatcher
+    if _dispatcher is not None:
+        return _dispatcher
+    if _feature_based_service is None:
+        _feature_based_service = FeatureBasedService()
+    _dispatcher = RecommendationDispatcher(
+        gs_service=gs_service,
+        feature_based_service=_feature_based_service,
+        popularity_service=_popularity_service,
+    )
+    return _dispatcher
 
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 logger = logging.getLogger(__name__)
@@ -42,27 +80,6 @@ def _get_item_text(item: dict[str, Any]) -> str:
 
 
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
-
-
-class FragranceRecommendation(BaseModel):
-    id: str
-    name: str
-    brand: str
-    match_score: float
-    reason: str
-    mock: bool = False
-
-
-class FragranceRatingInput(BaseModel):
-    """A single fragrance rating from the quiz."""
-
-    fragrance_id: str  # ID as sent by the frontend (may have frag_ prefix)
-    rating: float  # 1-10 quiz rating
-    top_notes: list[str] | None = None
-    accords: list[str] | None = None
-    description: str | None = None
-    name: str | None = None
-    brand: str | None = None
 
 
 class BatchRatingRequest(BaseModel):
@@ -206,6 +223,29 @@ async def get_guest_recommendations(
         warmup_neural_engine()
         log_mem("AFTER_EMBEDDINGS")
 
+    # ── Phase 8 dispatcher path ──────────────────────────────────────────
+    if PHASE8_DISPATCHER_ENABLED:
+        dispatcher = _get_dispatcher()
+        if dispatcher is not None:
+            catalog = load_recommendation_catalog()
+            dr = DispatchRequest(
+                ratings=request.ratings,
+                # Shortcut: quiz_confidence present → quiz completed.
+                # Functionally equivalent to the design spec's
+                # len(responses) > 0 check on the session payload.
+                quiz_completed=request.quiz_confidence is not None,
+                quiz_confidence=request.quiz_confidence,
+                catalog=catalog,
+                candidate_count=12,
+                popularity_service=_popularity_service,
+            )
+            result = await dispatcher.dispatch(dr)
+            if result.recommendations:
+                data = [FragranceRecommendation(**r) for r in result.recommendations]
+                return {"status": "success", "data": data}
+            logger.info("Phase 8 dispatcher returned empty results — falling through to legacy")
+
+    # ── Legacy path ──────────────────────────────────────────────────────
     try:
         seed_ids = [_normalize_id(r.fragrance_id) for r in request.ratings]
         results = recommender.get_recommendations(request.ratings, seed_ids)
@@ -235,9 +275,58 @@ async def get_personalized_recommendations(
         return {"status": "success", "data": data}
 
     if not db:
-        logger.warning(f"Personalized discovery fallback to guest mode for user {user_id}")
         return {"status": "success", "data": []}
 
+    # ── Phase 8 dispatcher path ──────────────────────────────────────────
+    if PHASE8_DISPATCHER_ENABLED:
+        dispatcher = _get_dispatcher()
+        if dispatcher is not None:
+            stmt = select(DBFragranceRating).where(DBFragranceRating.user_id == user_id)
+            result = await db.execute(stmt)
+            saved_ratings = result.scalars().all()
+
+            if not saved_ratings:
+                return {"status": "success", "data": []}
+
+            catalog = load_recommendation_catalog()
+            if not catalog:
+                return {"status": "success", "data": []}
+
+            user_stmt = select(User).where(User.id == user_id)
+            user_result = await db.execute(user_stmt)
+            user = user_result.scalar_one_or_none()
+            quiz_completed = user is not None and user.quiz_completed_at is not None
+
+            ratings = [
+                FragranceRatingInput(
+                    fragrance_id=r.fragrance_neo4j_id,
+                    rating=r.quiz_rating or 5.0,
+                )
+                for r in saved_ratings
+            ]
+
+            dr = DispatchRequest(
+                user_id=user_id,
+                ratings=ratings,
+                quiz_completed=quiz_completed,
+                catalog=catalog,
+                candidate_count=12,
+                popularity_service=_popularity_service,
+            )
+            dr_result = await dispatcher.dispatch(dr)
+
+            if dr_result.recommendations:
+                await cache.set(
+                    f"rec:user:{user_id}",
+                    dr_result.recommendations,
+                    expire=3600,
+                )
+                data = [FragranceRecommendation(**r) for r in dr_result.recommendations]
+                return {"status": "success", "data": data}
+
+            logger.info("Phase 8 dispatcher returned empty — falling through to legacy")
+
+    # ── Legacy path ──────────────────────────────────────────────────────
     stmt = select(DBFragranceRating).where(DBFragranceRating.user_id == user_id)
     result = await db.execute(stmt)
     saved_ratings = result.scalars().all()
