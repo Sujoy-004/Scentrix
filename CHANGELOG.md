@@ -246,7 +246,7 @@ p≤0.001, d=0.93)."
 | 4 — GraphSAGE Pipeline | ✅ Complete (with rework) | Jaccard graph, ablation confirmed |
 | 5 — Research Differentiators | ✅ Complete | quiz_init, quiz_sensitivity, stratification grid, paper locked |
 | 6 — MEXT Demo | ✅ Complete | mext_demo.html (167.8KB, 7 sections, zero JS), packaged ZIP with both .pt files, all 10 UAT tests passed |
-| 7 — ML Serving Layer | 🔲 Planned | GraphSAGE Preference Initialization Layer: weighted centroid retrieval, nearest-neighbor search, disagreement instrumentation, feature-based failover, model startup health verification per ARCHITECTURE-FREEZE.md |
+| 7 — Preference Initialization Service | 🔲 Planned | GraphSAGE Preference Initialization Service: loads precomputed Jaccard embeddings (`node_embeddings_jaccard.npy`), weighted centroid computation, cosine-similarity KNN retrieval, disagreement instrumentation, artifact startup validation. No checkpoint loading, no model inference, no torch runtime dependency. Per ARCHITECTURE-FREEZE.md. |
 | 8 — Hybrid Recommendation Logic | 🔲 Planned | 5-state recommendation dispatcher: anonymous/popularity, quiz/GraphSAGE, cold/hybrid β-blend, warm/feature-based, mature/diversity injection per ARCHITECTURE-FREEZE.md |
 | 9 — Data & Graph Sync | 🔲 Planned | Incremental Jaccard rebuild, Celery nightly graph refresh, stale embedding detection |
 | 10 — Auth, User State & Rating Loop | 🔲 Planned | JWT auth, rating → warm upgrade trigger, Redis per-user cache with TTL |
@@ -289,6 +289,6 @@ p≤0.001, d=0.93)."
 - Phase 6 ✅ COMPLETE. All 10 UAT tests passed. mext_demo.html + ZIP generated.
 - Phase 6.5 ✅ COMPLETE. Architecture Freeze approved. See `.planning/ARCHITECTURE-FREEZE.md`.
 - Phases 7–12 🔲 Planned. Governed by ARCHITECTURE-FREEZE.md.
-- Phase 7 (ML Serving Layer) is the next unblocked phase — implement GraphSAGE Preference Initialization Layer per ARCHITECTURE-FREEZE.md (centroid retrieval, nearest-neighbor, disagreement instrumentation, feature-based failover).
+- Phase 7 (Preference Initialization Service) is the next unblocked phase — implement GraphSAGE Preference Initialization Service per ARCHITECTURE-FREEZE.md: precomputed embedding loading, weighted centroid retrieval, cosine-similarity KNN, disagreement instrumentation, artifact startup validation. No checkpoint loading, no model inference, no torch dependency. Phase 8 owns dispatching and failover.
 - Execution order: 7 → 8 → 9 → 10 → 11 → 12 (sequential).
 - .planning/ and CHANGELOG.md synced to ARCHITECTURE-FREEZE.md state.
