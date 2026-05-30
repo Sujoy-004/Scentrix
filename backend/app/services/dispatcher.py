@@ -707,10 +707,6 @@ class RecommendationDispatcher:
         return _determine_state(rating_count, quiz_completed)
 
     @staticmethod
-    def state_label(state: int) -> str:
-        return _state_label(state)
-
-    @staticmethod
     def compute_beta(rating_count: int) -> float:
         return _compute_beta(rating_count)
 
@@ -721,10 +717,6 @@ class RecommendationDispatcher:
         max_seeds: int = 5,
     ) -> tuple[list[str], list[float]]:
         return _align_quiz_confidence(quiz_confidence, catalog, max_seeds)
-
-    @staticmethod
-    def select_strategy(state: int) -> RecommendationStrategy:
-        return _select_strategy(state)
 
     # -- public API --
 
@@ -742,12 +734,12 @@ class RecommendationDispatcher:
 
         rating_count = len(request.ratings)
         state = self.determine_state(rating_count, request.quiz_completed)
-        strategy = self.select_strategy(state)
+        strategy = _select_strategy(state)
 
         result = await strategy.execute(request)
         result.recommendations = _hydrate_from_catalog(
             result.recommendations, request.catalog
         )
         result.state = state
-        result.state_label = self.state_label(state)
+        result.state_label = _state_label(state)
         return result

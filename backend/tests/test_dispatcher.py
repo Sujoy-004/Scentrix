@@ -460,7 +460,7 @@ class TestStrategySelection:
     def test_via_dispatcher(
         self, dispatcher: RecommendationDispatcher
     ) -> None:
-        strategy = dispatcher.select_strategy(2)
+        strategy = _select_strategy(2)
         assert strategy.__class__.__name__ == "BlendedStrategy"
 
 

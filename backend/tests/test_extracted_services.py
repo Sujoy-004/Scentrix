@@ -6,6 +6,7 @@ to the logic extracted from HybridRecommender (hybrid_search.py).
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 import pytest
@@ -130,7 +131,6 @@ def _hybrid_search_equivalent(
     This is the reference implementation — it mirrors the original monolith code
     and is used to prove FeatureBasedService produces identical output.
     """
-    import math
 
     if seed_ids is None:
         seed_ids = []
