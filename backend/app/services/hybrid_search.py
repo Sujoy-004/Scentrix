@@ -17,11 +17,6 @@ try:
 except (ImportError, Exception):
     Pinecone = None
 
-try:
-    from neo4j import GraphDatabase
-except (ImportError, Exception):
-    GraphDatabase = None
-
 from app.config import settings
 from app.services.catalog import load_recommendation_catalog
 
@@ -29,8 +24,6 @@ logger = logging.getLogger(__name__)
 
 # Module-level cache for text embeddings to prevent re-computation
 _catalog_embeddings_cache = None
-_is_hydrating: bool = False
-
 # Fresh/Day Proxy Accords
 FRESH_ACCORDS = {"fresh", "citrus", "floral", "green", "aquatic", "aromatic", "fresh spicy"}
 # Warm/Night Proxy Accords
@@ -46,15 +39,6 @@ WARM_ACCORDS = {
     "balsamic",
 }
 
-
-def log_mem(stage):
-    import psutil
-
-    try:
-        m = psutil.Process(os.getpid()).memory_info().rss / (1024**2)
-        logger.info(f"[MEM] {stage}: {m:.2f} MB")
-    except Exception:
-        pass
 
 
 class HybridRecommender:
@@ -77,16 +61,6 @@ class HybridRecommender:
                 logger.warning(f"Neural Engine: Vector indices unreachable: {e}")
                 self.pc = None
 
-        # 2. Graph Client (Neo4j)
-        self.driver = None
-        if GraphDatabase:
-            try:
-                self.driver = GraphDatabase.driver(
-                    settings.neo4j_uri, auth=(settings.neo4j_user, settings.neo4j_password)
-                )
-            except Exception as e:
-                logger.warning(f"Neural Engine: Graph driver failed: {e}")
-                self.driver = None
         self._encoder = None
         self._encoder_load_attempted = False
 
@@ -154,97 +128,6 @@ class HybridRecommender:
         """Pre-cache catalog embeddings at startup (Disabled in Safe Mode)."""
         logger.info("Neural Engine: Warmup skipped (Safe Mode/Disabled).")
         return
-
-    def _query_vector_dna(
-        self, user_vec: list[float], limit: int = 100, use_graph_dna: bool = True
-    ) -> list[dict[str, Any]]:
-        """Phase 1: High-recall dual-vector search (Text DNA + Graph DNA)."""
-        candidates_map: dict[str, dict[str, Any]] = {}
-
-        # 1. Text DNA Search (Pinecone)
-        if self.text_index:
-            try:
-                res = self.text_index.query(vector=user_vec, top_k=limit, include_metadata=True)
-                for m in res.matches:
-                    candidates_map[m.id] = {
-                        "id": m.id,
-                        "text_score": m.score,
-                        "graph_score": 0.0,
-                        "metadata": m.metadata or {},
-                    }
-            except Exception as e:
-                logger.warning(f"Text index query failed: {e}")
-
-        # 2. Graph DNA Search (Pinecone - GraphSAGE Embeddings)
-        if use_graph_dna and self.graph_index:
-            try:
-                # We use the same user vector (assuming joint embedding space or similar dimension)
-                # In a true Scenter-GNN setup, we might need a separate Graph-Encoder pass.
-                res = self.graph_index.query(vector=user_vec, top_k=limit, include_metadata=False)
-                for m in res.matches:
-                    if m.id in candidates_map:
-                        candidates_map[m.id]["graph_score"] = m.score
-                    else:
-                        candidates_map[m.id] = {
-                            "id": m.id,
-                            "text_score": 0.0,
-                            "graph_score": m.score,
-                            "metadata": {},  # Metadata will be hydrated via local catalog if missing
-                        }
-            except Exception as e:
-                logger.warning(f"Graph index query failed: {e}")
-
-        # 3. Local Rule-Based Fallback (Jaccard-like Similarity)
-        if not candidates_map:
-            catalog = load_recommendation_catalog()
-            # Simple scoring based on notes/accords overlap if we can't use ML
-            for item in catalog[:200]:  # Limit scan for speed
-                candidates_map[item["id"]] = {
-                    "id": item["id"],
-                    "text_score": 0.5,  # Baseline score
-                    "graph_score": 0.0,
-                    "metadata": item,
-                }
-
-        return list(candidates_map.values())
-
-    def _rerank_genetic_match(
-        self, candidate_ids: list[str], user_rated_ids: list[str]
-    ) -> dict[str, dict[str, float]]:
-        """Phase 2: High-precision graph reranking using genetic distance."""
-        if not user_rated_ids or not candidate_ids:
-            return {}
-
-        try:
-            with self.driver.session() as session:
-                # Optimized Genetic Query: Checks shared Notes, Accords, and Family
-                query = """
-                MATCH (rec:Fragrance) WHERE rec.id IN $cids
-                MATCH (seed:Fragrance) WHERE seed.id IN $sids
-
-                OPTIONAL MATCH (rec)-[:HAS_NOTE]->(n:Note)<-[:HAS_NOTE]-(seed)
-                OPTIONAL MATCH (rec)-[:BELONGS_TO_ACCORD]->(a:Accord)<-[:BELONGS_TO_ACCORD]-(seed)
-                OPTIONAL MATCH (rec)-[:IN_FAMILY]->(f:Family)<-[:IN_FAMILY]-(seed)
-
-                WITH rec.id as id,
-                     count(distinct n) as shared_notes,
-                     count(distinct a) as shared_accords,
-                     count(distinct f) as shared_family
-
-                RETURN id, shared_notes, shared_accords, shared_family
-                """
-                result = session.run(query, {"cids": candidate_ids, "sids": user_rated_ids})
-                return {
-                    r["id"]: {
-                        "notes": r["shared_notes"],
-                        "accords": r["shared_accords"],
-                        "family": r["shared_family"],
-                    }
-                    for r in result
-                }
-        except Exception as e:
-            logger.error(f"Neo4j reranking failed: {e}")
-            return {}
 
     def get_recommendations(
         self, ratings: list[Any], user_seed_ids: list[str]
@@ -583,9 +466,6 @@ class HybridRecommender:
             return scored_results
 
         return fallback_results
-
-    def close(self):
-        self.driver.close()
 
 
 recommender = HybridRecommender()
