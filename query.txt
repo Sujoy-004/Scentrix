@@ -1,98 +1,16 @@
 SCENTRIX — SESSION HANDOFF
 
-FIRST THING: Read CHANGELOG.md — it is the source of truth.
+Read CHANGELOG.md first — source of truth.
 
-CURRENT STATE: Phase 6 (MEXT Demo) complete. All 10 UAT tests passed.
+Phases 1–7 complete. Phase 6.5 (Architecture Freeze) approved. Next: Phase 8 (5-state dispatcher).
 
-DELIVERABLES:
-- mext_demo.html at ml/eval/runs/20260528_165737/mext_demo.html (167.8KB)
-- mext_demo_package_20260528_232926.zip (12 files, both .pt checkpoints)
-- README.txt with reproduction command: python -m ml.eval.pipeline --mode pure_cold --seed 42
-- docs/scentrix_study_guide.html — interview defence study guide, 10 sections, 15 Q&amp;As, zero external deps
+Phase 7 deliverable: `backend/app/services/gs_embeddings.py` — GraphSAGE Preference Initialization Service. Loads precomputed Jaccard embeddings at startup, validates artifacts (10 checks), exposes weighted centroid, cosine-similarity KNN, disagreement instrumentation. No torch, no checkpoint, no inference.
 
-REPO TREE:
-SCENTRIX/
-├── backend/                          # FastAPI (Python 3.11+)
-│   ├── app/
-│   │   ├── auth/                     # JWT + Supabase auth
-│   │   ├── migrations/               # Alembic DB migrations
-│   │   ├── models/
-│   │   ├── routers/                  # REST endpoints
-│   │   ├── schemas/
-│   │   ├── services/                 # Business logic
-│   │   ├── cache.py
-│   │   ├── config.py
-│   │   ├── database.py
-│   │   ├── limiter.py
-│   │   ├── main.py
-│   │   └── sentry_config.py
-│   ├── tests/
-│   ├── scripts/
-│   ├── Dockerfile
-│   ├── pyproject.toml
-│   ├── requirements.txt
-│   └── ruff.toml
-│
-├── frontend/                         # Next.js 16 (App Router)
-│   ├── src/
-│   │   ├── app/                      # Routes
-│   │   ├── components/               # UI components
-│   │   ├── lib/
-│   │   ├── stores/                   # Zustand state
-│   │   ├── styles/
-│   │   └── types/
-│   ├── tests/
-│   ├── Dockerfile
-│   ├── next.config.ts
-│   ├── middleware.ts
-│   ├── playwright.config.ts
-│   └── vercel.json
-│
-├── ml/                               # ML pipeline & evaluation
-│   ├── data/                         # Datasets
-│   ├── eval/                         # Cold-start evaluation suite
-│   │   ├── models/
-│   │   ├── pipeline.py               # EvaluationOrchestrator (main entry)
-│   │   ├── config.py
-│   │   ├── split.py
-│   │   ├── metrics.py
-│   │   ├── aggregator.py
-│   │   ├── quiz_simulator.py
-│   │   ├── significance.py
-│   │   ├── reporting.py
-│   │   ├── run_bootstrap.py
-│   │   └── runs/                     # Run artifacts (timestamped)
-│   ├── pipeline/
-│   ├── models/
-│   ├── scripts/
-│   ├── flows/
-│   ├── scraper/
-│   ├── tests/
-│   └── training/
-│
-├── docs/
-│   ├── research_paper.md
-│   ├── architecture.md
-│   └── scentrix_study_guide.html    # Interview defence guide
-│
-├── scripts/
-│   ├── generate_demo.py
-│   ├── normalize_dataset.py
-│   ├── package_results.py
-│   └── perform_rebrand.py
-│
-├── .planning/                        # GSD project planning
-│   ├── phases/                       # 6 phase directories
-│   ├── graphs/                       # Knowledge graphs
-│   ├── codebase/
-│   ├── research/
-│   └── ...
-│
-├── graphify-out/                     # Knowledge graph outputs
-│
-├── query.txt                         # This file
-├── CHANGELOG.md                      # Source of truth — READ FIRST
-├── docker-compose.yml
-└── Makefile
+Canonical artifacts at `ml/models/serving/v1/`:
+- `node_embeddings_jaccard.npy` — [4559×64] L2-normalized
+- `node_ids_jaccard.json` — 4,559 IDs
+- `metadata.json` — provenance
 
-PHASE 6 COMPLETE — next phase TBD.
+Export pipeline: `ml/export/export_jaccard_embeddings.py` (build-time only, reuses `graphsage_jaccard.pt` once).
+
+Wired into `/health` endpoint and FastAPI lifespan (fails startup on invalid artifacts).

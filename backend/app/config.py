@@ -103,6 +103,20 @@ class Settings(BaseSettings):
         default="Scentrix-graph", validation_alias=AliasChoices("PINECONE_GRAPH_INDEX_NAME")
     )
 
+    # GraphSAGE Embedding Cache (Phase 7)
+    gs_embeddings_path: str = Field(
+        default="ml/models/serving/v1/node_embeddings_jaccard.npy",
+        validation_alias=AliasChoices("GS_EMBEDDINGS_PATH"),
+    )
+    gs_node_ids_path: str = Field(
+        default="ml/models/serving/v1/node_ids_jaccard.json",
+        validation_alias=AliasChoices("GS_NODE_IDS_PATH"),
+    )
+    gs_metadata_path: str = Field(
+        default="ml/models/serving/v1/metadata.json",
+        validation_alias=AliasChoices("GS_METADATA_PATH"),
+    )
+
     # Google (Gemini) - For Digital Sommelier
     google_api_key: str | None = Field(
         default=None, validation_alias=AliasChoices("GOOGLE_API_KEY")

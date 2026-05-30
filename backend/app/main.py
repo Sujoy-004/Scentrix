@@ -23,6 +23,7 @@ from app.database import engine
 from app.services.catalog import load_recommendation_catalog_async
 from app.limiter import limiter
 from app.routers import auth, fragrances, leads, quiz, recommendations, users
+from app.services.gs_embeddings import gs_service, GSEmbeddingHealth
 from app.schemas.schemas import StandardResponse
 from app.sentry_config import init_sentry
 
@@ -62,6 +63,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     except Exception as e:
         logger.error(f"Universal Boiler: Startup Warm-up failed: {str(e)}")
+
+    # Phase 7 — GraphSAGE Embedding Cache Initialisation (M1)
+    if settings.ml_enabled:
+        logger.info("GraphSAGE: initialising embedding cache…")
+        if not gs_service.initialize():
+            raise RuntimeError(
+                "GraphSAGE: artifact validation failed — refusing to start. "
+                "See logs above for details."
+            )
+        logger.info("GraphSAGE: embedding cache ready.")
+    else:
+        logger.info("GraphSAGE: skipped (ml_enabled=False)")
 
     logger.info(f"Database initialized: {settings.database_url}")
     logger.info("Scentrix API started successfully")
@@ -128,7 +141,19 @@ app.include_router(leads.router)
 @app.get("/health", tags=["system"])
 async def health_check():
     """Health check endpoint for Render/monitoring."""
-    return {"status": "success", "data": {"status": "ok"}}
+    health_data = {"status": "ok"}
+
+    gs_health: GSEmbeddingHealth = gs_service.health
+    health_data["gs_embeddings"] = {
+        "initialized": gs_health.initialized,
+        "shape": gs_health.shape,
+        "num_nodes": gs_health.num_nodes,
+        "normalized": gs_health.normalized,
+    }
+    if gs_health.errors:
+        health_data["gs_embeddings"]["errors"] = gs_health.errors
+
+    return {"status": "success", "data": health_data}
 
 
 @app.get("/", tags=["system"])
