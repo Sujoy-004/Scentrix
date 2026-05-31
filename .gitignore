@@ -66,3 +66,8 @@ DESIGN.md
 
 # session report (regeneratable per query, not tracked)
 report.md
+
+# session artifacts (regeneratable per session, not tracked)
+response.md
+fresh-state-0.png
+state0.png
