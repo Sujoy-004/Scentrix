@@ -70,21 +70,17 @@ export function useRecommendations() {
         return api.getPersonalizedRecommendations();
       }
 
-      // Guest: fetch using local transient quiz responses
-      if (quizResponses.length > 0) {
-        return api.getGuestRecommendations(quizResponses.map(r => ({
-          fragrance_id: r.fragrance_id,
-          rating: r.rating,
-          top_notes: r.top_notes,
-          accords: r.accords,
-          name: r.name,
-          brand: r.brand
-        })));
-      }
-
-      return null;
+      // Guest: fetch using local transient quiz responses (empty array = new user cold-start)
+      return api.getGuestRecommendations(quizResponses.map(r => ({
+        fragrance_id: r.fragrance_id,
+        rating: r.rating,
+        top_notes: r.top_notes,
+        accords: r.accords,
+        name: r.name,
+        brand: r.brand
+      })));
     },
-    enabled: isAuthenticated || quizResponses.length > 0,
+    enabled: true,
     retry: (failureCount, error: any) => {
       if (error?.response?.status === 403) return false; // Don't retry auth gates
       return failureCount < 2;
