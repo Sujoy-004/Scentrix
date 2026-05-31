@@ -2,6 +2,66 @@
 
 ## [Unreleased] — Phase 8 Complete, Repository Hardening
 
+### Repository State Consolidation (2026-06-01)
+
+**Scope:** Repository state audit, git hygiene sweep, CHANGELOG update.
+
+**Deliverables:**
+- `CURRENT_PRODUCT_POSITION.md` created — product position snapshot for handoff continuity
+- `REPOSITORY_STATE_2026-06-01.md` created — repository state snapshot for handoff continuity
+- CHANGELOG.md updated with all 2026-06-01 work entries
+- Drift audit completed across 6 canonical docs — 1 HIGH drift found (CHANGELOG itself), rest clean
+- Git hygiene sweep completed — 12 commit, 1 delete, 3 ignore classifications
+- `repo_tree.txt` deleted (regeneratable artifact)
+- `.gitignore` updated to exclude `response.md`, `fresh-state-0.png`, `state0.png`
+
+### Recommendation Reason Exposure (2026-06-01)
+
+**Context:** Recommendation Intelligence Exposure Audit accepted. Smallest-possible UI change to surface existing backend intelligence.
+
+**Files modified:**
+- `frontend/src/components/FragranceCard.tsx` — reason badge added to floating badges area (inserted between match_score badge and family badge). Uses existing `frag.reason` field already returned by API.
+- `frontend/src/app/recommendations/page.tsx` — `reason?: string` added to `FragranceRecommendation` interface.
+
+**Values displayed (already in API, never rendered):**
+- State 0: "Popular Choice" on every card
+- State 2–4: "Olfactory Soulmate", "Discovered for you", "Harmonious Discovery", "Atmospheric Resonance"
+
+**Zero-backend-work constraint honored:** No new endpoints, fields, algorithms, GraphSAGE changes, or dispatcher changes.
+
+### Documentation Alignment (2026-06-01)
+
+**Files modified:**
+- `ARCHITECTURE-FREEZE.md` — State 1 Implementation Note added: "State 1 remains architecturally valid but quiz→recommendations pipeline not wired; Direct Rating MVP routes State 0→State 2 via Star button"
+- `README.md` — "the product" section extracted from "the architecture" section; "run the web app" subsection added; `docker compose up` command documented
+- `backend/README.md` — Service Architecture table added (dispatcher, gs_embeddings, feature_based, popularity, hybrid_search, quiz_store); verb updated to reflect Direct Rating MVP
+
+### Direct Rating MVP — Frontend & Dispatcher Follow-up (2026-06-01)
+
+**Scope:** Unblocked anonymous cold-start (State 0), wired Star button rating, improved State 3/4 dispatch fallbacks.
+
+**Frontend — State 0 unblocked:**
+- `frontend/src/lib/hooks.ts` — guest recommendation query enabled for ALL states (removed `quizResponses.length > 0` gate; empty array triggers State 0 popularity path on backend)
+- `frontend/src/app/recommendations/page.tsx` — quiz gate removed (anonymous users with zero ratings see recommendations immediately); conditional header: "Popular Picks"/"Popular Fragrances" at State 0 vs "Protocol Results Complete"/"Your Aromatic Constellation" at State 2+; guest banner text conditional on rating count; discovery state meter added (Cold Exploration → Taste Initialising → Taste Active → Taste Mature); match_score display gated by `ratingCount > 0` (hidden during State 0)
+
+**Frontend — Star rating wired:**
+- `frontend/src/components/FragranceCard.tsx` — ShoppingBag button replaced with Star button; `handleRate` writes to both local `addQuizResponse` (session state) and `useSubmitRating` (backend); `isRated` state tracked and reflected in Star fill color; `useSubmitRating` hook imported
+
+**Backend — State 3 fallback chain:**
+- `backend/app/services/dispatcher.py` — FeatureBasedStrategy fallback changed from `popularity` to `graphsage` (when feature-based scoring fails, attempt GraphSAGE centroid retrieval before giving up); fallback_chain updated accordingly
+
+**Backend — State 4 GraphSAGE exploration:**
+- `backend/app/services/dispatcher.py` — FeatureWithDiversityStrategy: GraphSAGE centroid KNN retrieval injected (top-20 excluding FB + seed IDs, insert top-2 at positions 2 and 5) as exploration items with `source="exploration"`
+
+**Backend — match_score hydration fix:**
+- `backend/app/services/dispatcher.py` — `_hydrate_from_catalog`: `match_score` now reads `item.get("match_score", ...)` first, falls back to `item.get("score", ...)` only if match_score absent (fixes items where score was double-multiplied or missing)
+
+**Backend — Tests:**
+- `backend/tests/test_dispatcher.py` — `test_state_3_fallback_to_graphsage` added (proves State 3 falls back to GS when FB raises); `test_diversity_gs_exploration_appears` added (proves exploration items with `source="exploration"` appear in State 4 output); `TestSourceAttribution.test_source_attribution_per_state` updated to accept `"exploration"` alongside `"diversity"`
+
+**Infrastructure:**
+- `docker-compose.yml` — PostgreSQL host port changed from `5432` to `5433` (avoids conflict with local Postgres instances)
+
 ### Repository Hardening (2026-05-31)
 
 **Scope:** Waves 1-4 per REPOSITORY_HARDENING_PLAN.md — delete, archive, test structure, doc pruning.
@@ -332,6 +392,7 @@ p≤0.001, d=0.93)."
 | 6 — MEXT Demo | ✅ Complete | mext_demo.html (167.8KB, 7 sections, zero JS), packaged ZIP with both .pt files, all 10 UAT tests passed |
 | 7 — Preference Initialization Service | ✅ Complete | GraphSAGE Preference Initialization Service: loads precomputed Jaccard embeddings (`node_embeddings_jaccard.npy`), weighted centroid computation, cosine-similarity KNN retrieval, disagreement instrumentation, artifact startup validation. No checkpoint loading, no model inference, no torch runtime dependency. Per ARCHITECTURE-FREEZE.md. |
 | 8 — 5-State Recommendation Dispatcher | ✅ Complete | 5-state dispatch tree: anonymous/popularity, quiz/GraphSAGE, cold/hybrid β-blend, warm/feature-based, mature/diversity injection. Feature-based, popularity, and gs_embeddings extracted as peer services. Legacy hybrid_search retained behind flag. 90+ tests. Per ARCHITECTURE-FREEZE.md. |
+| 8a — Direct Rating MVP + Frontend Integration | ✅ Complete | State 0 unblocked (anonymous cold-start), Star button rating on FragranceCard, State 3 fallback (popularity→graphsage), State 4 GraphSAGE exploration injection, recommendation reason badge, doc alignment, repository state consolidation. See CHANGELOG [Unreleased] (2026-06-01). |
 | 9 — Data & Graph Sync | 🔲 Planned | Incremental Jaccard rebuild, Celery nightly graph refresh, stale embedding detection |
 | 10 — Auth, User State & Rating Loop | 🔲 Planned | JWT auth, rating → warm upgrade trigger, Redis per-user cache with TTL |
 | 11 — Frontend Integration | 🔲 Planned | Next.js wired to real endpoints, quiz flow UI, cold→warm transition UX, accord explanations |
@@ -369,10 +430,13 @@ p≤0.001, d=0.93)."
 - No claims without results
 - CHANGELOG.md is source of truth — always read first
 
-**HANDOFF NOTE (2026-05-30):**
+**HANDOFF NOTE (2026-06-01):**
 - Phase 6 ✅ COMPLETE. All 10 UAT tests passed. mext_demo.html + ZIP generated.
-- Phase 6.5 ✅ COMPLETE. Architecture Freeze approved. See `.planning/ARCHITECTURE-FREEZE.md`.
+- Phase 6.5 ✅ COMPLETE. Architecture Freeze approved. See `ARCHITECTURE-FREEZE.md`.
 - Phase 7 ✅ COMPLETE. GraphSAGE Preference Initialization Service implemented — artifact loading, startup validation, weighted centroid, cosine-similarity KNN, disagreement instrumentation per ARCHITECTURE-FREEZE.md. No checkpoint loading, no model inference, no torch dependency.
-- Phases 8–12 🔲 Planned. Governed by ARCHITECTURE-FREEZE.md.
-- Execution order: 8 → 9 → 10 → 11 → 12 (sequential).
-- .planning/ and CHANGELOG.md synced to ARCHITECTURE-FREEZE.md state.
+- Phase 8 ✅ COMPLETE. 5-state dispatcher per ARCHITECTURE-FREEZE.md. 90+ tests.
+- Phase 8a ✅ COMPLETE. Direct Rating MVP frontend (State 0 unblocked, Star button rating), State 3 fallback redesign (popularity→graphsage), State 4 GraphSAGE exploration injection, recommendation reason badge, doc alignment (ARCHITECTURE-FREEZE.md note, README/backend/README updates), repository state consolidation. See [Unreleased] (2026-06-01).
+- Phase 9–12 🔲 Planned. Governed by ARCHITECTURE-FREEZE.md.
+- Next decision: Improve recommendation explanation (A) or fix onboarding/navigation flow (B). No recommendation yet.
+- `response.md` contains latest session audit — not tracked, regeneratable.
+- CHANGELOG.md is source of truth — read first.
