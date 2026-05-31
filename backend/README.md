@@ -1,13 +1,14 @@
 # Scentrix Backend API
 
-FastAPI-based REST API for fragrance discovery, quiz onboarding, and recommendation serving.
+FastAPI-based REST API for fragrance discovery, direct rating onboarding, and state-driven recommendation serving.
 
 ## What It Does
 
 - User authentication (local + Supabase JWT) with PII encryption at rest
 - Fragrance catalog search and detail from Neo4j knowledge graph
-- Adaptive confidence-scored onboarding quiz
-- Hybrid recommendation engine (rule-based note/accord matching + optional semantic embeddings)
+- State-driven 5-state recommendation dispatcher (Cold Exploration → Taste Initialising → Taste Active → Taste Mature)
+- Direct rating via Star button on FragranceCards — replaces quiz as primary initialization path
+- Legacy adaptive quiz (implemented but superseded — quiz ratings never reach the recommendation pipeline)
 - Lead capture and GDPR data deletion
 - Sommelier AI insight generation for fragrance collections
 
@@ -46,7 +47,7 @@ backend/
 │   ├── routers/             # auth, fragrances, recommendations, quiz, users, leads
 │   ├── models/              # SQLAlchemy ORM models
 │   ├── schemas/             # Pydantic request/response schemas
-│   ├── services/            # catalog, graph, hybrid_search, quiz_store, supabase_auth, sommelier
+│   ├── services/            # catalog, graph, dispatcher, feature_based, popularity, gs_embeddings, hybrid_search, quiz_store, supabase_auth, sommelier
 │   ├── auth/                # JWT, encryption, dependencies
 │   ├── database.py          # Async SQLAlchemy engine + session
 │   ├── cache.py             # Redis cache client
@@ -71,6 +72,19 @@ backend/
 | `/leads` | capture, feed | Lead capture |
 
 See `/docs` when the backend is running for OpenAPI documentation.
+
+## Service Architecture
+
+See [ARCHITECTURE-FREEZE.md](../ARCHITECTURE-FREEZE.md) for the canonical 5-state dispatch architecture.
+
+| Service | Role |
+|---------|------|
+| `dispatcher.py` | 5-state dispatcher — routes requests based on `rating_count` |
+| `gs_embeddings.py` | GraphSAGE centroid + KNN retrieval on precomputed Jaccard embeddings |
+| `feature_based.py` | Accord/note overlap scoring from rated items |
+| `popularity.py` | Global popularity ranking (State 0 fallback) |
+| `hybrid_search.py` | Legacy hybrid search (retained as fallback) |
+| `quiz_store.py` | Quiz session management (superseded — ratings never reach recommendations) |
 
 ## Configuration
 
