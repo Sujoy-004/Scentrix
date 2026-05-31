@@ -388,29 +388,31 @@ class FeatureBasedStrategy(RecommendationStrategy):
             )
         except Exception:
             try:
-                pop_svc = request.popularity_service
-                if pop_svc is not None and request.catalog:
-                    items = pop_svc.get_top(request.catalog, count=request.candidate_count)
+                gs = request.gs_service
+                if gs is not None and request.ratings and request.catalog:
+                    seed_ids = [r.fragrance_id for r in request.ratings]
+                    centroid = gs.compute_centroid(seed_ids)
+                    candidates = gs.knn_search(centroid, top_k=request.candidate_count)
                 else:
-                    items = []
-                for item in items:
-                    item["source"] = "popularity"
+                    candidates = []
+                for item in candidates:
+                    item["source"] = "graphsage"
                 return DispatchResult(
-                    recommendations=items,
-                    source="popularity",
+                    recommendations=candidates,
+                    source="graphsage",
                     state=3,
                     state_label="warm",
                     metadata={"fallback": "feature_based_failed"},
-                    fallback_chain=fallback_chain + ["popularity"],
+                    fallback_chain=fallback_chain + ["graphsage"],
                 )
             except Exception:
                 return DispatchResult(
                     recommendations=[],
-                    source="popularity",
+                    source="graphsage",
                     state=3,
                     state_label="warm",
                     metadata={"error": "all_strategies_failed"},
-                    fallback_chain=fallback_chain + ["popularity", "fallback_empty"],
+                    fallback_chain=fallback_chain + ["graphsage", "fallback_empty"],
                 )
 
 
@@ -494,6 +496,22 @@ class FeatureWithDiversityStrategy(RecommendationStrategy):
 
             for item in items:
                 item["source"] = source
+
+            gs = request.gs_service
+            if gs is not None and request.ratings:
+                seed_ids = [r.fragrance_id for r in request.ratings]
+                fb_ids = {str(r["id"]) for r in items}
+                centroid = gs.compute_centroid(seed_ids)
+                gs_items = gs.knn_search(
+                    centroid, top_k=20, exclude_ids=fb_ids | set(seed_ids)
+                )
+                for i, gs_item in enumerate(gs_items[:2]):
+                    pos = min(2 + i * 3, len(items))
+                    items.insert(pos, {
+                        "id": gs_item["id"],
+                        "score": gs_item["score"],
+                        "source": "exploration",
+                    })
 
             return DispatchResult(
                 recommendations=items,
@@ -667,7 +685,7 @@ def _hydrate_from_catalog(
             "id": item_id,
             "name": cat_item.get("name", ""),
             "brand": cat_item.get("brand", ""),
-            "match_score": item.get("score", 50.0) * 100,
+            "match_score": item.get("match_score", item.get("score", 50.0) * 100),
             "reason": item.get("reason", "Discovered for you"),
             "source": item.get("source", "discovered"),
             "top_accords": cat_item.get("accords", [])[:3],
