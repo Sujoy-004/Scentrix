@@ -2,10 +2,10 @@
 
 import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Bookmark, ShoppingBag, Info, Sparkles } from 'lucide-react';
+import { Bookmark, Star, Info, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/stores/app-store';
-import { useAddToCollection, useRemoveFromWishlist, useWishlist } from '@/lib/hooks';
+import { useAddToCollection, useRemoveFromWishlist, useWishlist, useSubmitRating } from '@/lib/hooks';
 import { getFamilyAsset } from '@/lib/family-mapping';
 
 interface FragranceCardProps {
@@ -18,16 +18,37 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
   const router = useRouter();
   const cardRef = useRef<HTMLElement>(null);
   
-  const { isAuthenticated, wishlist, addToWishlist, removeFromWishlist } = useAppStore();
+  const { isAuthenticated, wishlist, addToWishlist, removeFromWishlist, quizResponses, addQuizResponse } = useAppStore();
   const { data: serverCollection = [] } = useWishlist();
   
   const addMutation = useAddToCollection();
   const removeMutation = useRemoveFromWishlist();
+  const submitRating = useSubmitRating();
 
   // Check if saved either in local store (for guests) or server collection (for users)
   const isSavedLocally = wishlist.includes(frag.id);
   const serverItem = serverCollection.find((item: any) => item.fragrance_neo4j_id === frag.id);
   const isSaved = isAuthenticated ? !!serverItem : isSavedLocally;
+  const isRated = quizResponses.some(r => r.fragrance_id === frag.id);
+
+  const handleRate = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isRated) {
+      useAppStore.setState((state) => ({
+        quizResponses: state.quizResponses.filter(r => r.fragrance_id !== frag.id)
+      }));
+    } else {
+      addQuizResponse({
+        fragrance_id: frag.id,
+        rating: 8,
+        name: frag.name,
+        brand: frag.brand,
+        top_notes: frag.top_notes,
+        accords: frag.top_accords,
+      });
+      submitRating.mutate({ fragranceId: frag.id, rating: 8 });
+    }
+  };
 
   const handleSaveToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -91,11 +112,16 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
            {showMatch && frag.match_score && (
              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/20 border border-amber-500/30 backdrop-blur-md">
                <Sparkles size={12} className="text-amber-400" />
-               <span className="text-[10px] font-bold text-amber-200 uppercase tracking-tighter">{frag.match_score}% Match</span>
+               <span className="text-[10px] font-bold text-amber-200 uppercase tracking-tighter">{frag.match_score}% Score</span>
+             </div>
+           )}
+           {frag.reason && (
+             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
+               <span className="text-[10px] font-medium text-white/60 tracking-tight">{frag.reason}</span>
              </div>
            )}
            <div className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
-             <span className="text-[10px] font-medium text-white/50 uppercase tracking-tighter">{displayFamily}</span>
+              <span className="text-[10px] font-medium text-white/50 uppercase tracking-tighter">{displayFamily}</span>
            </div>
         </div>
 
@@ -137,9 +163,14 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
              <button className="p-2 text-white/40 hover:text-white transition-colors">
                <Info size={16} />
              </button>
-             <button className="p-2 text-white/40 hover:text-white transition-colors">
-               <ShoppingBag size={16} />
-             </button>
+              <button
+                onClick={handleRate}
+                className={`p-2 transition-colors ${
+                  isRated ? 'text-amber-400' : 'text-white/40 hover:text-white'
+                }`}
+              >
+                <Star size={16} fill={isRated ? 'currentColor' : 'none'} />
+              </button>
            </div>
         </div>
       </div>
