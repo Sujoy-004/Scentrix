@@ -641,6 +641,35 @@ class TestDispatchWithMocks:
         assert result.state_label == "warm"
         assert result.source == "feature_based"
 
+    async def test_state_3_fallback_to_graphsage(
+        self,
+        mock_gs_service: Any,
+        mock_feature_based: Any,
+    ) -> None:
+        """State 3 falls back to GraphSAGE when FB service raises (per freeze)."""
+        fb_with_error = MagicMock()
+        fb_with_error.score = MagicMock(side_effect=ValueError("fb_error"))
+
+        disp = RecommendationDispatcher(
+            gs_service=mock_gs_service,
+            feature_based_service=fb_with_error,
+            popularity_service=MagicMock(),
+        )
+        ratings = [MagicMock(fragrance_id=f"f{i:03d}", rating=7.0) for i in range(5)]
+        req = DispatchRequest(
+            user_id=1,
+            ratings=ratings,
+            quiz_completed=False,
+            catalog=[{"id": "dummy"}],
+            gs_service=mock_gs_service,
+            feature_based_service=fb_with_error,
+        )
+        result = await disp.dispatch(req)
+        assert result.state == 3
+        assert result.source == "graphsage"
+        mock_gs_service.compute_centroid.assert_called_once()
+        mock_gs_service.knn_search.assert_called_once()
+
     async def test_state_4_diversity(
         self,
         dispatcher: RecommendationDispatcher,
@@ -964,9 +993,49 @@ class TestFeatureWithDiversityStrategy:
         )
         result = await dispatcher.dispatch(req)
         for item in result.recommendations:
-            assert item.get("source") == "diversity", (
-                f"Item {item['id']} has source='{item.get('source')}', expected 'diversity'"
+            assert item.get("source") in ("diversity", "exploration"), (
+                f"Item {item['id']} has source='{item.get('source')}', "
+                f"expected 'diversity' or 'exploration'"
             )
+
+    async def test_diversity_gs_exploration_appears(
+        self,
+        mock_gs_service: Any,
+        mock_feature_based: Any,
+    ) -> None:
+        """Proves GS exploration items appear in State 4 output (freeze Sec 4)."""
+        gs_ids = {str(item["id"]) for item in mock_gs_service.knn_search.return_value}
+        catalog = [{"id": "dummy", "name": "D", "brand": "B",
+                     "accords": ["fresh"], "rating_count": 10,
+                     "_accords_set": {"fresh"}, "_notes_set": {"x"}}]
+        for gid in gs_ids:
+            catalog.append({"id": gid, "name": f"N_{gid}", "brand": "B",
+                            "accords": ["woody"], "rating_count": 5,
+                            "_accords_set": {"woody"}, "_notes_set": {"y"}})
+
+        dispatcher = RecommendationDispatcher(
+            gs_service=mock_gs_service,
+            feature_based_service=mock_feature_based,
+        )
+        ratings = [MagicMock(fragrance_id=f"f{i:03d}", rating=7.0) for i in range(20)]
+        req = DispatchRequest(
+            user_id=1,
+            ratings=ratings,
+            quiz_completed=False,
+            catalog=catalog,
+            gs_service=mock_gs_service,
+            feature_based_service=mock_feature_based,
+        )
+        result = await dispatcher.dispatch(req)
+        assert result.state == 4
+        assert result.source == "diversity"
+        exploration_items = [
+            r for r in result.recommendations
+            if r.get("source") == "exploration"
+        ]
+        assert len(exploration_items) > 0, (
+            f"No exploration items found in State 4 output"
+        )
 
 
 class TestSourceAttribution:
@@ -1014,9 +1083,8 @@ class TestSourceAttribution:
         assert result.source == expected_source
         for item in result.recommendations:
             assert "source" in item, f"Item {item['id']} missing 'source' key"
-            # FeatureBasedStrategy may have "exploration" items mixed in
-            if expected_item_source == "feature_based":
-                assert item["source"] in ("feature_based", "exploration")
+            if expected_item_source in ("feature_based", "diversity"):
+                assert item["source"] in (expected_item_source, "exploration")
             else:
                 assert item["source"] == expected_item_source, (
                     f"Item {item['id']} source='{item['source']}', "
