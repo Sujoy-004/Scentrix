@@ -395,6 +395,8 @@ ARCHITECTURE INVARIANTS:
 | Runtime model loading | None (precomputed embeddings only) | Architecture decision |
 | Popularity fallback | Always available as last resort | Architecture invariant |
 
+> **Implementation Note (2026-05-31):** State 1 (Quiz User) remains architecturally valid. The dispatch tree, centroid computation, quiz reranker, and fallback paths for State 1 are implemented and testable via API calls. However, the current frontend does not implement the quiz→recommendations pipeline — no frontend code calls `POST /quiz/finalize` or sets `quiz_confidence`. The Direct Rating MVP routes users directly from State 0 → State 2 via the Star button on FragranceCards. State 1 will become reachable when the quiz frontend is wired to the recommendation pipeline (Phase 11).
+
 ---
 
 *Architecture Freeze: 2026-05-30*
