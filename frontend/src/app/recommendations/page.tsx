@@ -39,6 +39,7 @@ interface FragranceRecommendation {
   brand: string;
   match_score?: number;
   top_notes?: string[];
+  reason?: string;
 }
 
 const cardVariants = {
@@ -64,32 +65,9 @@ export default function RecommendationsPage() {
   // SSR guard — avoid hydration mismatch on localStorage-backed state
   if (!mounted) return null;
 
-  // ── GATE 1: Guest with no quiz data → send them to the quiz ─────────────
-  if (!isAuthenticated && quizResponses.length === 0) {
-    return (
-      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050505' }}>
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="glass-card"
-          style={{ padding: '3rem', textAlign: 'center', maxWidth: '30rem', border: '1px solid rgba(200,161,90,0.1)', borderRadius: '1.5rem', background: 'rgba(255,255,255,0.03)' }}
-        >
-          <Sparkles style={{ margin: '0 auto 1.5rem', color: 'rgba(200,161,90,0.5)' }} size={48} />
-          <h2 style={{ fontSize: '1.5rem', fontFamily: 'var(--font-display)', fontStyle: 'italic', color: '#fff', marginBottom: '1rem' }}>
-            Begin Your Discovery
-          </h2>
-          <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '2rem', lineHeight: '1.6' }}>
-            Take the Discovery Protocol to calibrate your neural scent profile.
-          </p>
-          <button className="btn btn-primary" onClick={() => router.push('/quiz')}>
-            Enter Protocol <ArrowRight size={18} />
-          </button>
-        </motion.div>
-      </div>
-    );
-  }
-
-  // ── GATE 2: Guest with quiz data → allow discovery, show action banner later ──
+  // ── GATE removed: anonymous users with zero ratings see recommendations immediately ──
+  // (The guest auth banner below invites them to save.)
+  // ── Guest with quiz data → allow discovery, show action banner later ──
   // We no longer block the user here. They see their results immediately.
 
   // ── Authenticated: loading state ──────────────────────────────────────────
@@ -161,6 +139,13 @@ export default function RecommendationsPage() {
     ? Math.round(topMatches.reduce((acc, curr) => acc + (curr.match_score || 0), 0) / topMatches.length)
     : 0;
 
+  const ratingCount = quizResponses.length;
+  const discoveryState =
+    ratingCount === 0 ? 'Cold Exploration' :
+    ratingCount <= 4 ? 'Taste Initialising' :
+    ratingCount <= 19 ? 'Taste Active' :
+    'Taste Mature';
+
   return (
     <motion.div
       className="recommendations-page"
@@ -190,7 +175,7 @@ export default function RecommendationsPage() {
               </div>
               <div className="flex-1">
                 <h4 className="text-[0.7rem] uppercase tracking-widest font-bold text-white mb-0.5">Guest Discovery Session</h4>
-                <p className="text-[0.6rem] text-white/50 leading-tight">Your neural profile is temporary. Sign up to save these matches to your lifetime library.</p>
+                <p className="text-[0.6rem] text-white/50 leading-tight">{ratingCount === 0 ? "Your session is temporary. Sign up to save your favorites." : "Your neural profile is temporary. Sign up to save these matches to your lifetime library."}</p>
               </div>
               <div className="flex gap-2">
                 <Link href="/auth/register">
@@ -206,11 +191,23 @@ export default function RecommendationsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="recommendations-header"
         >
-          <div style={{ color: 'var(--color-primary)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '1rem' }}>Protocol Results Complete</div>
-          <h1 className="font-display italic text-white mb-4">Your Aromatic Constellation</h1>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', maxWidth: '30rem', margin: '0 auto' }}>
-            Finely tuned matches based on your neural preferences and taste geography.
-          </p>
+          {ratingCount === 0 ? (
+            <>
+              <div style={{ color: 'var(--color-primary)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '1rem' }}>Popular Picks</div>
+              <h1 className="font-display italic text-white mb-4">Popular Fragrances</h1>
+              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', maxWidth: '30rem', margin: '0 auto' }}>
+                Browse top scents chosen by our community. Rate a few to get personalized recommendations.
+              </p>
+            </>
+          ) : (
+            <>
+              <div style={{ color: 'var(--color-primary)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '1rem' }}>Protocol Results Complete</div>
+              <h1 className="font-display italic text-white mb-4">Your Aromatic Constellation</h1>
+              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', maxWidth: '30rem', margin: '0 auto' }}>
+                Finely tuned matches based on your neural preferences and taste geography.
+              </p>
+            </>
+          )}
         </motion.header>
 
         <motion.div
@@ -221,11 +218,15 @@ export default function RecommendationsPage() {
         >
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '2rem', fontFamily: 'var(--font-display)', color: '#fff' }}>{topMatches.length}</div>
-            <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700 }}>Matches</div>
+            <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700 }}>{ratingCount === 0 ? "Scents" : "Matches"}</div>
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '2rem', fontFamily: 'var(--font-display)', color: 'var(--color-primary)' }}>{avgFidelity}%</div>
-            <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700 }}>Fidelity</div>
+            <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700 }}>Score</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '1rem', fontFamily: 'var(--font-display)', color: 'var(--color-primary)', letterSpacing: '0.02em' }}>{discoveryState}</div>
+            <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700 }}>Discovery State</div>
           </div>
         </motion.div>
 
@@ -240,6 +241,7 @@ export default function RecommendationsPage() {
               key={fragrance.id || index}
               frag={fragrance}
               index={index}
+              showMatch={ratingCount > 0}
             />
           ))}
         </motion.div>
