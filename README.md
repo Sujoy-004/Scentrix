@@ -35,7 +35,21 @@ Feature-Only (0.557) doesn't get beat by GraphSAGE-Jaccard (p=1.000). and that's
 
 ## the architecture
 
-See [ARCHITECTURE-FREEZE.md](./ARCHITECTURE-FREEZE.md) for the canonical 5-state dispatch architecture. Quick summary: 5 Docker containers — Postgres 15, Neo4j 5, Redis 7, FastAPI backend, Next.js frontend. 5,000 quality-filtered items (from 22,740). 24 brands. 48 accords. 16,244 edges at threshold 0.20.
+See [ARCHITECTURE-FREEZE.md](./ARCHITECTURE-FREEZE.md) for the canonical 5-state dispatch architecture.
+
+## the product
+
+5 Docker containers — Postgres 15, Neo4j 5, Redis 7, FastAPI backend, Next.js frontend. 5,000 quality-filtered items (from 22,740). 24 brands. 48 accords. 16,244 edges at threshold 0.20.
+
+The recommendation flow: zero ratings → State 0 (popularity). Tap the Star → State 2 (blended GraphSAGE + feature-based). 5 ratings → State 3 (feature-based). 20 → State 4 (feature-based + diversity). The adaptive quiz at `/quiz` is implemented but its ratings never reach recommendations — direct in-card rating via Star is the initialization path.
+
+### run the web app
+
+```bash
+docker compose up
+```
+
+Opens at `http://localhost:3000`.
 
 ## the threshold
 
