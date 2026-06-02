@@ -69,8 +69,8 @@ Users progress through five mutually exclusive states based on their interaction
 |-------|--------------|----------------|---------|
 | 0     | 0            | No             | No auth required |
 | 1     | 0            | Yes            | Guest or auth |
-| 2     | 1–5          | Maybe          | Auth |
-| 3     | 5–20         | Maybe          | Auth |
+| 2     | 1–4          | Maybe          | Auth |
+| 3     | 5–19         | Maybe          | Auth |
 | 4     | 20+          | Maybe          | Auth |
 
 State transitions are triggered by the next rating submission. The system checks `len(ratings)` after each `POST /ratings` and upgrades the user if they cross a boundary.
@@ -122,16 +122,16 @@ User request
        │         │   final_score = β × gs_score + (1-β) × feature_score
        │         └─ Step 5: Apply diversity penalty
        │
-       ├── State 3 (Warm User, 5–20 ratings)
-       │    └── Feature-based primary + GraphSAGE exploration
-       │         ├─ Step 1: Feature-based retrieval (primary)
-       │         │   accord/note overlap scoring from rated items
-       │         │   → candidate pool (top-100)
-       │         ├─ Step 2: GraphSAGE diversity injection
-       │         │   GraphSAGE centroid → top-20 items NOT in feature-based pool
-       │         │   Inject 2–3 exploration items at positions 6–10
-       │         └─ Step 3: Final ranking by feature score
-       │             Exploration items promoted: min 2 per top-10
+        ├── State 3 (Warm User, 5–19 ratings)
+        │    └── Feature-based primary + GraphSAGE exploration
+        │         ├─ Step 1: Feature-based retrieval (primary)
+        │         │   accord/note overlap scoring from rated items
+        │         │   → candidate pool (top-100)
+        │         ├─ Step 2: GraphSAGE diversity injection
+        │         │   GraphSAGE centroid → top-20 items NOT in feature-based pool
+        │         │   Inject top-2 items at positions 2, 5 (every 3rd slot from index 2)
+        │         └─ Step 3: Final ranking by feature score
+        │             Exploration items promoted: min 2 per top-10
        │
        └── State 4 (Mature User, 20+ ratings)
             └── Feature-based + diversity injection
@@ -255,8 +255,8 @@ If a user's ratings are deleted (GDPR, account deletion), the state regresses:
 | Redis cache miss | `cache.get()` returns None | Recompute full dispatch (cold path) |
 | Pinecone unavailable | Connection timeout | Use in-memory numpy embeddings (loaded at startup) |
 | Feature-based scoring error | Exception in scoring function | GraphSAGE-only for that request |
-| All retrieval paths fail | No candidates from any source | Popularity-only as last resort |
-| Centroid has no seeds | Empty seed_items list | Degrade to previous state's strategy |
+| All retrieval paths fail | No candidates from any source | Empty result set returned. No state ends with popularity fallback — that is a startup-level concern, not dispatch-level. |
+| Centroid has no seeds | Empty seed_items list | Fallback chain per state. State 1 falls back to feature-based. State 2 falls back to feature-based. |
 
 ### Health check requirements
 
@@ -395,7 +395,7 @@ ARCHITECTURE INVARIANTS:
 | Runtime model loading | None (precomputed embeddings only) | Architecture decision |
 | Popularity fallback | Always available as last resort | Architecture invariant |
 
-> **Implementation Note (2026-05-31):** State 1 (Quiz User) remains architecturally valid. The dispatch tree, centroid computation, quiz reranker, and fallback paths for State 1 are implemented and testable via API calls. However, the current frontend does not implement the quiz→recommendations pipeline — no frontend code calls `POST /quiz/finalize` or sets `quiz_confidence`. The Direct Rating MVP routes users directly from State 0 → State 2 via the Star button on FragranceCards. State 1 will become reachable when the quiz frontend is wired to the recommendation pipeline (Phase 11).
+> **Implementation Note (2026-06-02):** State 1 (Quiz User) remains architecturally valid. The dispatch tree, centroid computation, quiz reranker, and fallback paths for State 1 are implemented and testable via API calls. However, the frontend quiz (`StandardQuiz.tsx`) routes to `/recommendations` with raw ratings (not `quiz_confidence`), bypassing `POST /quiz/finalize`. Users arrive at recommendations with rating_count=8 (from quiz responses), entering State 2 (1-4 ratings) or State 3 (5-19) depending on quiz length — never State 1. The Star button on FragranceCards routes State 0 → State 2 directly via a single rating. State 1 will become reachable when the quiz frontend calls `POST /quiz/finalize` and sends `quiz_confidence` to the backend (Phase 11).
 
 ---
 
