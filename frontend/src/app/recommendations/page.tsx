@@ -135,16 +135,10 @@ export default function RecommendationsPage() {
   const topFragrance = topMatches[0];
   const palette = getFragrancePalette(topFragrance);
 
-  const avgFidelity = topMatches.length > 0
-    ? Math.round(topMatches.reduce((acc, curr) => acc + (curr.match_score || 0), 0) / topMatches.length)
-    : 0;
-
   const ratingCount = quizResponses.length;
   const discoveryState =
     ratingCount === 0 ? 'Cold Exploration' :
-    ratingCount <= 4 ? 'Taste Initialising' :
-    ratingCount <= 19 ? 'Taste Active' :
-    'Taste Mature';
+    `Rated ${ratingCount} fragrance${ratingCount !== 1 ? 's' : ''}`;
 
   return (
     <motion.div
@@ -220,10 +214,7 @@ export default function RecommendationsPage() {
             <div style={{ fontSize: '2rem', fontFamily: 'var(--font-display)', color: '#fff' }}>{topMatches.length}</div>
             <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700 }}>{ratingCount === 0 ? "Scents" : "Matches"}</div>
           </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '2rem', fontFamily: 'var(--font-display)', color: 'var(--color-primary)' }}>{avgFidelity}%</div>
-            <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700 }}>Score</div>
-          </div>
+
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '1rem', fontFamily: 'var(--font-display)', color: 'var(--color-primary)', letterSpacing: '0.02em' }}>{discoveryState}</div>
             <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700 }}>Discovery State</div>
