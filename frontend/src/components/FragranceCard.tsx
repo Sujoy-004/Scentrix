@@ -2,11 +2,11 @@
 
 import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Bookmark, Star, Info, Sparkles } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Bookmark, Star, Sparkles } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import { useAddToCollection, useRemoveFromWishlist, useWishlist, useSubmitRating } from '@/lib/hooks';
 import { getFamilyAsset } from '@/lib/family-mapping';
+import { computeReason } from '@/lib/reason-engine';
 
 interface FragranceCardProps {
   frag: any;
@@ -15,7 +15,6 @@ interface FragranceCardProps {
 }
 
 export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCardProps) {
-  const router = useRouter();
   const cardRef = useRef<HTMLElement>(null);
   
   const { isAuthenticated, wishlist, addToWishlist, removeFromWishlist, quizResponses, addQuizResponse } = useAppStore();
@@ -80,14 +79,12 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      onClick={() => router.push(`/fragrances/${frag.id}`)}
       style={{
         background: 'rgba(255, 255, 255, 0.02)',
         border: '1px solid rgba(255, 255, 255, 0.08)',
         borderRadius: '24px',
         overflow: 'hidden',
         backdropFilter: 'blur(20px)',
-        cursor: 'pointer',
         position: 'relative',
         height: '100%',
         transition: 'all 0.4s cubic-bezier(0.23, 1, 0.32, 1)'
@@ -112,14 +109,10 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
            {showMatch && frag.match_score && (
              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/20 border border-amber-500/30 backdrop-blur-md">
                <Sparkles size={12} className="text-amber-400" />
-               <span className="text-[10px] font-bold text-amber-200 uppercase tracking-tighter">{frag.match_score}% Score</span>
+                <span className="text-[10px] font-bold text-amber-200 uppercase tracking-tighter">{frag.match_score}% Match To Your Taste</span>
              </div>
            )}
-           {frag.reason && (
-             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
-               <span className="text-[10px] font-medium text-white/60 tracking-tight">{frag.reason}</span>
-             </div>
-           )}
+
            <div className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
               <span className="text-[10px] font-medium text-white/50 uppercase tracking-tighter">{displayFamily}</span>
            </div>
@@ -153,6 +146,16 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
           ))}
         </div>
 
+        {(() => {
+          const reasonText = computeReason(frag, quizResponses);
+          return reasonText ? (
+            <div className="mb-5 p-4 rounded-xl bg-white/[0.03] border border-white/10">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-400/80 mb-1.5">Why Recommended</p>
+              <p className="text-sm leading-relaxed text-white/90">{reasonText}</p>
+            </div>
+          ) : null;
+        })()}
+
         <div className="mt-auto flex items-center justify-between">
            <div className="flex items-center gap-1">
              <span className="text-amber-500 text-sm">★</span>
@@ -160,10 +163,7 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
            </div>
            
            <div className="flex gap-2">
-             <button className="p-2 text-white/40 hover:text-white transition-colors">
-               <Info size={16} />
-             </button>
-              <button
+               <button
                 onClick={handleRate}
                 className={`p-2 transition-colors ${
                   isRated ? 'text-amber-400' : 'text-white/40 hover:text-white'
