@@ -258,14 +258,7 @@ export default function RegisterPage() {
                 disabled={isLoading}
               />
               <label htmlFor="terms" className="checkbox-label">
-                I agree to the{' '}
-                <Link href="/terms" className="auth-link">
-                  Terms of Service
-                </Link>
-                {' '}and{' '}
-                <Link href="/privacy" className="auth-link">
-                  Privacy Policy
-                </Link>
+                I agree to the Terms of Service and Privacy Policy
               </label>
             </div>
 
