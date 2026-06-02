@@ -159,7 +159,7 @@ export default function Navbar() {
                     className="mobile-cta"
                     onClick={() => { router.push('/auth/register'); setIsOpen(false); }}
                   >
-                    Start Free Trial
+                    Sign Up
                   </motion.button>
                 </>
               ) : (
