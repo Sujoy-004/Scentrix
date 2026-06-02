@@ -86,12 +86,7 @@ export default function ProfilePage() {
                     : 'N/A'}
                 </p>
               </div>
-              <button
-                className="edit-button"
-                onClick={() => router.push('/profile/edit')}
-              >
-                Edit Account
-              </button>
+
             </div>
           </div>
 
@@ -118,12 +113,7 @@ export default function ProfilePage() {
                   {profile?.preferences?.budget_range || 'Any'}
                 </p>
               </div>
-              <button
-                className="edit-button"
-                onClick={() => router.push('/profile/preferences')}
-              >
-                Edit Preferences
-              </button>
+
             </div>
           </div>
 
@@ -175,20 +165,7 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {/* Account Actions */}
-        <div className="account-actions">
-          <h3>Account Actions</h3>
-          <button
-            className="danger-button"
-            onClick={() => {
-              if (confirm('Are you sure you want to delete your account? This cannot be undone.')) {
-                alert('Account deletion requested. Please contact support.');
-              }
-            }}
-          >
-            Delete Account
-          </button>
-        </div>
+
       </div>
     </div>
   );
