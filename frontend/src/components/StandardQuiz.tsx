@@ -42,9 +42,9 @@ export default function StandardQuiz() {
         });
         if (active) {
           store.initializeAdaptiveQuiz({
-            sessionId: response.session_id,
-            seedQuestions: response.seed_questions,
-            rules: response.rules,
+            sessionId: response.data.session_id,
+            seedQuestions: response.data.seed_questions,
+            rules: response.data.rules,
           });
         }
       } catch (error) {
