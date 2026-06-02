@@ -20,7 +20,8 @@
 **Context:** Recommendation Intelligence Exposure Audit accepted. Smallest-possible UI change to surface existing backend intelligence.
 
 **Files modified:**
-- `frontend/src/components/FragranceCard.tsx` — reason badge added to floating badges area (inserted between match_score badge and family badge). Uses existing `frag.reason` field already returned by API.
+- `frontend/src/components/FragranceCard.tsx` — reason text added as "Why Recommended" section in card body (below notes, above rating). Uses existing `frag.reason` field from API plus local `computeReason()` engine as fallback.
+- `frontend/src/lib/reason-engine.ts` — created. Computes reason text from quizResponses array: direct match, shared notes, shared accords, then falls back to API `frag.reason`.
 - `frontend/src/app/recommendations/page.tsx` — `reason?: string` added to `FragranceRecommendation` interface.
 
 **Values displayed (already in API, never rendered):**
