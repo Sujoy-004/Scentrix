@@ -202,7 +202,7 @@ class FeatureBasedService:
         profile: dict[str, Any],
         user_embedding: Any,
         seed_id_set: set[str],
-        top_k: int = 12,
+        top_k: int = 50,
     ) -> list[dict[str, Any]]:
         target_notes = set(profile["target_notes"])
         target_accords = set(profile["target_accords"])
@@ -338,7 +338,7 @@ class FeatureBasedService:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _popularity_fallback(catalog: list[dict[str, Any]], count: int = 12) -> list[dict[str, Any]]:
+    def _popularity_fallback(catalog: list[dict[str, Any]], count: int = 50) -> list[dict[str, Any]]:
         return [
             {
                 "id": item["id"],
@@ -363,6 +363,7 @@ class FeatureBasedService:
         ratings: list[Any],
         catalog: list[dict[str, Any]] | None = None,
         user_seed_ids: list[str] | None = None,
+        top_k: int = 50,
     ) -> list[dict[str, Any]]:
         """Full feature-based scoring pipeline.
 
@@ -382,9 +383,9 @@ class FeatureBasedService:
         profile = self._build_profile(ratings, catalog)
 
         if not set(profile["target_notes"]) and not set(profile["target_accords"]):
-            return self._popularity_fallback(catalog)
+            return self._popularity_fallback(catalog, count=top_k)
 
         user_embedding = self._compute_user_embedding(ratings, catalog)
 
         candidate_pool = self._get_candidates(catalog, profile, seed_id_set)
-        return self._score_and_select(candidate_pool, profile, user_embedding, seed_id_set)
+        return self._score_and_select(candidate_pool, profile, user_embedding, seed_id_set, top_k=top_k)

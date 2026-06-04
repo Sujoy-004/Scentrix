@@ -213,7 +213,9 @@ class BlendedStrategy(RecommendationStrategy):
 
             if fb_svc is not None and request.catalog:
                 fb_candidates = fb_svc.score(
-                    request.ratings, request.catalog, user_seed_ids=seed_ids
+                    request.ratings, request.catalog,
+                    user_seed_ids=seed_ids,
+                    top_k=request.candidate_count,
                 )
 
             # Build lookup maps
@@ -328,7 +330,9 @@ class FeatureBasedStrategy(RecommendationStrategy):
             gs = request.gs_service
             if fb_svc is not None and request.catalog:
                 items = fb_svc.score(
-                    request.ratings, request.catalog, user_seed_ids=[]
+                    request.ratings, request.catalog,
+                    user_seed_ids=[],
+                    top_k=request.candidate_count,
                 )
             else:
                 items = []
@@ -486,7 +490,9 @@ class FeatureWithDiversityStrategy(RecommendationStrategy):
             fb_svc = request.feature_based_service
             if fb_svc is not None and request.catalog:
                 items = fb_svc.score(
-                    request.ratings, request.catalog, user_seed_ids=[]
+                    request.ratings, request.catalog,
+                    user_seed_ids=[],
+                    top_k=request.candidate_count,
                 )
             else:
                 items = []

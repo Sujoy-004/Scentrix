@@ -236,7 +236,7 @@ async def get_guest_recommendations(
                 quiz_completed=request.quiz_confidence is not None,
                 quiz_confidence=request.quiz_confidence,
                 catalog=catalog,
-                candidate_count=12,
+                candidate_count=50,
                 popularity_service=_popularity_service,
             )
             result = await dispatcher.dispatch(dr)
@@ -310,7 +310,7 @@ async def get_personalized_recommendations(
                 ratings=ratings,
                 quiz_completed=quiz_completed,
                 catalog=catalog,
-                candidate_count=12,
+                candidate_count=50,
                 popularity_service=_popularity_service,
             )
             dr_result = await dispatcher.dispatch(dr)
