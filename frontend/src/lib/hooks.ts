@@ -70,7 +70,14 @@ export function useRecommendations() {
         return api.getPersonalizedRecommendations();
       }
 
-      // Guest: fetch using local transient quiz responses (empty array = new user cold-start)
+      // Guest with quiz confidence: pass empty ratings so dispatcher routes to
+      // State 1 (Quiz User) → GraphSAGEStrategy (centroid + KNN from accords).
+      // The accord-level confidence data already encodes the user's preferences.
+      if (quizConfidence) {
+        return api.getGuestRecommendations([], quizConfidence);
+      }
+
+      // Guest without quiz: pass raw ratings for State 0/2/3/4 routing.
       return api.getGuestRecommendations(
         quizResponses.map(r => ({
           fragrance_id: r.fragrance_id,
@@ -80,7 +87,7 @@ export function useRecommendations() {
           name: r.name,
           brand: r.brand
         })),
-        quizConfidence
+        null
       );
     },
     enabled: true,
