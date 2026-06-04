@@ -84,8 +84,11 @@ export const api = {
     description?: string;
     name?: string; 
     brand?: string 
-  }[]) => {
-    const { data } = await apiInstance.post('/recommendations/guest', { ratings });
+  }[], quiz_confidence?: Record<string, number> | null) => {
+    const { data } = await apiInstance.post('/recommendations/guest', { 
+      ratings, 
+      ...(quiz_confidence ? { quiz_confidence } : {}) 
+    });
     return data.data;
   },
 

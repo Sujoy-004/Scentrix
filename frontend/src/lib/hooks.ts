@@ -60,10 +60,10 @@ export function useRegister() {
 
 
 export function useRecommendations() {
-  const { isAuthenticated, quizResponses } = useAppStore();
+  const { isAuthenticated, quizResponses, quizConfidence } = useAppStore();
 
   return useQuery({
-    queryKey: ['recommendations', isAuthenticated, quizResponses.length],
+    queryKey: ['recommendations', isAuthenticated, quizResponses.length, !!quizConfidence],
     queryFn: async () => {
       // Authenticated: fetch from personalized profile
       if (isAuthenticated) {
@@ -71,14 +71,17 @@ export function useRecommendations() {
       }
 
       // Guest: fetch using local transient quiz responses (empty array = new user cold-start)
-      return api.getGuestRecommendations(quizResponses.map(r => ({
-        fragrance_id: r.fragrance_id,
-        rating: r.rating,
-        top_notes: r.top_notes,
-        accords: r.accords,
-        name: r.name,
-        brand: r.brand
-      })));
+      return api.getGuestRecommendations(
+        quizResponses.map(r => ({
+          fragrance_id: r.fragrance_id,
+          rating: r.rating,
+          top_notes: r.top_notes,
+          accords: r.accords,
+          name: r.name,
+          brand: r.brand
+        })),
+        quizConfidence
+      );
     },
     enabled: true,
     retry: (failureCount, error: any) => {

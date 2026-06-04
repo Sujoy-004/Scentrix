@@ -101,6 +101,39 @@ export default function StandardQuiz() {
 
   const finalizeSession = async () => {
     setIsSubmitting(true);
+
+    if (store.adaptiveQuiz.sessionId) {
+      try {
+        const evaluateResponse = await api.evaluateQuizSession(
+          store.adaptiveQuiz.sessionId,
+          { force: true }
+        );
+        store.setAdaptiveConfidence({
+          confidenceScore: evaluateResponse.data.confidence_score,
+          confidenceBand: evaluateResponse.data.confidence_band,
+          extensionTarget: evaluateResponse.data.additional_questions_target,
+          stopReason: evaluateResponse.data.stop_reason,
+        });
+      } catch (e) {
+        console.warn('Quiz evaluation failed (non-blocking):', e);
+      }
+    }
+
+    const accordScores: Record<string, number[]> = {};
+    for (const response of store.quizResponses) {
+      const weight = response.rating / 10;
+      for (const accord of (response.accords || [])) {
+        if (!accordScores[accord]) accordScores[accord] = [];
+        accordScores[accord].push(weight);
+      }
+    }
+    const computed: Record<string, number> = {};
+    for (const [accord, scores] of Object.entries(accordScores)) {
+      computed[accord.toLowerCase()] =
+        scores.reduce((a, b) => a + b, 0) / scores.length;
+    }
+    store.setQuizConfidence(computed);
+
     router.push('/recommendations');
   };
 

@@ -101,6 +101,8 @@ interface AppState {
   // Recommendations
   recommendations: any[];
   setRecommendations: (recs: any[]) => void;
+  quizConfidence: Record<string, number> | null;
+  setQuizConfidence: (confidence: Record<string, number> | null) => void;
 
   // Wishlist
   wishlist: string[];
@@ -135,6 +137,7 @@ export const useAppStore = create<AppState>()(
         longevity_preference: 'long',
       },
       recommendations: [],
+      quizConfidence: null,
       wishlist: [],
       selectedFamily: null,
       adaptiveQuiz: DEFAULT_ADAPTIVE_QUIZ,
@@ -229,6 +232,7 @@ export const useAppStore = create<AppState>()(
 
       // ── Recommendation actions ────────────────────────────────────────
       setRecommendations: (recs) => set({ recommendations: recs }),
+      setQuizConfidence: (confidence) => set({ quizConfidence: confidence }),
 
       // ── Wishlist actions ──────────────────────────────────────────────
       addToWishlist: (fragrance_id) =>
@@ -264,6 +268,7 @@ export const useAppStore = create<AppState>()(
           quizId: null,
           quizResponses: [],
           recommendations: [],
+          quizConfidence: null,
           wishlist: [],
           adaptiveQuiz: DEFAULT_ADAPTIVE_QUIZ,
         });
@@ -289,6 +294,7 @@ export const useAppStore = create<AppState>()(
         isAuthenticated: state.isAuthenticated,
         userId: state.userId,
         quizId: state.quizId,
+        quizConfidence: state.quizConfidence,
         userPreferences: state.userPreferences,
         wishlist: state.wishlist,
         adaptiveQuiz: state.adaptiveQuiz,
