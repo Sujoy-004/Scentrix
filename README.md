@@ -1,5 +1,8 @@
 # Scentrix
 
+**Research Theme:** Graph-Based Preference Initialisation for Cold-Start Recommendation in Zero-Interaction Domains
+**Primary Objective:** Demonstrate feasibility and operational deployability of graph-based preference initialization
+
 graph-based cold-start fragrance recommendation.
 
 ## what's the move?

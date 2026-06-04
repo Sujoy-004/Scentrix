@@ -1,5 +1,8 @@
 # Architecture Freeze — Phase 6.5
 
+**Research Theme:** Graph-Based Preference Initialisation for Cold-Start Recommendation in Zero-Interaction Domains
+**Primary Objective:** Demonstrate feasibility and operational deployability of graph-based preference initialization
+
 **Date:** 2026-05-30
 **Status:** APPROVED
 

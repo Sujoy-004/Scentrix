@@ -224,6 +224,10 @@ async def get_guest_recommendations(
         log_mem("AFTER_EMBEDDINGS")
 
     # ── Phase 8 dispatcher path ──────────────────────────────────────────
+    logger.info(
+        "DISPATCHER_GATE: PHASE8_DISPATCHER_ENABLED=%s, path=%s",
+        PHASE8_DISPATCHER_ENABLED, "phase8" if PHASE8_DISPATCHER_ENABLED else "legacy",
+    )
     if PHASE8_DISPATCHER_ENABLED:
         dispatcher = _get_dispatcher()
         if dispatcher is not None:

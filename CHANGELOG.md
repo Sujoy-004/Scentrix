@@ -1,5 +1,8 @@
 # CHANGELOG
 
+**Research Theme:** Graph-Based Preference Initialisation for Cold-Start Recommendation in Zero-Interaction Domains
+**Primary Objective:** Demonstrate feasibility and operational deployability of graph-based preference initialization
+
 ## [Unreleased] — Recommendation Visibility, Guest Bug Fixes, Fragrances Page
 
 ### Wave 4B — Deployment Verified (2026-06-02)
