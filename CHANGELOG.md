@@ -1,6 +1,79 @@
 # CHANGELOG
 
-## [Unreleased] — Phase 8 Complete, Repository Hardening
+## [Unreleased] — Recommendation Visibility, Guest Bug Fixes, Fragrances Page
+
+### Wave 4B — Deployment Verified (2026-06-02)
+
+**Scope:** Three critical bug fixes: stale guest explanations (Zustand merge), recommendation depth propagation (FeatureBasedService `top_k`), fragrances page (Suspense + catalog content).
+
+**Files modified:**
+- `frontend/src/stores/app-store.ts` — added `merge` callback to Zustand persist config; clears `quizResponses` on rehydration when `isAuthenticated` is false
+- `backend/app/services/feature_based.py` — added `top_k` param to `score()`, updated `_score_and_select` and `_popularity_fallback` defaults from 12 to 50
+- `backend/app/services/dispatcher.py` — all three primary dispatch paths pass `request.candidate_count` to `fb_svc.score()`
+- `frontend/src/app/fragrances/page.tsx` — split into outer `FragrancesPage` (with `<Suspense>`) + inner `FragrancesContent` (with `useSearchParams`); no-filter state shows "Browse All Fragrances" catalog instead of `FragranceFamilies`
+
+**Deliverables:**
+- `DELIVERABLES/WAVE4B_IMPLEMENTATION.md` — implementation report with verification
+- `DELIVERABLES/FINAL_FRAGRANCES_BUTTON_INVESTIGATION.md` — traced "Explore More" on `/fragrances` to `FragranceFamilies.tsx:127`, classified as navigation loop bug
+
+**Bug fixes:**
+- Fix 1 (guest explanations): stale `quizResponses` from localStorage no longer rehydrate for guest sessions
+- Fix 2 (recommendation depth): FeatureBasedService no longer hard-caps at 12 items; `candidate_count=50` propagates through scoring
+- Fix 3 (fragrances page): `<Suspense>` boundary added; navigation loop removed; `/fragrances` shows full catalog
+
+**Verification:** Frontend build succeeds. Backend module imports without errors. Server running at `http://localhost:3000`.
+
+### Wave 4A — Guest Persistence Fix + Recommendation Depth (2026-06-02)
+
+**Scope:** P0: remove `quizResponses` from Zustand `partialize` (stops new writes to localStorage). P1: increase backend `candidate_count` from 12 to 50; add frontend "Show More Recommendations" button.
+
+**Files modified:**
+- `frontend/src/stores/app-store.ts:291` — removed `quizResponses` from `partialize`
+- `backend/app/routers/recommendations.py:239,313` — `candidate_count=12` → `50`
+- `frontend/src/app/recommendations/page.tsx` — added `visibleCount` state; "Show More Recommendations" button after grid
+
+**Deliverables:** `DELIVERABLES/WAVE4A_IMPLEMENTATION.md`
+
+**Subsequent investigation:** `partialize` removal alone was insufficient (reads rehydrate old localStorage). Documented in `DELIVERABLES/CRITICAL_BUG_INVESTIGATION.md` as Bug 1.
+
+### Clean Audit Reset (2026-06-02)
+
+**Action:** Stopped all Docker containers, cleared Redis cache + Neo4j logs volumes, restarted full stack, verified fresh guest state returns Popular Choice (no personalized explanations).
+
+### Critical Bug Investigation (2026-06-02)
+
+**Deliverable:** `DELIVERABLES/CRITICAL_BUG_INVESTIGATION.md`
+
+**Three bugs found (no fixes):**
+1. **Stale guest explanations** — Zustand `partialize` blocks writes but not reads; old `quizResponses` in localStorage survive refresh; `computeReason` receives stale data
+2. **Show More stops at 24** — hard-coded `top_k=12` in `feature_based.py:205` limits FB to 12 items; exploration adds ~12 more
+3. **Explore More not working** — `useSearchParams()` without `<Suspense>` boundary at `fragrances/page.tsx:4` causes runtime crash; navigation loop when page renders
+
+### Wave 4 — Planning (2026-06-02)
+
+**Deliverable:** `DELIVERABLES/WAVE4-PLAN.md`
+
+**Planned fixes:** P0 — remove `quizResponses` from `partialize`; P1 — increase backend `candidate_count` + frontend load-more button.
+
+### Wave 3B — Validation (2026-06-02)
+
+**Deliverable:** `DELIVERABLES/WAVE3B_VALIDATION.md`
+
+**Three validated findings:**
+1. Stale `quizResponses` persisted via Zustand localStorage
+2. Recommendations capped at 10 (frontend `slice(0,10)`) with no pagination
+3. "Explore More" button intentionally routes to `/fragrances`
+
+### Wave 3A — Recommendation Accessibility + Explanation Visibility (2026-06-02)
+
+**Scope:** Smallest-possible UI changes to make recommendations accessible to guest users and surface "Why Recommended" explanations.
+
+**Files modified:**
+- `frontend/src/components/Navbar.tsx` — added "Discover" nav link for guest users → `/recommendations`
+- `frontend/src/components/HeroSection.tsx` — added "Browse Popular Picks" CTA → `/recommendations`
+- `frontend/src/components/FragranceCard.tsx` — increased "Why Recommended" explanation visibility (bg 0.03→0.06, border amber-500/20, heading 10px→11px amber-300, hover animation)
+
+**Deliverable:** `DELIVERABLES/WAVE3A_IMPLEMENTATION.md`
 
 ### Repository State Consolidation (2026-06-01)
 
@@ -431,13 +504,13 @@ p≤0.001, d=0.93)."
 - No claims without results
 - CHANGELOG.md is source of truth — always read first
 
-**HANDOFF NOTE (2026-06-01):**
+**HANDOFF NOTE (2026-06-02):**
 - Phase 6 ✅ COMPLETE. All 10 UAT tests passed. mext_demo.html + ZIP generated.
 - Phase 6.5 ✅ COMPLETE. Architecture Freeze approved. See `ARCHITECTURE-FREEZE.md`.
-- Phase 7 ✅ COMPLETE. GraphSAGE Preference Initialization Service implemented — artifact loading, startup validation, weighted centroid, cosine-similarity KNN, disagreement instrumentation per ARCHITECTURE-FREEZE.md. No checkpoint loading, no model inference, no torch dependency.
+- Phase 7 ✅ COMPLETE. GraphSAGE Preference Initialization Service implemented.
 - Phase 8 ✅ COMPLETE. 5-state dispatcher per ARCHITECTURE-FREEZE.md. 90+ tests.
-- Phase 8a ✅ COMPLETE. Direct Rating MVP frontend (State 0 unblocked, Star button rating), State 3 fallback redesign (popularity→graphsage), State 4 GraphSAGE exploration injection, recommendation reason badge, doc alignment (ARCHITECTURE-FREEZE.md note, README/backend/README updates), repository state consolidation. See [Unreleased] (2026-06-01).
+- Phase 8a ✅ COMPLETE. Direct Rating MVP, reason badge, doc alignment, repository consolidation.
 - Phase 9–12 🔲 Planned. Governed by ARCHITECTURE-FREEZE.md.
-- Next decision: Improve recommendation explanation (A) or fix onboarding/navigation flow (B). No recommendation yet.
-- `response.md` contains latest session audit — not tracked, regeneratable.
+- Waves 3A–4B (2026-06-02) — Recommendation accessibility (guest nav, CTA), explanation visibility (FragranceCard), guest persistence bug (Zustand merge), recommendation depth (FeatureBasedService `top_k=50`), fragrances page (Suspense + catalog). See [Unreleased] above.
+- Known issues: stale `response.md` (regeneratable), `.next/` build artifacts (rebuilt on next `npm run build`).
 - CHANGELOG.md is source of truth — read first.
