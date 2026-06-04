@@ -42,7 +42,7 @@ COPY --from=builder /usr/local /usr/local
 
 # Copy application code
 COPY backend/app app/
-COPY ml/data/fra_elite_24k.json ml/data/
+COPY ml/data/scentrix_master.json ml/data/
 COPY ml/models ml/models
 COPY backend/alembic.ini .
 COPY backend/Procfile .

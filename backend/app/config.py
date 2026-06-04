@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     # Safety Flags
     ml_enabled: bool = False
-    phase8_dispatcher_enabled: bool = False
+    phase8_dispatcher_enabled: bool = True
 
     # Database
     database_url: str

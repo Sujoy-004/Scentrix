@@ -75,6 +75,7 @@ services:
       Scentrix_REPO_ROOT: ${Scentrix_REPO_ROOT:-/app}
       RUNNING_IN_DOCKER: "true"
       PYTHONPATH: /app
+      PHASE8_DISPATCHER_ENABLED: ${PHASE8_DISPATCHER_ENABLED:-true}
     depends_on:
       postgres:
         condition: service_healthy
