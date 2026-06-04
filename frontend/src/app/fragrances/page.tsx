@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { FragranceCard } from '@/components/FragranceCard'
-import { FragranceFamilies } from '@/components/FragranceFamilies'
 import { api } from '@/lib/api'
 
-export default function FragrancesPage() {
+const LIMIT = 24
+
+function FragrancesContent() {
   const searchParams = useSearchParams()
 
   const family = searchParams.get('family') || undefined
@@ -16,8 +17,7 @@ export default function FragrancesPage() {
   const [offset, setOffset] = useState(0)
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
-
-  const LIMIT = 24
+  const [initialLoading, setInitialLoading] = useState(true)
 
   const loadData = async (reset = false) => {
     if (loading) return
@@ -38,74 +38,74 @@ export default function FragrancesPage() {
     setHasMore(items.length === LIMIT)
 
     setLoading(false)
+    setInitialLoading(false)
   }
 
-  // reload on filter change
   useEffect(() => {
-    if (!family && !query) return
-
     loadData(true)
   }, [family, query])
 
   return (
     <div className="p-6 space-y-10">
 
-      {/* STATE 1: NO FAMILY SELECTED */}
-      {!family && (
-        <div className="space-y-10">
-          <div className="text-center space-y-4">
-            <h1 className="text-4xl md:text-5xl font-serif italic text-white">
-              Choose a Family to Begin
-            </h1>
-            <p className="text-white/60">
-              Each family holds a universe of scents waiting to be discovered
-            </p>
-          </div>
+      <div className="space-y-8">
 
-          <FragranceFamilies />
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl md:text-4xl font-serif italic text-white">
+            {family ? (
+              <span className="capitalize">{family}</span>
+            ) : (
+              'Browse All Fragrances'
+            )}
+          </h1>
         </div>
-      )}
 
-      {/* STATE 2: FAMILY SELECTED */}
-      {family && (
-        <div className="space-y-8">
-
-          <div className="flex justify-between items-center">
-            <button
-              onClick={() => window.location.href = '/fragrances'}
-              className="text-white/60 hover:text-white"
-            >
-              ← Back to families
-            </button>
-
-            <div className="text-white capitalize text-xl">
-              {family}
-            </div>
+        {initialLoading ? (
+          <div className="text-white/60 text-center py-20">Loading fragrances...</div>
+        ) : data.length === 0 ? (
+          <div className="text-white/60 text-center py-20">
+            {family
+              ? `No fragrances found in the "${family}" family.`
+              : 'No fragrances found.'}
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {data.map((frag, index) => (
-              <FragranceCard
-                key={frag.id}
-                frag={frag}
-                index={index}
-              />
-            ))}
-          </div>
-
-          {hasMore && (
-            <div className="flex justify-center">
-              <button
-                onClick={() => loadData()}
-                className="px-6 py-3 border border-white/20 rounded-xl text-white hover:bg-white/10 transition"
-              >
-                Load More
-              </button>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {data.map((frag, index) => (
+                <FragranceCard
+                  key={frag.id}
+                  frag={frag}
+                  index={index}
+                />
+              ))}
             </div>
-          )}
-        </div>
-      )}
+
+            {hasMore && (
+              <div className="flex justify-center">
+                <button
+                  onClick={() => loadData()}
+                  disabled={loading}
+                  className="px-6 py-3 border border-white/20 rounded-xl text-white hover:bg-white/10 transition disabled:opacity-50"
+                >
+                  {loading ? 'Loading...' : 'Load More'}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+      </div>
 
     </div>
+  )
+}
+
+export default function FragrancesPage() {
+  return (
+    <Suspense fallback={
+      <div className="p-6 text-white/60 text-center py-20">Loading fragrances...</div>
+    }>
+      <FragrancesContent />
+    </Suspense>
   )
 }
