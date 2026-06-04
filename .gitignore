@@ -75,3 +75,7 @@ state0.png
 # deliverables (local evidence packages, not committed)
 deliverables/
 DELIVERABLES/
+
+# root-level stray npm installs (project lives in frontend/)
+/package.json
+/package-lock.json
