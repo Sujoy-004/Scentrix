@@ -57,6 +57,7 @@ export default function RecommendationsPage() {
   const { data: recommendations, isLoading, error } = useRecommendations() as { data: FragranceRecommendation[] | undefined, isLoading: boolean, error: any };
   const { addToWishlist, isAuthenticated, quizResponses } = useAppStore();
   const [mounted, setMounted] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(10);
 
   useEffect(() => {
     setMounted(true);
@@ -131,7 +132,7 @@ export default function RecommendationsPage() {
     );
   }
 
-  const topMatches = recommendations.slice(0, 10);
+  const topMatches = recommendations.slice(0, visibleCount);
   const topFragrance = topMatches[0];
   const palette = getFragrancePalette(topFragrance);
 
@@ -236,6 +237,23 @@ export default function RecommendationsPage() {
             />
           ))}
         </motion.div>
+
+        {visibleCount < recommendations.length && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-center mt-12 pb-8"
+          >
+            <motion.button
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.95 }}
+              className="btn btn-outline border-primary/30 text-primary px-12 py-4 text-xs tracking-[0.3em] font-bold"
+              onClick={() => setVisibleCount((prev) => prev + 10)}
+            >
+              Show More Recommendations <ArrowRight className="ml-2" size={16} />
+            </motion.button>
+          </motion.div>
+        )}
       </div>
     </motion.div>
   );

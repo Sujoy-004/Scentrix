@@ -101,6 +101,9 @@ export default function Navbar() {
         <div className="navbar-links-desktop">
           {!isAuthenticated ? (
             <>
+              <MagneticLink href="/recommendations" isActive={pathname === '/recommendations'} onClick={() => router.push('/recommendations')}>
+                Discover
+              </MagneticLink>
               <MagneticLink href="/auth/login" isActive={pathname === '/auth/login'} onClick={() => router.push('/auth/login')}>
                 Log In
               </MagneticLink>
@@ -153,6 +156,7 @@ export default function Navbar() {
             <div className="mobile-links-container">
               {!isAuthenticated ? (
                 <>
+                  <MobileNavLink icon={<Sparkles size={18} />} label="Discover" onClick={() => { router.push('/recommendations'); setIsOpen(false); }} variants={itemVariants} />
                   <MobileNavLink icon={<User size={18} />} label="Log In" onClick={() => { router.push('/auth/login'); setIsOpen(false); }} variants={itemVariants} />
                   <motion.button 
                     variants={itemVariants}
@@ -168,7 +172,6 @@ export default function Navbar() {
                   <MobileNavLink icon={<Sparkles size={18} />} label="Personalized Quiz" onClick={() => { router.push('/quiz'); setIsOpen(false); }} variants={itemVariants} />
                   <MobileNavLink icon={<Heart size={18} />} label="Scent Shelf" onClick={() => { router.push('/collection'); setIsOpen(false); }} variants={itemVariants} />
                   <MobileNavLink icon={<Settings size={18} />} label="Account" onClick={() => { router.push('/profile'); setIsOpen(false); }} variants={itemVariants} />
-
                   <button className="mobile-logout" onClick={handleLogout}>
                     <LogOut size={18} /> Sign Out
                   </button>

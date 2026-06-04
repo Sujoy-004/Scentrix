@@ -105,6 +105,14 @@ export function HeroSection() {
             >
               Browse Library <Search className="ml-2" size={18} />
             </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05, y: -4 }}
+              whileTap={{ scale: 0.95 }}
+              className="btn btn-outline px-10 py-5 text-sm"
+              onClick={() => router.push('/recommendations')}
+            >
+              Browse Popular Picks <Sparkles className="ml-2" size={18} />
+            </motion.button>
           </motion.div>
 
           {/* Trust Indicators */}

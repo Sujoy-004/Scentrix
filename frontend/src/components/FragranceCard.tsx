@@ -149,10 +149,18 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
         {(() => {
           const reasonText = computeReason(frag, quizResponses);
           return reasonText ? (
-            <div className="mb-5 p-4 rounded-xl bg-white/[0.03] border border-white/10">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-400/80 mb-1.5">Why Recommended</p>
+            <motion.div
+              className="mb-5 p-4 rounded-xl bg-white/[0.06] border border-amber-500/20"
+              whileHover={{
+                backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                borderColor: 'rgba(251, 191, 36, 0.5)',
+                scale: 1.02
+              }}
+              transition={{ duration: 0.2 }}
+            >
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-300 mb-1.5">Why Recommended</p>
               <p className="text-sm leading-relaxed text-white/90">{reasonText}</p>
-            </div>
+            </motion.div>
           ) : null;
         })()}
 
