@@ -33,26 +33,27 @@ class MetricsWrapper:
             relevant = ground_truth.get(cold_id, set())
 
             ranked_list = sorted(all_scores.items(), key=lambda x: -x[1])
-            found_any = False
-            for rank, (item_id, _) in enumerate(ranked_list, start=1):
-                if item_id in relevant:
-                    found_any = True
-                    for k in self.k_values:
-                        if rank <= k:
-                            aggregated.setdefault(f"Precision@{k}", []).append(1.0 / k)
-                            aggregated.setdefault(f"NDCG@{k}", []).append(1.0 / np.log2(rank + 1))
-                            aggregated.setdefault(f"Recall@{k}", []).append(1.0 / len(relevant))
-                        else:
-                            aggregated.setdefault(f"Precision@{k}", []).append(0.0)
-                            aggregated.setdefault(f"NDCG@{k}", []).append(0.0)
-                            aggregated.setdefault(f"Recall@{k}", []).append(0.0)
-                    break
+            n_rel = len(relevant)
 
-            if not found_any:
-                for k in self.k_values:
-                    aggregated.setdefault(f"Precision@{k}", []).append(0.0)
-                    aggregated.setdefault(f"NDCG@{k}", []).append(0.0)
+            for k in self.k_values:
+                top_k = ranked_list[:k]
+                relevant_ranks = [rank for rank, (item_id, _) in enumerate(top_k, start=1) if item_id in relevant]
+                n_found = len(relevant_ranks)
+
+                # Precision@k
+                aggregated.setdefault(f"Precision@{k}", []).append(n_found / k)
+
+                # Recall@k
+                if n_rel > 0:
+                    aggregated.setdefault(f"Recall@{k}", []).append(n_found / n_rel)
+                else:
                     aggregated.setdefault(f"Recall@{k}", []).append(0.0)
+
+                # NDCG@k — true cumulative gain across all relevant items
+                dcg = sum(1.0 / np.log2(rank + 1) for rank in relevant_ranks)
+                idcg = sum(1.0 / np.log2(i + 1) for i in range(1, min(n_rel, k) + 1))
+                ndcg = dcg / idcg if idcg > 0 else 0.0
+                aggregated.setdefault(f"NDCG@{k}", []).append(ndcg)
 
         return {metric: sum(vals) / len(vals) for metric, vals in aggregated.items()}
 

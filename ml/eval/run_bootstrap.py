@@ -25,7 +25,7 @@ def per_item_ndcg(
     ground_truth: dict[str, set[str]],
     k: int = 10,
 ) -> dict[str, float]:
-    """Compute per-item NDCG@10 scores."""
+    """Compute per-item true NDCG@k scores (cumulative gain across all relevant items)."""
     scores = {}
     for cid in predictions:
         if cid not in ground_truth or not ground_truth[cid]:
@@ -33,14 +33,65 @@ def per_item_ndcg(
         ranked = predictions.get(cid, [])
         all_scores = {rec_id: score for rec_id, score in ranked}
         relevant = ground_truth.get(cid, set())
+        n_rel = len(relevant)
         ranked_list = sorted(all_scores.items(), key=lambda x: -x[1])
-        ndcg = 0.0
-        for rank, (item_id, _) in enumerate(ranked_list, start=1):
-            if item_id in relevant and rank <= k:
-                ndcg = 1.0 / np.log2(rank + 1)
-                break
+        top_k = ranked_list[:k]
+        dcg = sum(1.0 / np.log2(rank + 1) for rank, (item_id, _) in enumerate(top_k, start=1) if item_id in relevant)
+        idcg = sum(1.0 / np.log2(i + 1) for i in range(1, min(n_rel, k) + 1))
+        ndcg = dcg / idcg if idcg > 0 else 0.0
         scores[cid] = ndcg
     return scores
+
+
+def _build_ground_truth_jaccard(
+    cold_ids: list[str],
+    item_map: dict[str, dict],
+) -> dict[str, set[str]]:
+    ground_truth = {}
+    for cold_id in cold_ids:
+        cold_item = item_map.get(cold_id)
+        if cold_item is None:
+            continue
+        cold_notes = cold_item["all_notes"]
+        cold_primary = cold_item["primary_accord"]
+        relevant = set()
+        for other_id, other_item in item_map.items():
+            if other_id == cold_id:
+                continue
+            if other_item["primary_accord"] != cold_primary:
+                continue
+            other_notes = other_item["all_notes"]
+            union = cold_notes | other_notes
+            jaccard = len(cold_notes & other_notes) / len(union) if union else 0.0
+            if jaccard > 0.20:
+                relevant.add(other_id)
+        if relevant:
+            ground_truth[cold_id] = relevant
+    return ground_truth
+
+
+def _build_ground_truth_brand_accord(
+    cold_ids: list[str],
+    item_map: dict[str, dict],
+) -> dict[str, set[str]]:
+    ground_truth = {}
+    for cold_id in cold_ids:
+        cold_item = item_map.get(cold_id)
+        if cold_item is None:
+            continue
+        cold_brand = cold_item["brand"]
+        cold_primary = cold_item["primary_accord"]
+        if not cold_brand or cold_primary == "Unknown":
+            continue
+        relevant = set()
+        for other_id, other_item in item_map.items():
+            if other_id == cold_id:
+                continue
+            if other_item["brand"] == cold_brand and other_item["primary_accord"] == cold_primary:
+                relevant.add(other_id)
+        if relevant:
+            ground_truth[cold_id] = relevant
+    return ground_truth
 
 
 def main():
@@ -71,7 +122,7 @@ def main():
     cold_ids = split_result.cold_items
     warm_ids = split_result.warm_items
 
-    # Ground truth
+    # Build item map (union of fields needed by all GT modes)
     item_map = {}
     for item in raw_data:
         fid = item.get("id", "")
@@ -82,28 +133,15 @@ def main():
         item_map[fid] = {
             "all_notes": top | mid | base,
             "primary_accord": raw_accords[0] if raw_accords else "Unknown",
+            "brand": str(item.get("brand", "")).lower(),
         }
 
-    ground_truth = {}
-    for cold_id in cold_ids:
-        cold_item = item_map.get(cold_id)
-        if cold_item is None:
-            continue
-        cold_notes = cold_item["all_notes"]
-        cold_primary = cold_item["primary_accord"]
-        relevant = set()
-        for other_id, other_item in item_map.items():
-            if other_id == cold_id:
-                continue
-            if other_item["primary_accord"] != cold_primary:
-                continue
-            other_notes = other_item["all_notes"]
-            union = cold_notes | other_notes
-            jaccard = len(cold_notes & other_notes) / len(union) if union else 0.0
-            if jaccard > 0.20:
-                relevant.add(other_id)
-        if relevant:
-            ground_truth[cold_id] = relevant
+    # Ground truth — selected by gt_mode config
+    logger.info("Ground truth mode: %s", config.gt_mode)
+    if config.gt_mode == "brand_accord":
+        ground_truth = _build_ground_truth_brand_accord(cold_ids, item_map)
+    else:
+        ground_truth = _build_ground_truth_jaccard(cold_ids, item_map)
 
     logger.info("Ground truth: %d cold items with relevant sets", len(ground_truth))
     cold_ids_filtered = list(ground_truth.keys())

@@ -164,14 +164,11 @@ class EvaluationOrchestrator:
 
         return np.array(node_features_list, dtype=np.float32), node_ids
 
-    def _build_ground_truth(
-        self,
-        cold_ids: list[str],
-    ) -> dict[str, set[str]]:
+    def _load_item_map(self) -> dict[str, dict]:
         data_path = Path(self.config.data_path)
         if not data_path.exists():
             logger.error("Cannot build ground truth: data file not found at %s", data_path)
-            return {cid: set() for cid in cold_ids}
+            return {}
 
         with open(data_path, "r", encoding="utf-8") as f:
             all_items = json.load(f)
@@ -187,8 +184,15 @@ class EvaluationOrchestrator:
                 "all_notes": top | mid | base,
                 "primary_accord": raw_accords[0] if raw_accords else "Unknown",
                 "accords": set(raw_accords),
+                "brand": str(item.get("brand", "")).lower(),
             }
+        return item_map
 
+    def _build_ground_truth_jaccard(
+        self,
+        cold_ids: list[str],
+        item_map: dict[str, dict],
+    ) -> dict[str, set[str]]:
         ground_truth = {}
         for cold_id in cold_ids:
             cold_item = item_map.get(cold_id)
@@ -224,6 +228,58 @@ class EvaluationOrchestrator:
                 excluded, before, 100.0 * excluded / before,
             )
         return ground_truth
+
+    def _build_ground_truth_brand_accord(
+        self,
+        cold_ids: list[str],
+        item_map: dict[str, dict],
+    ) -> dict[str, set[str]]:
+        ground_truth = {}
+        for cold_id in cold_ids:
+            cold_item = item_map.get(cold_id)
+            if cold_item is None:
+                continue
+
+            cold_brand = cold_item["brand"]
+            cold_primary = cold_item["primary_accord"]
+
+            if not cold_brand or cold_primary == "Unknown":
+                continue
+
+            relevant: set[str] = set()
+            for other_id, other_item in item_map.items():
+                if other_id == cold_id:
+                    continue
+                if other_item["brand"] == cold_brand and other_item["primary_accord"] == cold_primary:
+                    relevant.add(other_id)
+
+            if relevant:
+                ground_truth[cold_id] = relevant
+
+        before = len(ground_truth)
+        ground_truth = {k: v for k, v in ground_truth.items() if v}
+        excluded = before - len(ground_truth)
+        if excluded:
+            logger.info(
+                "Excluded %d/%d cold items with empty relevant set from metrics (%.1f%%)",
+                excluded, before, 100.0 * excluded / before,
+            )
+        return ground_truth
+
+    def _build_ground_truth(
+        self,
+        cold_ids: list[str],
+    ) -> dict[str, set[str]]:
+        item_map = self._load_item_map()
+        if not item_map:
+            return {cid: set() for cid in cold_ids}
+
+        mode = self.config.gt_mode
+        logger.info("Ground truth mode: %s", mode)
+
+        if mode == "brand_accord":
+            return self._build_ground_truth_brand_accord(cold_ids, item_map)
+        return self._build_ground_truth_jaccard(cold_ids, item_map)
 
     def _save_splits(self, split_result: SplitResult, run_dir: Path) -> None:
         split_result.warm_df.to_csv(
