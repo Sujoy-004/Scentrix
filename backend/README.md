@@ -8,7 +8,7 @@ FastAPI-based REST API for fragrance discovery, direct rating onboarding, and st
 - Fragrance catalog search and detail from Neo4j knowledge graph
 - State-driven 5-state recommendation dispatcher (Cold Exploration → Taste Initialising → Taste Active → Taste Mature)
 - Direct rating via Star button on FragranceCards — replaces quiz as primary initialization path
-- Legacy adaptive quiz (implemented but superseded — quiz ratings never reach the recommendation pipeline)
+- Adaptive quiz — per-item quiz ratings are the primary input for State 1 USER_VECTOR preference initialization (see ARCHITECTURE-FREEZE.md §5)
 - Lead capture and GDPR data deletion
 - Sommelier AI insight generation for fragrance collections
 
@@ -80,11 +80,11 @@ See [ARCHITECTURE-FREEZE.md](../ARCHITECTURE-FREEZE.md) for the canonical 5-stat
 | Service | Role |
 |---------|------|
 | `dispatcher.py` | 5-state dispatcher — routes requests based on `rating_count` |
-| `gs_embeddings.py` | GraphSAGE centroid + KNN retrieval on precomputed Jaccard embeddings |
+| `gs_embeddings.py` | GraphSAGE embedding cache — user-vector (primary), centroid (legacy), KNN retrieval on precomputed Jaccard embeddings |
 | `feature_based.py` | Accord/note overlap scoring from rated items |
 | `popularity.py` | Global popularity ranking (State 0 fallback) |
 | `hybrid_search.py` | Legacy hybrid search (retained as fallback) |
-| `quiz_store.py` | Quiz session management (superseded — ratings never reach recommendations) |
+| `quiz_store.py` | Quiz session management — quiz ratings feed State 1 USER_VECTOR path |
 
 ## Configuration
 

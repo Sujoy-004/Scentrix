@@ -4,7 +4,7 @@ Cold-start fragrance recommendation via GraphSAGE on a Jaccard-similarity graph.
 
 ## What It Does
 
-The ML system evaluates GraphSAGE's ability to reconstruct a cold-start fragrance's relevant neighbours from its feature profile, without any interaction history. The central finding: graph construction methodology (embedding-based vs Jaccard-based edges) determines model quality more than the GNN itself.
+The ML system evaluates GraphSAGE's ability to reconstruct a cold-start fragrance's relevant neighbours from its feature profile, without any interaction history. The current evaluation pipeline uses a note-Jaccard ground truth definition. ⚠️ Phase 5.1 audit found this evaluation has two methodological flaws: (1) NDCG@10 was computed as RR@10, and (2) ground truth uses the same signal (note-Jaccard) as the Jaccard graph — creating a circular evaluation. Fixes are applied (Fix A: true NDCG) and proposed (Fix B: brand+accord ground truth) in the `ml/eval/` pipeline but not yet committed. All values below are from the original pipeline. See Phase 5.1 CONTEXT.md for full audit details and corrected numbers.
 
 ## Model: GraphSAGE
 
@@ -37,7 +37,7 @@ Two strategies, compared head-to-head in the evaluation:
 - Zero embedding signal in edge construction
 - Independent structural signal from fragrance note composition
 
-The ablation proves independent edge construction is critical: Jaccard graph recovers 2.7× NDCG improvement over the circular embedding graph.
+The ablation shows Jaccard graph outperforms the circular embedding graph under the original pipeline. ⚠️ Phase 5.1 audit found the gap shrinks under corrected metric (true NDCG) and non-circular ground truth (brand+accord) — the "2.7×" figure is specific to the original flawed methodology.
 
 ## Evaluation Pipeline
 
@@ -61,17 +61,19 @@ The pipeline:
 6. Runs Jaccard threshold sweep (0.10–0.30) with degree-split reporting
 7. Compares against Popularity, Random, Feature-Only, and Content-Only baselines
 
-## Key Results
+## Key Results (original pipeline — under evaluation audit)
 
-| Model | NDCG@10 | Notes |
+⚠️ All values below use the original pipeline methodology (RR@10 labeled as NDCG@10, note-Jaccard circular ground truth). Phase 5.1 audit found these numbers change under corrected methodology. See Phase 5.1 CONTEXT.md for before/after comparison.
+
+| Model | Reported NDCG@10 (was RR@10) | Notes (original pipeline) |
 |---|---|---|
-| GraphSAGE-Jaccard | 0.494–0.523 | Primary result |
+| GraphSAGE-Jaccard | 0.494–0.523 | Original primary result |
 | GraphSAGE-Embedding | 0.183–0.191 | Circular graph — baseline |
-| Feature-Only | 0.557 | Near-oracle, not fair comparison |
+| Feature-Only | 0.557 | Near-oracle under old GT |
 | Popularity | 0.008 | Naive baseline |
 | Random | 0.031 | Naive baseline |
 
-Key finding: embedding-derived graph construction introduces feature circularity that degrades NDCG by 63%. Jaccard-based independent edges recover 2.7× improvement (p≤0.001, d=0.93, n=10000 bootstrap).
+Original finding: embedding-derived graph construction introduces feature circularity. ⚠️ Phase 5.1 audit: the 63% degradation / 2.7× improvement figures use circular ground truth and RR@10. Under Fix A+B, the gap narrows to ~24% relative degradation, ~1.24× recovery (true NDCG, brand+accord GT).
 
 ## Directory Structure
 

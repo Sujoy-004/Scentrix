@@ -3,38 +3,47 @@
 **Research Theme:** Graph-Based Preference Initialisation for Cold-Start Recommendation in Zero-Interaction Domains
 **Primary Objective:** Demonstrate feasibility and operational deployability of graph-based preference initialization
 
+## Project Context
+
+Scentrix is a 3rd-year undergraduate research project for MEXT scholarship interviews (July 2026). Research theme: "Graph-Based Preference Initialisation for Cold-Start Recommendation in Zero-Interaction Domains." Started as a product-oriented perfume platform, pivoted to research. See [CHANGELOG.md](./CHANGELOG.md) for phase history and requirement traceability.
+
+**Key constraints:** Local Docker only, no cloud costs. Precision@10 and NDCG@10 evaluation (Matsuo/Kashima lab standards). Popularity + Random baselines only (CF/MF meaningless for cold-start). Results presented as MEXT interview demo, not paper submission.
+
 graph-based cold-start fragrance recommendation.
 
 ## what's the move?
 
-hybrid research + engineering. the thesis: **graph construction > model architecture**. embedding-derived similarity graphs introduce feature circularity that degrades NDCG by 63%. structurally independent Jaccard edges? 2.7× recovery. numbers don't lie.
+hybrid research + engineering. the thesis: **cold-start preference initialization via direct user-vector from quiz ratings**. the original pipeline (confidence → seeds → centroid → GraphSAGE) discarded per-item rating information at every stage. the USER_VECTOR path (rating-weighted embedding sum → KNN) preserves the full signal and achieves +14.9% FH / +41.4% NDCG over centroid — simpler, faster, better.
 
-## the numbers (locked in)
+## the numbers (original pipeline — under evaluation audit)
 
-| Model | Precision@10 | NDCG@10 | Recall@10 | tea |
-|---|---|---|---|---|
-| GraphSAGE-Jaccard (pure_cold) | 0.0745 | **0.504** | 0.0926 | primary result. graph built right. |
-| GraphSAGE-Embedding (pure_cold) | 0.0306 | **0.197** | 0.0216 | circular KNN — 63% relative L |
-| GraphSAGE-Jaccard (quiz_init) | 0.063 | **0.405** | 0.057 | quiz reranker, α=0.3. tried. |
-| Feature-Only | 0.0782 | **0.557** | 0.0932 | near-oracle. not a fair fight. |
-| Content-Only (oracle) | 0.0860 | **0.581** | 0.1225 | uses exact ground truth. upper bound. |
-| Popularity | 0.0019 | **0.008** | 0.0010 | baseline. it's something. |
-| Random | 0.0045 | **0.021** | 0.0011 | absolute floor. random go brr. |
+⚠️ Phase 5.1 evaluation audit found the evaluation methodology had two flaws: (1) NDCG@10 was computed as RR@10 (break on first relevant item), and (2) ground truth used note-Jaccard >0.20, which is circular with the Jaccard graph. Values below are from the original pipeline. Fix A (true NDCG) applied, Fix B (brand+accord GT) proposed — gap narrows under corrected methodology.
 
-**bootstrap significance (n=10000, paired, one-sided):**
-
-| Comparison | p-value | Cohen's d | verdict |
+| Model | Precision@10 | Reported NDCG@10 (was RR@10) | Recall@10 |
 |---|---|---|---|
-| Jaccard vs Embedding | ≤0.001 | 0.93 | significant, large effect. this is the claim. |
-| Jaccard vs Popularity | ≤0.001 | 1.87 | significant, huge effect. |
-| Jaccard vs Random | ≤0.001 | 1.72 | significant, huge effect. |
-| Jaccard vs Feature-Only | 1.000 | -0.149 | not significant. expected — claim isn't about beating it. |
+| GraphSAGE-Jaccard (pure_cold) | 0.0745 | **0.504** | 0.0926 |
+| GraphSAGE-Embedding (pure_cold) | 0.0306 | **0.197** | 0.0216 |
+| GraphSAGE-Jaccard (quiz_init) | 0.063 | **0.405** | 0.057 |
+| Feature-Only | 0.0782 | **0.557** | 0.0932 |
+| Content-Only (oracle) | 0.0860 | **0.581** | 0.1225 |
+| Popularity | 0.0019 | **0.008** | 0.0010 |
+| Random | 0.0045 | **0.021** | 0.0011 |
 
-**the headline:**
+**bootstrap significance (n=10000, original pipeline):** Jaccard vs Embedding: p≤0.001, d=0.93. Jaccard vs Feature-Only: p=1.000, d=-0.149.
 
-GraphSAGE-Jaccard (0.504) vs GraphSAGE-Embedding (0.197). same model. different graph. **2.7× improvement**. p≤0.001, d=0.93. graph construction methodology is the critical determinant — not model architecture, not loss function, not training procedure.
+**headline:** GraphSAGE-Jaccard (0.504) vs GraphSAGE-Embedding (0.197) under the original pipeline. Feature-Only (0.557) leads all models but has no mechanism to incorporate user interactions — GraphSAGE-Jaccard provides an extensible foundation. ⚠️ Phase 5.1 evaluation audit: these numbers change under corrected metric and ground truth (see Phase 5.1 CONTEXT.md for before/after comparison).
 
-Feature-Only (0.557) doesn't get beat by GraphSAGE-Jaccard (p=1.000). and that's fine. Feature-Only hits its ceiling day one — no mechanism to incorporate user interactions. GraphSAGE-Jaccard provides an extensible foundation that scales with data. twin, it's about the ceiling, not the floor.
+## key decisions
+
+| Decision | Rationale | Outcome |
+|----------|-----------|---------|
+| GraphSAGE on Neo4j | Graph-based preference init for cold-start — core hypothesis | Complete — Jaccard NDCG@10=0.504 vs Embedding 0.197 |
+| Adaptive confidence quiz | Preference init without interaction history | Complete — analyzed; does not beat pure_cold (0.496 vs 0.504) |
+| Popularity + Random baselines | Only honest cold-start baselines | Complete — NDCG@10=0.008, 0.021 |
+| Precision@10 + NDCG@10 | Standard metrics for target labs | Complete — ranx-based, operational |
+| Local Docker only | No cloud costs, sufficient | Confirmed |
+| GraphSAGE as Preference Init Layer | Feature-Only beats GS at every coldness level | Architecture Freeze — GS alongside FB, never alone |
+| USER_VECTOR over centroid | Preserves per-item signal, simpler, faster | Production — +14.9% FH / +41.4% NDCG, ~10× faster |
 
 ## the architecture
 
@@ -44,7 +53,7 @@ See [ARCHITECTURE-FREEZE.md](./ARCHITECTURE-FREEZE.md) for the canonical 5-state
 
 5 Docker containers — Postgres 15, Neo4j 5, Redis 7, FastAPI backend, Next.js frontend. 5,000 quality-filtered items (from 22,740). 24 brands. 48 accords. 16,244 edges at threshold 0.20.
 
-The recommendation flow: zero ratings → State 0 (popularity). Tap the Star → State 2 (blended GraphSAGE + feature-based). 5 ratings → State 3 (feature-based). 20 → State 4 (feature-based + diversity). The adaptive quiz at `/quiz` is implemented but its ratings never reach recommendations — direct in-card rating via Star is the initialization path.
+The recommendation flow: zero ratings → State 0 (popularity). Complete quiz → State 1 (GraphSAGE — user-vector from per-item ratings, centroid legacy fallback). Tap Star → State 2 (blended). 5 ratings → State 3 (feature-based). 20 → State 4 (feature-based + diversity).
 
 ### run the web app
 
@@ -64,18 +73,18 @@ Opens at `http://localhost:3000`.
 | 0.25 | 10,821 | 84.9% | 0.554 | 127 |
 | 0.30 | 6,341 | 65.4% | 0.642 | 292 |
 
-stricter threshold → better quality → worse coverage. 0.20 is the sweet spot. 99.2% of cold items stay connected. the tradeoff is quantified. no guessing.
+## quiz_init (superseded by USER_VECTOR)
 
-## quiz_init — honest take
+⚠️ The centroid-based quiz_init below uses the old pipeline (confidence → seeds → centroid). Replaced in production by USER_VECTOR (direct embedding lookup from per-item ratings, no centroid step). USER_VECTOR validation: +14.9% FH, +41.4% NDCG over centroid.
 
-| metric | value |
+| metric | value (old pipeline) |
 |---|---|
 | mean NDCG@10 (5 seeds) | 0.496 |
 | pure_cold baseline | 0.504 |
 | std dev | 0.023 |
 | beats baseline | 2/5 runs |
 
-**verdict:** does NOT reliably beat pure_cold. the improvement at seed=42 (0.521) was a lucky quiz draw. reranker is directionally correct — but simulated quiz signal is weak. need real user data. we published this negative result because transparency is the move.
+Old centroid-based quiz_init does NOT reliably beat pure_cold. USER_VECTOR is the production replacement.
 
 ## coldness stratification
 
@@ -86,26 +95,26 @@ stricter threshold → better quality → worse coverage. 0.20 is the sweet spot
 | Feature-Only | 0.5573 | 0.5464 | 0.5801 |
 | Popularity | 0.0078 | 0.0115 | 0.0113 |
 
-Feature-Only leads at all levels. GraphSAGE-Jaccard monotonic ✓. GraphSAGE-Embedding non-monotonic — drops from 0.198 to 0.161 — reveals embedding graph can't handle low-pop items.
+Feature-Only leads all levels (original pipeline). ⚠️ Values change under corrected metric (true NDCG) and non-circular ground truth (brand+accord). GraphSAGE-Jaccard monotonic. Embedding non-monotonic (drops from 0.198 to 0.161 — low-pop connectivity weakness).
 
-**caveat:** Levels 1-2 leak because model trained on full warm set. scores look better than they should. acknowledged in paper.
+## roadmap
+
+Phases 9–12 are planned but unordered (next milestone):
+
+| Phase | Focus |
+|-------|-------|
+| 9 | Graph Sync — incremental Jaccard edge rebuild, stale embedding detection |
+| 10 | Auth & Ratings — JWT auth + rating loop, Redis per-user cache |
+| 11 | Frontend Integration — quiz flow UI, cold→warm transition UX |
+| 12 | Observability — structured logging, load testing, Docker Compose production config |
+
+See [CHANGELOG.md](./CHANGELOG.md) for full phase history, sub-phase details, and requirement→phase traceability.
 
 ## run it yourself
 
 ```bash
-# canonical run
-python -m ml.eval.pipeline --mode pure_cold --seed 42
-
-# bootstrap (n=10000)
-python -m ml.eval.run_bootstrap
-
-# quiz sensitivity
-python -m ml.eval.pipeline --mode quiz_sensitivity
-
-# stratification grid
-python -m ml.eval.pipeline --mode stratification
+python -m ml.eval.pipeline --mode pure_cold --seed 42  # canonical run
+python -m ml.eval.run_bootstrap                           # bootstrap n=10000
+python -m ml.eval.pipeline --mode quiz_sensitivity        # quiz sensitivity
+python -m ml.eval.pipeline --mode stratification          # stratification grid
 ```
-
-## final word, homie
-
-63% degradation if you build your graph wrong. 2.7× recovery if you build it right. graph construction > model architecture. the numbers are the numbers.
