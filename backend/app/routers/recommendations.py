@@ -27,9 +27,10 @@ from app.services.gs_embeddings import gs_service
 from app.services.hybrid_search import _catalog_embeddings_cache, recommender
 from app.services.popularity import PopularityService
 
-# ── Feature flag ───────────────────────────────────────────────────────────────
+# ── Feature flags ──────────────────────────────────────────────────────────────
 
 PHASE8_DISPATCHER_ENABLED: bool = settings.phase8_dispatcher_enabled
+USE_USER_VECTOR: bool = settings.use_user_vector
 
 # ── Phase 8 dispatcher singleton (lazy-initialised services) ──────────────────
 
@@ -233,12 +234,19 @@ async def get_guest_recommendations(
         if dispatcher is not None:
             catalog = load_recommendation_catalog()
             dr = DispatchRequest(
-                ratings=request.ratings,
+                # When quiz_confidence is present (quiz completed), ratings=[] so
+                # rating_count=0 → State 1 → GraphSAGEStrategy receives quiz
+                # responses via quiz_ratings for the user-vector path.
+                # When there is no quiz, ratings are accumulated user ratings
+                # and drive normal State 2/3/4 routing.
+                ratings=[] if request.quiz_confidence else request.ratings,
+                quiz_ratings=request.ratings if request.quiz_confidence else [],
                 # Shortcut: quiz_confidence present → quiz completed.
                 # Functionally equivalent to the design spec's
                 # len(responses) > 0 check on the session payload.
                 quiz_completed=request.quiz_confidence is not None,
                 quiz_confidence=request.quiz_confidence,
+                use_user_vector=USE_USER_VECTOR,
                 catalog=catalog,
                 candidate_count=50,
                 popularity_service=_popularity_service,
@@ -313,6 +321,7 @@ async def get_personalized_recommendations(
                 user_id=user_id,
                 ratings=ratings,
                 quiz_completed=quiz_completed,
+                use_user_vector=USE_USER_VECTOR,
                 catalog=catalog,
                 candidate_count=50,
                 popularity_service=_popularity_service,

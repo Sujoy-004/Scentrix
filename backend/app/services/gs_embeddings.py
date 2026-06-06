@@ -259,6 +259,70 @@ class GraphSAGEService:
                 )
         return indices, valid_ids
 
+    # -- User vector (primary) ----------------------------------------------
+
+    def compute_user_vector(
+        self,
+        item_ratings: list[tuple[str, float]],
+    ) -> np.ndarray:
+        """Compute an L2‑normalised rating‑weighted user vector.
+
+        u = mean(rating_weight × item_embedding) for all rated items.
+        Each embedding is weighted by its rating normalised to [0.1, 1.0].
+
+        Parameters
+        ----------
+        item_ratings : list[tuple[str, float]]
+            (fragrance_id, rating 1‑10) pairs from the user's quiz responses.
+
+        Returns
+        -------
+        np.ndarray, shape (64,), dtype float64
+            L2‑unit‑normalised user preference vector.
+
+        Raises
+        ------
+        RuntimeError
+            If the embedding cache has not been initialised.
+        ValueError
+            If *item_ratings* is empty or no IDs resolve.
+        """
+        self._require_initialized()
+
+        if not item_ratings:
+            raise ValueError("compute_user_vector: item_ratings must not be empty")
+
+        weighted_sum: np.ndarray | None = None
+        total_weight = 0.0
+
+        for fid, rating in item_ratings:
+            idx = self._id_to_idx.get(fid) if self._id_to_idx else None
+            if idx is None:
+                logger.warning(
+                    "GraphSAGE: user-vector ID %s not found in embedding index", fid,
+                )
+                continue
+            emb = self._embeddings[idx]
+            weight = rating / 10.0  # normalise [1, 10] → [0.1, 1.0]
+            if weighted_sum is None:
+                weighted_sum = weight * emb
+            else:
+                weighted_sum += weight * emb
+            total_weight += weight
+
+        if weighted_sum is None or total_weight <= 0:
+            raise ValueError(
+                "compute_user_vector: none of the provided fragrance IDs exist "
+                "in the embedding index"
+            )
+
+        u = weighted_sum / total_weight
+        norm = np.linalg.norm(u)
+        if norm > 0:
+            u = u / norm
+
+        return u
+
     # -- Weighted centroid (M2) ---------------------------------------------
 
     def compute_centroid(

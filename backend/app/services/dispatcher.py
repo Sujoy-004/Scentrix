@@ -28,8 +28,10 @@ class DispatchRequest:
 
     user_id: int | None = None
     ratings: list[Any] = field(default_factory=list)
+    quiz_ratings: list[Any] = field(default_factory=list)
     quiz_completed: bool = False
     quiz_confidence: dict[str, float] | None = None
+    use_user_vector: bool = False
     catalog: list[dict[str, Any]] | None = None
     candidate_count: int = 12
     gs_service: Any = None
@@ -97,12 +99,42 @@ class PopularityStrategy(RecommendationStrategy):
 
 
 class GraphSAGEStrategy(RecommendationStrategy):
-    """State 1: GraphSAGE centroid + KNN from quiz confidence."""
+    """State 1: GraphSAGE centroid/KNN from quiz confidence or user vector."""
 
     async def execute(self, request: DispatchRequest) -> DispatchResult:
         source = "graphsage"
         fallback_chain: list[str] = [source]
         try:
+            gs = request.gs_service
+            if gs is None:
+                raise ValueError("gs_service_unavailable")
+
+            # ── User-vector path (primary) ─────────────────────────────────
+            uv_ratings = request.quiz_ratings if request.quiz_ratings else request.ratings
+            if request.use_user_vector and uv_ratings:
+                item_ratings = [(r.fragrance_id, r.rating) for r in uv_ratings]
+                user_vector = gs.compute_user_vector(item_ratings)
+                exclude_ids = [r.fragrance_id for r in uv_ratings]
+                candidates = gs.knn_search(
+                    user_vector, top_k=200, exclude_ids=exclude_ids,
+                )
+                for item in candidates:
+                    item["source"] = source
+
+                return DispatchResult(
+                    recommendations=candidates,
+                    source=source,
+                    state=1,
+                    state_label="quiz_user",
+                    metadata={
+                        "rated_count": len(item_ratings),
+                        "candidate_count": len(candidates),
+                        "mode": "user_vector",
+                    },
+                    fallback_chain=fallback_chain,
+                )
+
+            # ── Centroid path (legacy) ─────────────────────────────────────
             catalog = request.catalog if request.catalog is not None else []
             if request.quiz_confidence is not None and catalog:
                 seed_ids, weights = _align_quiz_confidence(
@@ -112,11 +144,7 @@ class GraphSAGEStrategy(RecommendationStrategy):
                 seed_ids, weights = [], []
 
             if not seed_ids:
-                raise ValueError("no_seeds")  # triggers fallback
-
-            gs = request.gs_service
-            if gs is None:
-                raise ValueError("gs_service_unavailable")  # triggers fallback
+                raise ValueError("no_seeds")
 
             centroid = gs.compute_centroid(seed_ids, weights)
             candidates = gs.knn_search(centroid, top_k=200, exclude_ids=seed_ids)
@@ -131,6 +159,7 @@ class GraphSAGEStrategy(RecommendationStrategy):
                 metadata={
                     "seed_count": len(seed_ids),
                     "candidate_count": len(candidates),
+                    "mode": "centroid",
                     "alpha": 0.0,
                 },
                 fallback_chain=fallback_chain,

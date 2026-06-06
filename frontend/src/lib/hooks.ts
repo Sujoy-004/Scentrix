@@ -70,11 +70,18 @@ export function useRecommendations() {
         return api.getPersonalizedRecommendations();
       }
 
-      // Guest with quiz confidence: pass empty ratings so dispatcher routes to
-      // State 1 (Quiz User) → GraphSAGEStrategy (centroid + KNN from accords).
-      // The accord-level confidence data already encodes the user's preferences.
+      // Guest with quiz confidence: pass per-item ratings alongside accord
+      // confidence. Backend routes to State 1 (Quiz User) → GraphSAGEStrategy.
+      // If USE_USER_VECTOR is enabled, per-item ratings build a user vector;
+      // otherwise falls back to centroid from quiz_confidence.
       if (quizConfidence) {
-        return api.getGuestRecommendations([], quizConfidence);
+        return api.getGuestRecommendations(
+          quizResponses.map(r => ({
+            fragrance_id: r.fragrance_id,
+            rating: r.rating,
+          })),
+          quizConfidence,
+        );
       }
 
       // Guest without quiz: pass raw ratings for State 0/2/3/4 routing.
