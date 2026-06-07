@@ -65,15 +65,28 @@ The pipeline:
 
 ⚠️ All values below use the original pipeline methodology (RR@10 labeled as NDCG@10, note-Jaccard circular ground truth). Phase 5.1 audit found these numbers change under corrected methodology. See Phase 5.1 CONTEXT.md for before/after comparison.
 
-| Model | Reported NDCG@10 (was RR@10) | Notes (original pipeline) |
+**Original pipeline (pre-Fix-B) — NOT reproducible:**
+
+| Model | NDCG@10 (was RR@10) | Notes |
 |---|---|---|
-| GraphSAGE-Jaccard | 0.494–0.523 | Original primary result |
+| GraphSAGE-Jaccard | 0.494–0.523 | Original primary result — circular GT inflated |
 | GraphSAGE-Embedding | 0.183–0.191 | Circular graph — baseline |
 | Feature-Only | 0.557 | Near-oracle under old GT |
 | Popularity | 0.008 | Naive baseline |
 | Random | 0.031 | Naive baseline |
 
-Original finding: embedding-derived graph construction introduces feature circularity. ⚠️ Phase 5.1 audit: the 63% degradation / 2.7× improvement figures use circular ground truth and RR@10. Under Fix A+B, the gap narrows to ~24% relative degradation, ~1.24× recovery (true NDCG, brand+accord GT).
+**Corrected (Fix A + Fix B, brand_accord GT, true NDCG) — canonical:**
+
+| Model | NDCG@10 | Notes |
+|---|---|---|
+| Feature-Only | **0.399** | Dominates — 3.47× over GS-Jaccard |
+| GraphSAGE-Jaccard | **0.115** | 1.21× over GS-Embedding (p=0.008, d=0.11) |
+| GraphSAGE-Embedding | **0.095** | Non-monotonic across coldness levels |
+| Content-Only | 0.047 | Description embedding cosine |
+| Popularity | 0.000 | Cold-start floor |
+| Random | 0.001 | Performance floor |
+
+Original finding (embedding-derived graph introduces feature circularity) is superseded by the corrected finding: after removing evaluation leakage, Feature-Only dominates by 3.47×, and the primary contribution is methodological — evaluation methodology matters more than model complexity.
 
 ## Directory Structure
 
