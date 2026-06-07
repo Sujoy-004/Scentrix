@@ -1,9 +1,12 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import { FragranceCard } from '@/components/FragranceCard'
+import { BrowseFilters } from '@/components/BrowseFilters'
 import { api } from '@/lib/api'
+import './fragrances.css'
 
 const LIMIT = 24
 
@@ -12,14 +15,18 @@ function FragrancesContent() {
 
   const family = searchParams.get('family') || undefined
   const query = searchParams.get('q') || undefined
+  const brand = searchParams.get('brand') || undefined
+  const concentration = searchParams.get('concentration') || undefined
+  const sort = searchParams.get('sort') || undefined
 
   const [data, setData] = useState<any[]>([])
+  const [total, setTotal] = useState(0)
   const [offset, setOffset] = useState(0)
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [initialLoading, setInitialLoading] = useState(true)
 
-  const loadData = async (reset = false) => {
+  const loadData = useCallback(async (reset = false) => {
     if (loading) return
     setLoading(true)
 
@@ -28,74 +35,98 @@ function FragrancesContent() {
     const res = await api.getFragranceCatalog(
       LIMIT,
       currentOffset,
-      { family, q: query }
+      { family, q: query, brand, sort }
     )
 
-    const items = (res.data && res.data.items) || res.items || []
+    const responseData = res.data || res
+    const items = responseData.items || []
+    const newTotal = responseData.total ?? 0
 
+    setTotal(newTotal)
     setData(prev => reset ? items : [...prev, ...items])
     setOffset(prev => reset ? LIMIT : prev + LIMIT)
     setHasMore(items.length === LIMIT)
 
     setLoading(false)
     setInitialLoading(false)
-  }
+  }, [family, query, brand, sort, offset, loading])
 
   useEffect(() => {
+    setInitialLoading(true)
+    setData([])
+    setOffset(0)
+    setHasMore(true)
     loadData(true)
-  }, [family, query])
+  }, [family, query, brand, sort])
 
   return (
-    <div className="p-6 space-y-10">
+    <div className="browse-page">
+      <div className="container mx-auto px-6">
 
-      <div className="space-y-8">
-
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl md:text-4xl font-serif italic text-white">
+        <header className="browse-header">
+          <h1 className="font-display italic text-white">
             {family ? (
               <span className="capitalize">{family}</span>
             ) : (
-              'Browse All Fragrances'
+              'Discover Fragrances'
             )}
           </h1>
+          <p className="text-sm text-white/50">
+            Explore by family, note, or brand
+          </p>
+        </header>
+
+        <BrowseFilters total={total} loading={loading} />
+
+        <div className="mt-10">
+          {initialLoading ? (
+            <div className="text-white/40 text-center py-20 text-sm">Loading fragrances…</div>
+          ) : data.length === 0 ? (
+            <div className="text-center py-20">
+              <p className="text-white/40 text-sm">No fragrances match your filters.</p>
+              <button
+                onClick={() => window.location.href = '/fragrances'}
+                className="mt-4 text-xs font-bold uppercase tracking-wider text-amber-400 hover:text-amber-300 transition-colors"
+              >
+                Clear filters
+              </button>
+            </div>
+          ) : (
+            <>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={[family, query, brand, sort].join('|')}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+                >
+                  {data.map((frag, index) => (
+                    <FragranceCard
+                      key={frag.id}
+                      frag={frag}
+                      index={index}
+                    />
+                  ))}
+                </motion.div>
+              </AnimatePresence>
+
+              {hasMore && (
+                <div className="flex justify-center mt-10">
+                  <button
+                    onClick={() => loadData(false)}
+                    disabled={loading}
+                    className="px-8 py-3 border border-white/20 rounded-xl text-white/70 text-sm hover:bg-white/[0.06] transition disabled:opacity-40"
+                  >
+                    {loading ? 'Loading…' : 'Load More'}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
-        {initialLoading ? (
-          <div className="text-white/60 text-center py-20">Loading fragrances...</div>
-        ) : data.length === 0 ? (
-          <div className="text-white/60 text-center py-20">
-            {family
-              ? `No fragrances found in the "${family}" family.`
-              : 'No fragrances found.'}
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {data.map((frag, index) => (
-                <FragranceCard
-                  key={frag.id}
-                  frag={frag}
-                  index={index}
-                />
-              ))}
-            </div>
-
-            {hasMore && (
-              <div className="flex justify-center">
-                <button
-                  onClick={() => loadData()}
-                  disabled={loading}
-                  className="px-6 py-3 border border-white/20 rounded-xl text-white hover:bg-white/10 transition disabled:opacity-50"
-                >
-                  {loading ? 'Loading...' : 'Load More'}
-                </button>
-              </div>
-            )}
-          </>
-        )}
-
       </div>
-
     </div>
   )
 }
@@ -103,7 +134,11 @@ function FragrancesContent() {
 export default function FragrancesPage() {
   return (
     <Suspense fallback={
-      <div className="p-6 text-white/60 text-center py-20">Loading fragrances...</div>
+      <div className="browse-page">
+        <div className="container mx-auto px-6">
+          <div className="text-white/40 text-center py-20 text-sm">Loading fragrances…</div>
+        </div>
+      </div>
     }>
       <FragrancesContent />
     </Suspense>

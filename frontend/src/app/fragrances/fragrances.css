@@ -1,0 +1,28 @@
+.browse-page {
+  padding-top: 6rem;
+  padding-bottom: 5rem;
+  min-height: 100vh;
+}
+
+.browse-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.browse-header h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  margin-bottom: 0.5rem;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  height: 2px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
