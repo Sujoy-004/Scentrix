@@ -9,7 +9,10 @@ def test_health_check():
     """Test health check endpoint."""
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "success", "data": {"status": "ok"}}
+    body = response.json()
+    assert body["status"] == "success"
+    assert body["data"]["status"] == "ok"
+    # gs_embeddings may be present; accept both shapes
 
 
 def test_root():
