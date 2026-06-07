@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# redundant png assets (webp preferred)
+public/assets/family/*.png
+
 # debug
 npm-debug.log*
 yarn-debug.log*
