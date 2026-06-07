@@ -14,12 +14,15 @@ dist/
 build/
 logs/
 ml/scripts/tmp/
-!ml/data/scentrix_master.json
-!ml/data/embeddings.npy
+ml/data/
+!ml/data/__init__.py
 !ml/data/embedding_index.json
+!ml/data/scentrix_master.json
+!ml/data/scentrix_master_cleaned.json
 # Results packages
 mext_demo_package_*.zip
 ml/eval/runs/
+ml/models/serving/v1/
 
 # junk / generated
 _brain/
@@ -35,9 +38,7 @@ htmlcov/
 # test artifacts
 frontend/test-results/
 frontend/playwright-report/
-
-# python coverage
-backend/.coverage
+frontend/tests/visual-regression.spec.ts-snapshots/*.zip
 
 # secrets / credentials
 *.key
