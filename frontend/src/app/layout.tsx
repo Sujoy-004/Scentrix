@@ -6,6 +6,7 @@ import Providers from "@/components/Providers";
 import StringTuneManager from "@/components/StringTuneManager";
 import CookieBanner from "@/components/CookieBanner";
 import PageTransition from "@/components/PageTransition";
+import { ToastContainer } from "@/components/Toast";
 // import PostHogPageView from "@/components/PostHogPageView";
 import { Suspense } from "react";
 
@@ -58,6 +59,7 @@ export default function RootLayout({
             </PageTransition>
           </main>
           <CookieBanner />
+          <ToastContainer />
         </Providers>
 
       </body>
