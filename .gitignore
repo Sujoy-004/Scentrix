@@ -38,7 +38,7 @@ htmlcov/
 # test artifacts
 frontend/test-results/
 frontend/playwright-report/
-frontend/tests/visual-regression.spec.ts-snapshots/*.zip
+frontend/tests/visual-regression.spec.ts-snapshots/
 
 # secrets / credentials
 *.key
