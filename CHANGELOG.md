@@ -13,6 +13,49 @@ Two parallel sub-phase efforts transformed the architecture and evaluation metho
 
 **Phase 8.1 — Dispatcher vs Legacy Validation:** 5-state dispatcher validated against legacy (State 0 top-5 identical). Detailed per-state comparison captured in Phase 8.1 CONTEXT.md.
 
+## Phase 11 — Quiz Flow Integration (2026-06-07)
+
+Phase 11 delivered the end-to-end quiz flow across four waves of frontend and backend work, completing the user-facing recommendation pipeline.
+
+### Wave 1 — Guest Quiz Persistence
+
+**Files:** `backend/app/routers/quiz.py`, `backend/app/schemas/schemas.py`, `frontend/src/components/StandardQuiz.tsx`
+
+- Added `POST /fragrances/quiz/session/{session_id}/guest-finalize` endpoint using `get_optional_user_id` (no JWT requirement for guests, delegates to DB upsert for authenticated users).
+- Guest quizzes persist in Redis (session store); authenticated quizzes sync to `FragranceRating` table.
+- `StandardQuiz.tsx` calls `guestFinalizeQuizSession` after quiz completion.
+- No new DB tables, no schema migrations.
+
+### Wave 2 — StateIndicator + Cold→Warm Transition UX
+
+**Files:** `frontend/src/components/StateIndicator.tsx`, `frontend/src/app/recommendations/page.tsx`, `frontend/src/app/recommendations/recommendations.css`, `backend/app/services/dispatcher.py`, `backend/app/routers/recommendations.py`
+
+- `StateIndicator.tsx` component covers all 5 states with descriptions, strategies, next-action CTAs, and progress bars for States 1–3.
+- `/recommendations` page header is state-aware (5 distinct badge/title/subtitle sets per state).
+- Backend: `state` (int 0–4) and `state_label` added as optional fields on `StandardResponse` — backward-compatible.
+- `DispatchResult` carries `state` + `state_label` from the 5-state machine.
+
+### Wave 3A — Last Quiz Summary
+
+**Files:** `backend/app/schemas/schemas.py`, `backend/app/routers/recommendations.py`, `frontend/src/lib/api.ts`, `frontend/src/lib/hooks.ts`, `frontend/src/app/profile/history/page.tsx`, `frontend/src/app/profile/history/history.css`
+
+- `GET /recommendations/quiz-summary` returns `QuizSummaryResponse` (`has_completed_quiz`, `completed_at`, `total_rated`, `average_rating`, `average_normalized`, `rating_distribution`, `top_matches`, `top_notes`, `top_accords`).
+- `/profile/history` page rewritten: removed fake 3-entry timeline, rendered single real summary card from `useQuizSummary()` hook.
+- All data computed from existing `FragranceRating` + `FeatureBasedService.score()` + `load_recommendation_catalog` — no new services or tables.
+
+### Wave 3B — Quiz Flow Polish
+
+**Files:** `frontend/src/components/StandardQuiz.tsx`, `frontend/src/app/quiz/quiz.css`
+
+- **Extension flow:** After last seed question, calls `evaluateSession({force:false})`. If `extension_required`, shows prompt with confidence band and question count; accepting fetches more questions via `getNextQuizQuestions`, appends to queue, continues rating.
+- **Loading overlay:** Dual-ring neural spinner + "Synthesizing Your Neural Profile" during finalization.
+- **Success screen:** "Discovery Protocol Complete" with stats (scents rated, confidence level) and "View Your Recommendations" CTA.
+- **Error handling:** All 3 previously silent `.catch(console.warn)` sites replaced with visible inline error banners on loading/success screens (non-blocking, fail open).
+
+### Test inventory
+
+137 backend tests across 8 files. 136 pass, 1 pre-existing failure (`test_health.py::test_health_check` — response shape mismatch). Phase 11 additions have zero dedicated test coverage. Frontend has no test infrastructure. E2E smoke test (`e2e_smoke.py`): 34 checks, all pass, but manual (out-of-repo, not in CI).
+
 ## [Unreleased] — Phase 8 Dispatcher Activation & Quiz-Finalize Bridge (2026-06-05)
 
 Activated Phase 8 dispatcher (config default True, docker-compose env var) and wired quiz-finalize bridge so the research pipeline (State 1 → GraphSAGE centroid → KNN → recommendations) executes end-to-end through the UI. Docker build fixed: `Dockerfile:45` now copies `scentrix_master.json` (not deleted `fra_elite_24k.json`).
@@ -77,26 +120,29 @@ Activated Phase 8 dispatcher (config default True, docker-compose env var) and w
 | 8 | ✅ | 5-State Dispatcher |
 | 8.1 | ✅ | Dispatcher vs Legacy Validation |
 | 8a | ✅ | Direct Rating MVP + Frontend Integration |
-| 9–12 | 🔲 | Planned (Graph Sync, Auth, Frontend, Observability) |
+| 9 | ❌ | Out of Scope — graph sync irrelevant for static MEXT dataset |
+| 10 | ⚠️ | Reduced Scope — guest persistence merged into Phase 11 |
+| 11 | ✅ | Quiz Flow Integration — 5 deliverables across Waves 1–3B |
+| 12 | 🔲 | Pending — Observability, structured logging, monitoring |
 
 ## Requirement Traceability
 
-20 v1 requirements (PIPE-01–03, EVAL-01–07, RSCH-01–07, DEMO-01–03) — all complete across Phases 1–6. 12 v2 requirements (SRV-01–10) — Phases 7–8 complete, 9–12 planned.
+20 v1 requirements (PIPE-01–03, EVAL-01–07, RSCH-01–07, DEMO-01–03) — all complete across Phases 1–6. 12 v2 requirements (SRV-01–10) — Phases 7–8 and 11 complete; Phases 9–10 dropped/rescoped; Phase 12 pending.
 
-| Phase | Requirements |
-|-------|-------------|
-| 1 | PIPE-01, PIPE-02 |
-| 2 | EVAL-01, EVAL-02, EVAL-03 |
-| 3 | EVAL-04, EVAL-05, EVAL-06, EVAL-07 |
-| 4 | RSCH-01, RSCH-02 |
-| 5 | PIPE-03, RSCH-03, RSCH-04, RSCH-05, RSCH-06, RSCH-07 |
-| 6 | DEMO-01, DEMO-02, DEMO-03 |
-| 7 | SRV-01, SRV-02a |
-| 8 | SRV-02, SRV-02b |
-| 9 | SRV-03 |
-| 10 | SRV-04, SRV-05 |
-| 11 | SRV-06 |
-| 12 | SRV-07, SRV-08, SRV-09, SRV-10 |
+| Phase | Requirements | Status |
+|-------|-------------|--------|
+| 1 | PIPE-01, PIPE-02 | ✅ |
+| 2 | EVAL-01, EVAL-02, EVAL-03 | ✅ |
+| 3 | EVAL-04, EVAL-05, EVAL-06, EVAL-07 | ✅ |
+| 4 | RSCH-01, RSCH-02 | ✅ |
+| 5 | PIPE-03, RSCH-03, RSCH-04, RSCH-05, RSCH-06, RSCH-07 | ✅ |
+| 6 | DEMO-01, DEMO-02, DEMO-03 | ✅ |
+| 7 | SRV-01, SRV-02a | ✅ |
+| 8 | SRV-02, SRV-02b | ✅ |
+| 9 | SRV-03 | ❌ Out of Scope |
+| 10 | SRV-04, SRV-05 | ⚠️ Reduced Scope |
+| 11 | SRV-06 | ✅ |
+| 12 | SRV-07, SRV-08, SRV-09, SRV-10 | 🔲 Pending |
 
 **Coverage:** 32 requirements mapped, 0 unmapped. Out of scope: production deployment, mobile app, OAuth, notifications, payments, admin dashboard, multi-language, full user study.
 

@@ -55,6 +55,8 @@ See [ARCHITECTURE-FREEZE.md](./ARCHITECTURE-FREEZE.md) for the canonical 5-state
 
 The recommendation flow: zero ratings → State 0 (popularity). Complete quiz → State 1 (GraphSAGE — user-vector from per-item ratings, centroid legacy fallback). Tap Star → State 2 (blended). 5 ratings → State 3 (feature-based). 20 → State 4 (feature-based + diversity).
 
+API responses include `state` (0–4) and `state_label` to inform the frontend of the current dispatch state. Quiz endpoints include `POST /fragrances/quiz/session/{session_id}/guest-finalize` for guest persistence and `GET /recommendations/quiz-summary` for the Last Quiz Summary card on `/profile/history`.
+
 ### run the web app
 
 ```bash
@@ -99,16 +101,25 @@ Feature-Only leads all levels (original pipeline). ⚠️ Values change under co
 
 ## roadmap
 
-Phases 9–12 are planned but unordered (next milestone):
-
-| Phase | Focus |
-|-------|-------|
-| 9 | Graph Sync — incremental Jaccard edge rebuild, stale embedding detection |
-| 10 | Auth & Ratings — JWT auth + rating loop, Redis per-user cache |
-| 11 | Frontend Integration — quiz flow UI, cold→warm transition UX |
-| 12 | Observability — structured logging, load testing, Docker Compose production config |
+| Phase | Status | Focus |
+|-------|--------|-------|
+| 9 | ❌ Out of Scope | Graph Sync — irrelevant for static MEXT dataset |
+| 10 | ⚠️ Reduced Scope | Auth & Ratings — guest persistence merged into Phase 11 |
+| 11 | ✅ Complete | Quiz Flow Integration — 5 deliverables across Waves 1–3B |
+| 12 | 🔲 Pending | Observability — structured logging, load testing, monitoring |
 
 See [CHANGELOG.md](./CHANGELOG.md) for full phase history, sub-phase details, and requirement→phase traceability.
+
+### Phase 11 — Quiz Flow Integration (Complete)
+
+Phase 11 delivered the end-to-end quiz→recommendation user experience across five deliverables:
+
+| Wave | Deliverable | Summary |
+|------|-------------|---------|
+| 1 | Guest Quiz Persistence | `POST /fragrances/quiz/session/{session_id}/guest-finalize` — Redis session finalization for guests, DB upsert for authenticated users |
+| 2 | StateIndicator + Cold→Warm UX | `StateIndicator.tsx` component, 5-state-aware header on `/recommendations`, `state`/`state_label` in API responses |
+| 3A | Last Quiz Summary | `GET /recommendations/quiz-summary` endpoint, `/profile/history` page rewritten from mock timeline to real summary card |
+| 3B | Quiz Flow Polish | Extension flow UI (evaluate→prompt→fetch more questions), loading overlay during finalization, post-completion success screen, user-visible error handling |
 
 ## run it yourself
 

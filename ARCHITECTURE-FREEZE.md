@@ -406,4 +406,32 @@ If ratings deleted (GDPR): State 4 → State 0. State does NOT regress on quiz r
 
 ---
 
-*Architecture Freeze: 2026-05-30*
+## 10. API Layer Exposures (Phase 11)
+
+The following API additions surface dispatch state and quiz data without changing the retrieval architecture.
+
+### State exposure
+
+All recommendation responses (`GET /recommendations/guest`, `GET /recommendations/personalized`) return optional fields:
+- `state` (int, 0–4): Current dispatch state per the lifecycle in §2.
+- `state_label` (string): Human-readable label ("Anonymous", "Quiz User", "Cold", "Warm", "Mature").
+
+The frontend uses these to render the state-aware header and StateIndicator component on `/recommendations`. They are backward-compatible — existing clients ignoring these fields receive identical payloads.
+
+### Guest quiz finalize
+
+- `POST /fragrances/quiz/session/{session_id}/guest-finalize`
+- For guests: marks the Redis session as finalized (no DB write).
+- For authenticated users: delegates to the existing `POST /{session_id}/finalize` (DB upsert).
+- Uses `get_optional_user_id` dependency (no JWT requirement).
+
+### Quiz summary
+
+- `GET /recommendations/quiz-summary`
+- Authenticated only (JWT required).
+- Returns `QuizSummaryResponse` with fields: `has_completed_quiz`, `completed_at`, `total_rated`, `average_rating`, `average_normalized`, `rating_distribution`, `top_matches`, `top_notes`, `top_accords`.
+- Computed entirely from existing DB tables (`User.quiz_completed_at`, `FragranceRating`, `FeatureBasedService.score()`, `load_recommendation_catalog`) — no new tables, no schema migrations.
+
+---
+
+*Architecture Freeze: 2026-05-30 (Phase 11 addendum: 2026-06-07)*
