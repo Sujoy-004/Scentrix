@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { useRecommendations } from '@/lib/hooks';
 import { useAppStore } from '@/stores/app-store';
+import { useToastStore } from '@/stores/toast-store';
+import { buildLearningSummary } from '@/lib/reason-engine';
 import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
 import { FragranceCard } from '@/components/FragranceCard';
 import StateIndicator from '@/components/StateIndicator';
@@ -55,10 +57,13 @@ const cardVariants = {
 
 export default function RecommendationsPage() {
   const router = useRouter();
-  const { data: recommendations, isLoading, error, state, stateLabel } = useRecommendations() as { data: FragranceRecommendation[] | undefined, isLoading: boolean, error: any, state: number | null, stateLabel: string | null };
-  const { addToWishlist, isAuthenticated, quizResponses } = useAppStore();
+  const recsQuery = useRecommendations();
+  const { data: recommendations, isLoading, error, state, stateLabel, isRefetching } = recsQuery as { data: FragranceRecommendation[] | undefined, isLoading: boolean, error: any, state: number | null, stateLabel: string | null, isRefetching: boolean };
+  const { isAuthenticated, quizResponses } = useAppStore();
+  const addToast = useToastStore((s) => s.addToast);
   const [mounted, setMounted] = useState(false);
   const [visibleCount, setVisibleCount] = useState(10);
+  const [showExplain, setShowExplain] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -239,21 +244,42 @@ export default function RecommendationsPage() {
           </div>
         </motion.div>
 
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="recommendations-grid-elite"
-        >
-          {topMatches.map((fragrance, index) => (
-            <FragranceCard 
-              key={fragrance.id || index}
-              frag={fragrance}
-              index={index}
-              showMatch={ratingCount > 0}
-            />
-          ))}
-        </motion.div>
+        {/* Refining indicator */}
+        {isRefetching && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="flex items-center justify-center gap-3 mb-6 py-3 rounded-xl"
+            style={{ background: 'rgba(244, 187, 146, 0.06)', border: '1px solid rgba(244, 187, 146, 0.12)' }}
+          >
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="text-xs font-bold uppercase tracking-widest text-amber-400/70">
+              Refining your matches…
+            </span>
+          </motion.div>
+        )}
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={isRefetching ? 'refetching' : 'stable'}
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.25 }}
+            className="recommendations-grid-elite"
+          >
+            {topMatches.map((fragrance, index) => (
+              <FragranceCard 
+                key={fragrance.id || index}
+                frag={fragrance}
+                index={index}
+                showMatch={ratingCount > 0}
+              />
+            ))}
+          </motion.div>
+        </AnimatePresence>
 
         {visibleCount < recommendations.length && (
           <motion.div
@@ -269,6 +295,71 @@ export default function RecommendationsPage() {
             >
               Show More Recommendations <ArrowRight className="ml-2" size={16} />
             </motion.button>
+          </motion.div>
+        )}
+
+        {/* Learning explainer */}
+        {ratingCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="mt-8"
+          >
+            <button
+              onClick={() => setShowExplain(!showExplain)}
+              className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/40 hover:text-white/60 transition-colors"
+            >
+              {showExplain ? '−' : '+'} How recommendations work
+            </button>
+            {showExplain && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="mt-4 p-5 rounded-2xl"
+                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-sm">
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-amber-400/60 mb-2">1. Rate Scents</p>
+                    <p className="text-white/60 leading-relaxed text-xs">
+                      Every fragrance you rate — in the quiz or on the browse page — builds your taste profile. High ratings signal notes and accords you love.
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-amber-400/60 mb-2">2. We Find Matches</p>
+                    <p className="text-white/60 leading-relaxed text-xs">
+                      Your profile is compared against our library using neural similarity and note matching. The more you rate, the sharper the match.
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-amber-400/60 mb-2">3. Refine Over Time</p>
+                    <p className="text-white/60 leading-relaxed text-xs">
+                      Each new rating refines your profile. The recommendation engine adapts — showing you less of what you dislike, more of what you love.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Learning profile summary */}
+            {(() => {
+              const learning = buildLearningSummary(quizResponses);
+              return learning.highlights.length > 0 ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="mt-6 p-5 rounded-2xl"
+                  style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+                >
+                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/30 mb-3">Your Taste Profile</p>
+                  {learning.highlights.map((h, i) => (
+                    <p key={i} className="text-xs text-white/60 leading-relaxed mb-1">• {h}</p>
+                  ))}
+                </motion.div>
+              ) : null;
+            })()}
           </motion.div>
         )}
       </div>
