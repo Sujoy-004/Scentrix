@@ -1,0 +1,4 @@
+# Locust generated outputs
+load_report*.html
+load_results_*.csv
+dry_run_report*.html
