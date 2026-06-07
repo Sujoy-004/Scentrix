@@ -18,6 +18,7 @@ from app.schemas.schemas import (
     FragranceRecommendation,
     FragranceRatingInput,
     GuestRecommendationRequest,
+    QuizSummaryResponse,
     StandardResponse,
 )
 from app.services.catalog import load_recommendation_catalog
@@ -254,7 +255,12 @@ async def get_guest_recommendations(
             result = await dispatcher.dispatch(dr)
             if result.recommendations:
                 data = [FragranceRecommendation(**r) for r in result.recommendations]
-                return {"status": "success", "data": data}
+                return {
+                    "status": "success",
+                    "data": data,
+                    "state": result.state,
+                    "state_label": result.state_label,
+                }
             logger.info("Phase 8 dispatcher returned empty results — falling through to legacy")
 
     # ── Legacy path ──────────────────────────────────────────────────────
@@ -284,7 +290,17 @@ async def get_personalized_recommendations(
     cached_recs = await cache.get(f"rec:user:{user_id}")
     if cached_recs:
         data = [FragranceRecommendation(**r) for r in cached_recs]
-        return {"status": "success", "data": data}
+        # Resolve state for cached response
+        user_stmt = select(User).where(User.id == user_id)
+        user_result = await db.execute(user_stmt)
+        user = user_result.scalar_one_or_none()
+        quiz_completed = user is not None and user.quiz_completed_at is not None
+        stmt_count = select(DBFragranceRating).where(DBFragranceRating.user_id == user_id)
+        count_result = await db.execute(stmt_count)
+        rating_count = len(count_result.scalars().all())
+        cached_state = RecommendationDispatcher.determine_state(rating_count, quiz_completed)
+        state_label = {0: "anonymous", 1: "quiz_user", 2: "cold", 3: "warm", 4: "mature"}.get(cached_state, "unknown")
+        return {"status": "success", "data": data, "state": cached_state, "state_label": state_label}
 
     if not db:
         return {"status": "success", "data": []}
@@ -335,7 +351,12 @@ async def get_personalized_recommendations(
                     expire=3600,
                 )
                 data = [FragranceRecommendation(**r) for r in dr_result.recommendations]
-                return {"status": "success", "data": data}
+                return {
+                    "status": "success",
+                    "data": data,
+                    "state": dr_result.state,
+                    "state_label": dr_result.state_label,
+                }
 
             logger.info("Phase 8 dispatcher returned empty — falling through to legacy")
 
@@ -374,6 +395,92 @@ async def get_personalized_recommendations(
 
     data = [FragranceRecommendation(**r) for r in results]
     return {"status": "success", "data": data}
+
+
+@router.get("/quiz-summary", response_model=StandardResponse)
+async def get_quiz_summary(
+    user_id: int = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_session),
+) -> StandardResponse:
+    """Return the last quiz summary built entirely from existing persisted data.
+
+    Uses only:
+    - User.quiz_completed_at — when the user last completed (finalized) a quiz
+    - FragranceRating — all quiz ratings for this user
+    - FeatureBasedService — to compute top matches from existing ratings
+    - load_recommendation_catalog — catalog lookup for accord/note analysis
+
+    No new tables, no timeline infrastructure, no schema changes.
+    """
+    user_stmt = select(User).where(User.id == user_id)
+    user_result = await db.execute(user_stmt)
+    user = user_result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    stmt = select(DBFragranceRating).where(DBFragranceRating.user_id == user_id)
+    result = await db.execute(stmt)
+    saved_ratings = result.scalars().all()
+
+    if not user.quiz_completed_at:
+        return {"status": "success", "data": QuizSummaryResponse(has_completed_quiz=False)}
+
+    ratings_list = [
+        FragranceRatingInput(
+            fragrance_id=r.fragrance_neo4j_id,
+            rating=r.quiz_rating or 5.0,
+        )
+        for r in saved_ratings
+    ]
+
+    catalog = load_recommendation_catalog()
+
+    top_matches: list[FragranceRecommendation] = []
+    top_notes: list[str] = []
+    top_accords: list[str] = []
+
+    if ratings_list and catalog:
+        fb_service = _feature_based_service or FeatureBasedService()
+        scored = fb_service.score(ratings_list, catalog, user_seed_ids=[], top_k=3)
+        for s in scored:
+            top_matches.append(FragranceRecommendation(**s))
+
+        catalog_map = {str(item["id"]): item for item in catalog}
+        note_counter: dict[str, int] = {}
+        accord_counter: dict[str, int] = {}
+        for r in saved_ratings:
+            item = catalog_map.get(r.fragrance_neo4j_id)
+            if item:
+                for note in item.get("top_notes", []):
+                    note_counter[str(note)] = note_counter.get(str(note), 0) + 1
+                for accord in item.get("accords", []):
+                    accord_counter[str(accord)] = accord_counter.get(str(accord), 0) + 1
+        top_notes = [n for n, _ in sorted(note_counter.items(), key=lambda x: -x[1])[:5]]
+        top_accords = [a for a, _ in sorted(accord_counter.items(), key=lambda x: -x[1])[:5]]
+
+    total = len(saved_ratings)
+    ratings_vals = [r.quiz_rating or 5.0 for r in saved_ratings]
+    avg = round(sum(ratings_vals) / len(ratings_vals), 1) if ratings_vals else None
+    avg_norm = round(avg / 2, 1) if avg is not None else None
+
+    high = sum(1 for v in ratings_vals if v >= 7)
+    medium = sum(1 for v in ratings_vals if 4 <= v <= 6)
+    low = sum(1 for v in ratings_vals if v < 4)
+
+    summary = QuizSummaryResponse(
+        has_completed_quiz=True,
+        completed_at=user.quiz_completed_at.isoformat(),
+        total_rated=total,
+        average_rating=avg,
+        average_normalized=avg_norm,
+        rating_distribution={"high": high, "medium": medium, "low": low},
+        top_matches=top_matches,
+        top_notes=top_notes,
+        top_accords=top_accords,
+    )
+
+    return {"status": "success", "data": summary}
 
 
 class SommelierInsightRequest(BaseModel):

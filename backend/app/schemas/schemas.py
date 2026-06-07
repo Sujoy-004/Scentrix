@@ -428,6 +428,8 @@ class StandardResponse(BaseModel):
     data: Any | None = None
     code: int | None = None
     message: str | None = None
+    state: int | None = None
+    state_label: str | None = None
 
 
 class FragranceRecommendation(BaseModel):
@@ -461,3 +463,15 @@ class GuestRatingInput(BaseModel):
 class GuestRecommendationRequest(BaseModel):
     ratings: list[GuestRatingInput]
     quiz_confidence: dict[str, float] | None = None
+
+
+class QuizSummaryResponse(BaseModel):
+    has_completed_quiz: bool
+    completed_at: str | None = None
+    total_rated: int = 0
+    average_rating: float | None = None
+    average_normalized: float | None = None
+    rating_distribution: dict[str, int] = {}
+    top_matches: list[FragranceRecommendation] = []
+    top_notes: list[str] = []
+    top_accords: list[str] = []

@@ -587,6 +587,43 @@ async def evaluate_quiz_session(
     return {"status": "success", "data": data}
 
 
+@router.post("/{session_id}/guest-finalize", response_model=StandardResponse)
+async def guest_finalize_quiz_session(
+    session_id: str,
+    user_id: int | None = Depends(get_optional_user_id),
+    db: AsyncSession = Depends(get_session),
+) -> StandardResponse:
+    """Finalize quiz session for guests or authenticated users.
+
+    For authenticated users: delegates to standard finalize logic (DB upsert).
+    For guests: marks session as finalized in Redis (no DB write).
+    """
+    effective_user_id = user_id if user_id is not None else 0
+    session_payload = _require_owned_session(
+        await get_quiz_session(session_id), session_id, effective_user_id
+    )
+
+    if user_id:
+        # Authenticated: delegate to standard finalize
+        return await finalize_quiz_session(session_id, user_id, db)
+
+    # Guest: mark session as finalized in Redis store
+    session_payload["finalized_at"] = datetime.now(UTC).isoformat()
+    session_payload["finalized"] = True
+    session_payload["updated_at"] = datetime.now(UTC).isoformat()
+
+    try:
+        await save_quiz_session(session_id=session_id, payload=session_payload)
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Quiz session store unavailable: {exc}",
+        )
+
+    logger.info(f"Quiz Session {session_id} finalized for guest.")
+    return {"status": "success", "data": {"message": "Guest quiz finalized"}}
+
+
 @router.get("/{session_id}/next-questions", response_model=StandardResponse)
 async def get_next_quiz_questions(
     session_id: str,

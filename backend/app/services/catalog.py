@@ -82,7 +82,8 @@ def _load_from_neo4j() -> list[dict[str, Any]]:
                 f.year as year,
                 f.concentration as concentration,
                 f.gender_label as gender_label,
-                f.popularity as popularity
+                f.popularity as popularity,
+                f.rating_count as rating_count
             """
             result = session.run(query)
             items_dict = {}
@@ -174,6 +175,7 @@ def load_recommendation_catalog(force_reload: bool = False) -> list[dict[str, An
             stable = abs(hash(str(row.get("id", ""))))
             row["rating"] = min(round(3.6 + ((stable % 14) / 10.0), 1), 5.0)
             row["match_score"] = min(round(70 + (stable % 31), 1), 100.0)
+            row["rating_count"] = (stable % 48) + 1
 
             # Pre-compute sets for performance (Heuristic Reranking)
             all_notes = (
