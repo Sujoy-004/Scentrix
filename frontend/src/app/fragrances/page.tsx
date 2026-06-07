@@ -31,7 +31,7 @@ function FragrancesContent() {
       { family, q: query }
     )
 
-    const items = res.items || []
+    const items = (res.data && res.data.items) || res.items || []
 
     setData(prev => reset ? items : [...prev, ...items])
     setOffset(prev => reset ? LIMIT : prev + LIMIT)
