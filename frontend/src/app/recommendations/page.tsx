@@ -17,6 +17,7 @@ import { useRecommendations } from '@/lib/hooks';
 import { useAppStore } from '@/stores/app-store';
 import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
 import { FragranceCard } from '@/components/FragranceCard';
+import StateIndicator from '@/components/StateIndicator';
 import { getFragrancePalette } from '@/lib/quizTheme';
 import './recommendations.css';
 
@@ -54,7 +55,7 @@ const cardVariants = {
 
 export default function RecommendationsPage() {
   const router = useRouter();
-  const { data: recommendations, isLoading, error } = useRecommendations() as { data: FragranceRecommendation[] | undefined, isLoading: boolean, error: any };
+  const { data: recommendations, isLoading, error, state, stateLabel } = useRecommendations() as { data: FragranceRecommendation[] | undefined, isLoading: boolean, error: any, state: number | null, stateLabel: string | null };
   const { addToWishlist, isAuthenticated, quizResponses } = useAppStore();
   const [mounted, setMounted] = useState(false);
   const [visibleCount, setVisibleCount] = useState(10);
@@ -137,9 +138,40 @@ export default function RecommendationsPage() {
   const palette = getFragrancePalette(topFragrance);
 
   const ratingCount = quizResponses.length;
-  const discoveryState =
-    ratingCount === 0 ? 'Cold Exploration' :
-    `Rated ${ratingCount} fragrance${ratingCount !== 1 ? 's' : ''}`;
+
+  const stateHeaderLabel: Record<number, { badge: string; title: string; subtitle: string }> = {
+    0: {
+      badge: 'Popular Picks',
+      title: 'Popular Fragrances',
+      subtitle: 'Browse top scents chosen by our community. Rate a few to get personalized recommendations.',
+    },
+    1: {
+      badge: 'Protocol Results Complete',
+      title: 'Your Aromatic Constellation',
+      subtitle: 'Finely tuned matches based on your neural preferences and taste geography.',
+    },
+    2: {
+      badge: 'Cold Start — Early Personalization',
+      title: 'Blended Matches',
+      subtitle: 'Blending your preferences with neural similarity to refine your profile.',
+    },
+    3: {
+      badge: 'Warm — Hybrid Learning',
+      title: 'Your Evolving Selection',
+      subtitle: 'Feature-based scoring with neural exploration to discover new favorites.',
+    },
+    4: {
+      badge: 'Mature — Diversity Optimized',
+      title: 'Curated for Depth',
+      subtitle: 'Diversity-optimized recommendations across the full olfactive spectrum.',
+    },
+  };
+
+  const header = state !== null && state in stateHeaderLabel
+    ? stateHeaderLabel[state]
+    : ratingCount === 0
+      ? stateHeaderLabel[0]
+      : stateHeaderLabel[1];
 
   return (
     <motion.div
@@ -186,24 +218,14 @@ export default function RecommendationsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="recommendations-header"
         >
-          {ratingCount === 0 ? (
-            <>
-              <div style={{ color: 'var(--color-primary)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '1rem' }}>Popular Picks</div>
-              <h1 className="font-display italic text-white mb-4">Popular Fragrances</h1>
-              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', maxWidth: '30rem', margin: '0 auto' }}>
-                Browse top scents chosen by our community. Rate a few to get personalized recommendations.
-              </p>
-            </>
-          ) : (
-            <>
-              <div style={{ color: 'var(--color-primary)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '1rem' }}>Protocol Results Complete</div>
-              <h1 className="font-display italic text-white mb-4">Your Aromatic Constellation</h1>
-              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', maxWidth: '30rem', margin: '0 auto' }}>
-                Finely tuned matches based on your neural preferences and taste geography.
-              </p>
-            </>
-          )}
+          <div style={{ color: 'var(--color-primary)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '1rem' }}>{header.badge}</div>
+          <h1 className="font-display italic text-white mb-4">{header.title}</h1>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', maxWidth: '30rem', margin: '0 auto' }}>
+            {header.subtitle}
+          </p>
         </motion.header>
+
+        <StateIndicator state={state} stateLabel={stateLabel} ratingCount={ratingCount} />
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -214,11 +236,6 @@ export default function RecommendationsPage() {
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '2rem', fontFamily: 'var(--font-display)', color: '#fff' }}>{topMatches.length}</div>
             <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700 }}>{ratingCount === 0 ? "Scents" : "Matches"}</div>
-          </div>
-
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '1rem', fontFamily: 'var(--font-display)', color: 'var(--color-primary)', letterSpacing: '0.02em' }}>{discoveryState}</div>
-            <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700 }}>Discovery State</div>
           </div>
         </motion.div>
 

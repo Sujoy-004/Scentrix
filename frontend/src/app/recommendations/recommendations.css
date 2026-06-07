@@ -165,3 +165,88 @@
   align-items: center;
   justify-content: center;
 }
+
+.state-indicator {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.5rem;
+  padding: 1.5rem 2rem;
+  margin-bottom: 3rem;
+}
+
+.state-indicator-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.state-indicator-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 100px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-primary, #f4bb92);
+}
+
+.state-indicator-code {
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.3);
+  font-family: monospace;
+  letter-spacing: 0.05em;
+}
+
+.state-indicator-desc {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+.state-indicator-strategy {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.35);
+  margin-bottom: 0.75rem;
+  font-family: monospace;
+  letter-spacing: 0.02em;
+}
+
+.state-indicator-action {
+  font-size: 0.7rem;
+  color: var(--color-primary, #f4bb92);
+  letter-spacing: 0.02em;
+  opacity: 0.8;
+}
+
+.state-progress {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.state-progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 0.5rem;
+}
+
+.state-progress-bar {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.state-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary-container, #8b5e3c), var(--color-primary, #f4bb92));
+  border-radius: 100px;
+}
