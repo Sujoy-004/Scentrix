@@ -74,6 +74,7 @@ SET f.name = $name,
 """
 
 _CREATE_BRAND_RELATIONSHIP = """
+MERGE (f:Fragrance {id: $id})
 MERGE (b:Brand {name: $brand})
 MERGE (f)-[:MADE_BY]->(b)
 """
@@ -187,11 +188,13 @@ class FragranceGraphIngestor:
                         if note_list:
                             session.run(
                                 f"""
-                                FOREACH (note IN $notes |
-                                    MERGE (n:Note {{name: note, category: $category}})
-                                    MERGE (f)-[:{rel_type}]->(n)
-                                )
+                                MERGE (f:Fragrance {{id: $id}})
+                                WITH f
+                                UNWIND $notes AS note
+                                MERGE (n:Note {{name: note, category: $category}})
+                                MERGE (f)-[:{rel_type}]->(n)
                                 """,
+                                id=fid,
                                 notes=list(
                                     dict.fromkeys(note_list)
                                 ),  # dedup preserve order
@@ -203,11 +206,13 @@ class FragranceGraphIngestor:
                     if accords:
                         session.run(
                             """
-                            FOREACH (accord IN $accords |
-                                MERGE (a:Accord {name: accord})
-                                MERGE (f)-[:BELONGS_TO_ACCORD]->(a)
-                            )
+                            MERGE (f:Fragrance {id: $id})
+                            WITH f
+                            UNWIND $accords AS accord
+                            MERGE (a:Accord {name: accord})
+                            MERGE (f)-[:BELONGS_TO_ACCORD]->(a)
                             """,
+                            id=fid,
                             accords=list(dict.fromkeys(accords)),  # dedup
                         )
                         stats["accords_created"] += len(set(accords))
