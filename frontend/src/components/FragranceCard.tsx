@@ -7,6 +7,7 @@ import { useAppStore } from '@/stores/app-store';
 import { useAddToCollection, useRemoveFromWishlist, useWishlist, useSubmitRating } from '@/lib/hooks';
 import { getFamilyAsset } from '@/lib/family-mapping';
 import { computeReason } from '@/lib/reason-engine';
+import { useToastStore } from '@/stores/toast-store';
 
 interface FragranceCardProps {
   frag: any;
@@ -30,12 +31,15 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
   const isSaved = isAuthenticated ? !!serverItem : isSavedLocally;
   const isRated = quizResponses.some(r => r.fragrance_id === frag.id);
 
+  const addToast = useToastStore((s) => s.addToast);
+
   const handleRate = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isRated) {
       useAppStore.setState((state) => ({
         quizResponses: state.quizResponses.filter(r => r.fragrance_id !== frag.id)
       }));
+      addToast({ message: `Removed rating for ${frag.name}`, type: 'info' });
     } else {
       addQuizResponse({
         fragrance_id: frag.id,
@@ -46,6 +50,18 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
         accords: frag.top_accords,
       });
       submitRating.mutate({ fragranceId: frag.id, rating: 8 });
+      addToast({
+        message: `Rated ${frag.name} — refining your matches`,
+        type: 'success',
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            useAppStore.setState((state) => ({
+              quizResponses: state.quizResponses.filter(r => r.fragrance_id !== frag.id)
+            }));
+          },
+        },
+      });
     }
   };
 
