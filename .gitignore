@@ -80,3 +80,7 @@ DELIVERABLES/
 # root-level stray npm installs (project lives in frontend/)
 /package.json
 /package-lock.json
+
+# superseded study docs (kept local, replaced by STUDY_GUIDE.md)
+/docs/scentrix_study_guide.html
+/docs/SCENTRIX_LEARNING_ROADMAP.md
