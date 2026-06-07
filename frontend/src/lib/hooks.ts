@@ -62,47 +62,54 @@ export function useRegister() {
 export function useRecommendations() {
   const { isAuthenticated, quizResponses, quizConfidence } = useAppStore();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['recommendations', isAuthenticated, quizResponses.length, !!quizConfidence],
     queryFn: async () => {
-      // Authenticated: fetch from personalized profile
-      if (isAuthenticated) {
-        return api.getPersonalizedRecommendations();
-      }
+      let result: any;
 
-      // Guest with quiz confidence: pass per-item ratings alongside accord
-      // confidence. Backend routes to State 1 (Quiz User) → GraphSAGEStrategy.
-      // If USE_USER_VECTOR is enabled, per-item ratings build a user vector;
-      // otherwise falls back to centroid from quiz_confidence.
-      if (quizConfidence) {
-        return api.getGuestRecommendations(
+      if (isAuthenticated) {
+        result = await api.getPersonalizedRecommendations();
+      } else if (quizConfidence) {
+        result = await api.getGuestRecommendations(
           quizResponses.map(r => ({
             fragrance_id: r.fragrance_id,
             rating: r.rating,
           })),
           quizConfidence,
         );
+      } else {
+        result = await api.getGuestRecommendations(
+          quizResponses.map(r => ({
+            fragrance_id: r.fragrance_id,
+            rating: r.rating,
+            top_notes: r.top_notes,
+            accords: r.accords,
+            name: r.name,
+            brand: r.brand
+          })),
+          null
+        );
       }
 
-      // Guest without quiz: pass raw ratings for State 0/2/3/4 routing.
-      return api.getGuestRecommendations(
-        quizResponses.map(r => ({
-          fragrance_id: r.fragrance_id,
-          rating: r.rating,
-          top_notes: r.top_notes,
-          accords: r.accords,
-          name: r.name,
-          brand: r.brand
-        })),
-        null
-      );
+      return {
+        recommendations: result?.data ?? [],
+        state: result?.state ?? null,
+        stateLabel: result?.state_label ?? null,
+      };
     },
     enabled: true,
     retry: (failureCount, error: any) => {
-      if (error?.response?.status === 403) return false; // Don't retry auth gates
+      if (error?.response?.status === 403) return false;
       return failureCount < 2;
     },
   });
+
+  return {
+    ...query,
+    data: query.data?.recommendations ?? [],
+    state: query.data?.state ?? null,
+    stateLabel: query.data?.stateLabel ?? null,
+  };
 }
 
 
@@ -201,5 +208,15 @@ export function useFragranceCatalog(limit: number, offset: number, filters?: { q
   return useQuery({
     queryKey: ['fragrance-catalog', limit, offset, filters],
     queryFn: () => api.getFragranceCatalog(limit, offset, filters),
+  });
+}
+
+export function useQuizSummary() {
+  return useQuery({
+    queryKey: ['quiz-summary'],
+    queryFn: async () => {
+      const res = await api.getQuizSummary();
+      return res?.data ?? null;
+    },
   });
 }

@@ -89,13 +89,12 @@ export const api = {
       ratings, 
       ...(quiz_confidence ? { quiz_confidence } : {}) 
     });
-    return data.data;
+    return data;
   },
 
-  // Fixed: maps to the correct backend endpoint name (/personalized not /for-me)
   getPersonalizedRecommendations: async () => {
     const { data } = await apiInstance.get('/recommendations/personalized');
-    return data.data;
+    return data;
   },
   // Adaptive Quiz Protocol
   startQuizSession: async (payload: { seed_count: number; candidate_pool_size: number; filters: any }) => {
@@ -135,6 +134,16 @@ export const api = {
 
   finalizeQuizSession: async (sessionId: string) => {
     const { data } = await apiInstance.post(`/fragrances/quiz/session/${sessionId}/finalize`);
+    return data;
+  },
+
+  guestFinalizeQuizSession: async (sessionId: string) => {
+    const { data } = await apiInstance.post(`/fragrances/quiz/session/${sessionId}/guest-finalize`);
+    return data;
+  },
+
+  getQuizSummary: async () => {
+    const { data } = await apiInstance.get('/recommendations/quiz-summary');
     return data;
   },
 };

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { Sparkles, AlertCircle } from 'lucide-react';
+import { Sparkles, AlertCircle, ChevronRight } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import { useAdaptiveQuizSession } from '@/lib/hooks';
 import { api, VALID_IDS } from '@/lib/api';
@@ -11,6 +11,8 @@ import { getFragrancePalette } from '@/lib/quizTheme';
 import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
 import posthog from 'posthog-js';
 import '@/app/quiz/quiz.css';
+
+type QuizPhase = 'rating' | 'extension-prompt' | 'loading' | 'success';
 
 export default function StandardQuiz() {
   const router = useRouter();
@@ -22,6 +24,15 @@ export default function StandardQuiz() {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [catalogError, setCatalogError] = useState<string | null>(null);
+
+  const [quizPhase, setQuizPhase] = useState<QuizPhase>('rating');
+  const [extensionQuestionsCount, setExtensionQuestionsCount] = useState(0);
+  const [finalError, setFinalError] = useState<string | null>(null);
+  const [sessionResult, setSessionResult] = useState<{
+    totalRated: number;
+    confidenceScore: number;
+    confidenceBand: string | null;
+  } | null>(null);
 
   // 3D TILT LOGIC
   const mouseX = useMotionValue(0);
@@ -69,19 +80,24 @@ export default function StandardQuiz() {
   };
 
   const handleNext = async (val: number = rating) => {
-    if (isTransitioning) return;
+    if (isTransitioning || quizPhase !== 'rating') return;
     setIsTransitioning(true);
 
     const currentFragrance = fragrances[currentFragranceIndex];
     if (currentFragrance) {
       store.addQuizResponse({ ...currentFragrance, rating: val });
 
+      const isCore = store.adaptiveQuiz.phase === 'core';
+      store.markAdaptiveAnswer(isCore);
+
       if (store.adaptiveQuiz.sessionId) {
         api.submitQuizResponse(store.adaptiveQuiz.sessionId, {
           fragrance_id: currentFragrance.fragrance_id,
           rating_1_to_10: val,
           source: 'standard_quiz'
-        }).catch(console.warn);
+        }).catch((e) => {
+          setFinalError('Some responses could not be saved to server, but they are stored locally.');
+        });
       }
     }
 
@@ -89,7 +105,7 @@ export default function StandardQuiz() {
       setCurrentFragranceIndex(prev => prev + 1);
       setRating(5.0);
     } else {
-      finalizeSession();
+      await checkExtension();
     }
 
     setTimeout(() => setIsTransitioning(false), 600);
@@ -97,28 +113,116 @@ export default function StandardQuiz() {
 
   const handleNeutral = () => handleNext(5.0);
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const finalizeSession = async () => {
-    setIsSubmitting(true);
-
-    if (store.adaptiveQuiz.sessionId) {
-      try {
-        const evaluateResponse = await api.evaluateQuizSession(
-          store.adaptiveQuiz.sessionId,
-          { force: true }
-        );
-        store.setAdaptiveConfidence({
-          confidenceScore: evaluateResponse.data.confidence_score,
-          confidenceBand: evaluateResponse.data.confidence_band,
-          extensionTarget: evaluateResponse.data.additional_questions_target,
-          stopReason: evaluateResponse.data.stop_reason,
-        });
-      } catch (e) {
-        console.warn('Quiz evaluation failed (non-blocking):', e);
-      }
+  const checkExtension = async () => {
+    if (!store.adaptiveQuiz.sessionId) {
+      await finalizeSession();
+      return;
     }
 
+    try {
+      const response = await api.evaluateQuizSession(
+        store.adaptiveQuiz.sessionId,
+        { force: false }
+      );
+      const evalData = response.data;
+
+      store.setAdaptiveConfidence({
+        confidenceScore: evalData.confidence_score,
+        confidenceBand: evalData.confidence_band as 'high' | 'medium' | 'low' | null,
+        extensionTarget: evalData.additional_questions_target,
+        stopReason: evalData.stop_reason,
+      });
+
+      if (evalData.extension_required && evalData.additional_questions_target > 0) {
+        setExtensionQuestionsCount(evalData.additional_questions_target);
+        setQuizPhase('extension-prompt');
+        return;
+      }
+    } catch (e) {
+      // Evaluation failed — proceed to finalize
+    }
+
+    await finalizeSession();
+  };
+
+  const handleExtensionAccept = async () => {
+    setQuizPhase('rating');
+    setIsTransitioning(true);
+
+    try {
+      const response = await api.getNextQuizQuestions(
+        store.adaptiveQuiz.sessionId!,
+        extensionQuestionsCount
+      );
+      const questions = response.data?.questions || [];
+      if (questions.length > 0) {
+        store.appendAdaptiveQuestions(questions);
+        store.setAdaptivePhase('extension');
+        setCurrentFragranceIndex(prev => prev + 1);
+        setRating(5.0);
+      } else {
+        await finalizeSession();
+      }
+    } catch (e) {
+      await finalizeSession();
+    }
+
+    setIsTransitioning(false);
+  };
+
+  const handleExtensionDecline = async () => {
+    await finalizeSession();
+  };
+
+  const finalizeSession = async () => {
+    setQuizPhase('loading');
+    setFinalError(null);
+
+    const sessionId = store.adaptiveQuiz.sessionId;
+    if (!sessionId) {
+      const computed = computeAccordConfidence();
+      store.setQuizConfidence(computed);
+      setSessionResult({ totalRated: store.quizResponses.length, confidenceScore: 0, confidenceBand: 'low' });
+      setQuizPhase('success');
+      return;
+    }
+
+    let confidenceScore = 0;
+    let confidenceBand: 'high' | 'medium' | 'low' | null = 'low';
+
+    try {
+      const evalResponse = await api.evaluateQuizSession(sessionId, { force: true });
+      const evalData = evalResponse.data;
+      confidenceScore = evalData.confidence_score;
+      confidenceBand = evalData.confidence_band as 'high' | 'medium' | 'low' | null;
+      store.setAdaptiveConfidence({
+        confidenceScore,
+        confidenceBand,
+        extensionTarget: 0,
+        stopReason: evalData.stop_reason,
+      });
+    } catch (e) {
+      setFinalError('Profile evaluation encountered an issue, but your responses are saved.');
+    }
+
+    try {
+      await api.guestFinalizeQuizSession(sessionId);
+    } catch (e) {
+      setFinalError(prev =>
+        prev
+          ? prev + ' Some data may not have synced. Your local data is preserved.'
+          : 'Finalization encountered an issue, but your local data is preserved.'
+      );
+    }
+
+    const computed = computeAccordConfidence();
+    store.setQuizConfidence(computed);
+
+    setSessionResult({ totalRated: store.quizResponses.length, confidenceScore, confidenceBand });
+    setQuizPhase('success');
+  };
+
+  const computeAccordConfidence = (): Record<string, number> => {
     const accordScores: Record<string, number[]> = {};
     for (const response of store.quizResponses) {
       const weight = response.rating / 10;
@@ -132,20 +236,187 @@ export default function StandardQuiz() {
       computed[accord.toLowerCase()] =
         scores.reduce((a, b) => a + b, 0) / scores.length;
     }
-    store.setQuizConfidence(computed);
+    return computed;
+  };
 
+  const handleGoToRecommendations = () => {
     router.push('/recommendations');
   };
 
+  // ── Loading Phase ──────────────────────────────────────────
+  if (quizPhase === 'loading') {
+    return (
+      <div className="quiz-page">
+        <div className="quiz-background-fixed" />
+        <div className="quiz-container">
+          <motion.div
+            className="phase-overlay"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="neural-spinner">
+              <div className="spinner-ring" />
+              <div className="spinner-ring spinner-ring-inner" />
+            </div>
+            <h2 className="phase-title">Synthesizing Your Neural Profile</h2>
+            <p className="phase-subtitle">
+              Mapping your preferences across our scent library...
+            </p>
+            {finalError && (
+              <div className="phase-error">
+                <AlertCircle size={14} />
+                <span>{finalError}</span>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Success Phase ──────────────────────────────────────────
+  if (quizPhase === 'success') {
+    return (
+      <div className="quiz-page">
+        <div className="quiz-background-fixed" />
+        <div className="quiz-container">
+          <motion.div
+            className="phase-overlay success-phase"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div className="success-icon">✦</div>
+            <h2 className="phase-title">Discovery Protocol Complete</h2>
+            <p className="phase-subtitle">
+              Your olfactory profile has been mapped.
+            </p>
+
+            <div className="success-stats">
+              <div className="success-stat">
+                <span className="success-stat-value">{sessionResult?.totalRated || 0}</span>
+                <span className="success-stat-label">Scents Rated</span>
+              </div>
+              <div className="success-stat-divider" />
+              <div className="success-stat">
+                <span className="success-stat-value" style={{ fontSize: '1.2rem' }}>
+                  {(sessionResult?.confidenceScore ?? 0) >= 0.72 ? 'High' :
+                   (sessionResult?.confidenceScore ?? 0) >= 0.58 ? 'Medium' : 'Building'}
+                </span>
+                <span className="success-stat-label">Profile Confidence</span>
+              </div>
+            </div>
+
+            {finalError && (
+              <div className="phase-error" style={{ marginTop: '1.5rem' }}>
+                <AlertCircle size={14} />
+                <span>{finalError}</span>
+              </div>
+            )}
+
+            <motion.button
+              className="btn-quiz-primary success-cta"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleGoToRecommendations}
+            >
+              View Your Recommendations <ChevronRight size={18} style={{ marginLeft: '0.5rem' }} />
+            </motion.button>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Bootstrap Phase ────────────────────────────────────────
   if (isBootstrapping) return <DiscoveryNeuralLoader />;
 
   const currentFragrance = fragrances[currentFragranceIndex];
+
+  // ── Extension Prompt Phase ─────────────────────────────────
+  if (quizPhase === 'extension-prompt') {
+    return (
+      <motion.div
+        className="quiz-page"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{
+          '--quiz-glow': 'rgba(244, 187, 146, 0.1)',
+          '--quiz-accent': '#f4bb92',
+          '--quiz-from': '#0a0a0a',
+          '--quiz-to': '#050505',
+          '--quiz-ink': '#ffffff',
+          '--beam1': 'rgba(244, 187, 146, 0.15)',
+          '--beam2': 'rgba(139, 94, 60, 0.1)',
+          '--beam3': 'rgba(228, 194, 133, 0.05)',
+        } as React.CSSProperties}
+      >
+        <div className="quiz-background-fixed" />
+        <div className="quiz-container">
+          <motion.div
+            className="extension-prompt-card"
+            initial={{ opacity: 0, y: 30, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div className="extension-prompt-glow" />
+            <div className="extension-prompt-content">
+              <div className="extension-prompt-badge">NEURAL REFINEMENT</div>
+              <h2 className="extension-prompt-title">
+                Refine Your Profile?
+              </h2>
+              <p className="extension-prompt-desc">
+                Your current confidence is{' '}
+                <strong>
+                  {store.adaptiveQuiz.confidenceBand === 'low' ? 'low' : 'medium'}
+                </strong>
+                . Rate{' '}
+                <strong>{extensionQuestionsCount} more</strong> scents to
+                improve your match precision.
+              </p>
+              <div className="extension-prompt-actions">
+                <button
+                  className="btn-quiz-meta extension-decline"
+                  onClick={handleExtensionDecline}
+                >
+                  See Results
+                </button>
+                <motion.button
+                  className="btn-quiz-primary extension-accept"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  style={{
+                    background: 'linear-gradient(135deg, #f4bb92, #d4956a)',
+                    color: '#000',
+                    boxShadow: '0 10px 40px rgba(244, 187, 146, 0.4)',
+                  }}
+                  onClick={handleExtensionAccept}
+                >
+                  Continue Rating
+                </motion.button>
+              </div>
+            </div>
+          </motion.div>
+
+          <footer className="quiz-footer-meta">
+            <div className="meta-badge">
+              <Sparkles size={10} />
+              <span>Adaptive Confidence Engine</span>
+            </div>
+          </footer>
+        </div>
+      </motion.div>
+    );
+  }
+
   if (!currentFragrance) return <div className="quiz-empty-state">Neural link lost. Refreshing...</div>;
 
+  // ── Rating Phase ───────────────────────────────────────────
   const palette = getFragrancePalette(currentFragrance);
   const progressPercentage = ((currentFragranceIndex + 1) / (fragrances.length || 1)) * 100;
-
-  // Ensure we have 3 colors for the gradient
   const btnGradColors = palette.colors || ['#A66336', '#A66336', '#A66336'];
 
   return (
@@ -171,7 +442,9 @@ export default function StandardQuiz() {
       <div className="quiz-container">
         <header className="quiz-meta-header">
           <div className="progress-indicator">
-            <span className="step-count">Discovery: {currentFragranceIndex + 1} / {fragrances.length}</span>
+            <span className="step-count">
+              {store.adaptiveQuiz.phase === 'extension' ? 'Refinement' : 'Discovery'}: {currentFragranceIndex + 1} / {fragrances.length}
+            </span>
             <div className="progress-bar-wrap">
               <motion.div
                 className="progress-bar-fill"
