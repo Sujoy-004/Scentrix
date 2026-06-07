@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MEXT Interview — Cold-Start Recommendation | Scentrix</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f8f9fc;--fg:#1a1a2e;--muted:#64748b;--accent:#2563eb;
+  --accent-light:#eff6ff;--border:#d1d5db;
+  --green:#059669;--green-bg:#d1fae5;
+  --red:#dc2626;--red-bg:#fee2e2;
+  --amber:#d97706;--amber-bg:#fef3c7;
+  --blue:#2563eb;--blue-bg:#dbeafe;
+  --gray:#6b7280;--gray-bg:#e5e7eb;
+  --chart-height:220px;
+}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans",sans-serif;font-size:clamp(14px,1.2vw,18px);color:var(--fg);background:#0f172a;overflow:hidden}
+.slides{height:100vh;width:100vw;position:relative}
+.slide{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:2.5rem 4rem;background:var(--bg);opacity:0;pointer-events:none;transition:opacity .35s ease;overflow-y:auto}
+.slide.active{opacity:1;pointer-events:auto;z-index:1}
+.slide-inner{max-width:960px;width:100%}
+h1{font-size:2.2rem;font-weight:700;letter-spacing:-.02em;color:#0f0f1a;margin-bottom:.75rem;line-height:1.2}
+h2{font-size:1.5rem;font-weight:600;color:var(--fg);margin-bottom:.5rem;letter-spacing:-.01em}
+h3{font-size:1.1rem;font-weight:600;color:var(--fg);margin-bottom:.4rem}
+p{font-size:1rem;line-height:1.6;color:#334155;margin-bottom:.6rem}
+.subtitle{font-size:1.1rem;color:var(--muted);margin-bottom:1.2rem;font-weight:400}
+.stat-row{display:flex;gap:1rem;flex-wrap:wrap;margin:1.2rem 0}
+.stat-card{flex:1;min-width:120px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;text-align:center}
+.stat-num{font-size:1.6rem;font-weight:700;color:var(--accent);display:block}
+.stat-label{font-size:.8rem;color:var(--muted);margin-top:.2rem}
+.table-wrap{overflow-x:auto;margin:.8rem 0}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th,td{border:1px solid var(--border);padding:.45rem .65rem;text-align:right}
+th{background:#1e293b;color:#fff;font-weight:600;text-align:center}
+td:first-child{text-align:left;font-weight:500}
+tr:nth-child(even){background:#f1f5f9}
+.highlight{background:var(--accent-light);border-left:4px solid var(--accent);padding:.75rem 1rem;margin:.8rem 0;border-radius:0 6px 6px 0;font-size:.95rem;line-height:1.5}
+.highlight strong{color:#1e40af}
+.warn{background:var(--amber-bg);border-left-color:var(--amber)}
+.warn strong{color:var(--amber)}
+.bad{background:var(--red-bg);border-left-color:var(--red)}
+.bad strong{color:var(--red)}
+.good{background:var(--green-bg);border-left-color:var(--green)}
+.good strong{color:var(--green)}
+.fix-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:.8rem 0}
+.fix-card{border:1px solid var(--border);border-radius:8px;padding:1rem;background:#fff}
+.fix-card h3{font-size:1rem;margin-bottom:.35rem}
+.fix-card p{font-size:.85rem;color:#475569;margin:0}
+.pill{display:inline-block;font-size:.7rem;font-weight:600;padding:.15rem .5rem;border-radius:99px;margin-right:.25rem}
+.pill-blue{background:var(--blue-bg);color:#1e40af}
+.pill-green{background:var(--green-bg);color:#065f46}
+.pill-red{background:var(--red-bg);color:#991b1b}
+.pill-amber{background:var(--amber-bg);color:var(--amber)}
+/* Bar chart for hero slide */
+.chart-container{margin:1rem 0;padding:.5rem 0}
+.chart{display:flex;align-items:flex-end;gap:.5rem;height:var(--chart-height);padding:0 .25rem}
+.bar-wrapper{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end}
+.bar{width:100%;max-width:80px;border-radius:4px 4px 0 0;position:relative;transition:height .8s cubic-bezier(.22,1,.36,1);min-height:2px}
+.bar-label{font-size:.7rem;color:var(--muted);margin-top:.35rem;text-align:center;line-height:1.2;max-width:80px}
+.bar-value{font-size:.8rem;font-weight:600;margin-bottom:.2rem;text-align:center}
+.bar-annot{position:absolute;top:-1.6rem;left:50%;transform:translateX(-50%);font-size:.7rem;font-weight:600;white-space:nowrap;color:var(--red)}
+/* Flow diagram */
+.flow{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;justify-content:center;margin:.8rem 0}
+.flow-box{border:2px solid var(--accent);border-radius:8px;padding:.45rem .75rem;background:var(--accent-light);font-size:.8rem;font-weight:500;text-align:center;min-width:70px}
+.flow-arrow{font-size:1.2rem;color:var(--muted)}
+/* Contribution list */
+.contrib-list{list-style:none;margin:.6rem 0}
+.contrib-list li{padding:.5rem 0;border-bottom:1px solid #e2e8f0;font-size:.95rem;line-height:1.5}
+.contrib-list li:last-child{border-bottom:none}
+.contrib-num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-size:.75rem;font-weight:700;margin-right:.5rem;flex-shrink:0}
+.contrib-item{display:flex;align-items:flex-start;gap:.4rem}
+/* Navigation */
+.nav{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:.6rem;z-index:100}
+.nav-dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.4);cursor:pointer;transition:all .2s}
+.nav-dot.active{background:#fff;border-color:#fff;transform:scale(1.2)}
+.nav-num{font-size:.75rem;color:rgba(255,255,255,.6);margin-left:.3rem}
+.arrow-btn{position:fixed;top:50%;transform:translateY(-50%);z-index:100;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);width:44px;height:44px;border-radius:50%;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.arrow-btn:hover{background:rgba(255,255,255,.2);color:#fff}
+.arrow-left{left:.8rem}
+.arrow-right{right:.8rem}
+.hidden{display:none}
+/* Big quote on slide 8 */
+.final-box{border:2px solid var(--accent);border-radius:10px;padding:1.5rem;background:var(--accent-light);margin:1rem 0;text-align:center}
+.final-box p{font-size:1.15rem;font-weight:600;color:#1e40af;margin:0;line-height:1.5}
+/* Responsive */
+@media(max-width:640px){
+  .slide{padding:1.5rem}
+  h1{font-size:1.5rem}
+  h2{font-size:1.2rem}
+  .fix-grid{grid-template-columns:1fr}
+  .chart{height:160px}
+  .arrow-btn{width:36px;height:36px;font-size:1rem}
+}
+</style>
+</head>
+<body>
+
+<div class="slides" id="slides">
+
+<!-- SLIDE 1: COLD-START PROBLEM -->
+<div class="slide active" data-index="0">
+<div class="slide-inner">
+<h1>Cold-Start Recommendation<br>in Zero-Interaction Domains</h1>
+<p class="subtitle">Graph-Based Preference Initialization for Fragrance Discovery</p>
+<div class="stat-row">
+<div class="stat-card"><span class="stat-num">4,559</span><span class="stat-label">Quality-filtered fragrances</span></div>
+<div class="stat-card"><span class="stat-num">24</span><span class="stat-label">Brands</span></div>
+<div class="stat-card"><span class="stat-num">48</span><span class="stat-label">Accord categories</span></div>
+<div class="stat-card"><span class="stat-num">0.000</span><span class="stat-label">Popularity NDCG@10 (floor)</span></div>
+</div>
+<div class="highlight bad">
+<strong>The problem:</strong> New user, zero ratings, zero purchases, zero clicks. Collaborative filtering and matrix factorization produce nothing — they require user-item interactions that do not exist at cold start. Popularity (0.000 NDCG) performs identically to random guessing.
+</div>
+<p style="font-size:.9rem;color:var(--muted);margin-top:.5rem">
+Fragrance is a pure cold-start domain — each discovery is an independent decision with no prior history to draw from.
+</p>
+</div>
+</div>
+
+<!-- SLIDE 2: PROPOSED APPROACH -->
+<div class="slide" data-index="1">
+<div class="slide-inner">
+<h2>Graph-Based Preference Initialization</h2>
+<p class="subtitle">GraphSAGE on Jaccard similarity graph + rating-weighted embedding mean</p>
+<div class="flow">
+<div class="flow-box">Adaptive Quiz<br><span style="font-size:.7rem;color:var(--muted)">8–16 items, 1–10 scale</span></div>
+<span class="flow-arrow">→</span>
+<div class="flow-box">GS Embedding<br>Lookup<br><span style="font-size:.7rem;color:var(--muted)">64-dim per item</span></div>
+<span class="flow-arrow">→</span>
+<div class="flow-box">Rating-Weighted<br>Mean<br><span style="font-size:.7rem;color:var(--muted)">USER_VECTOR</span></div>
+<span class="flow-arrow">→</span>
+<div class="flow-box">L2 Normalize<br>+ Cosine KNN</div>
+<span class="flow-arrow">→</span>
+<div class="flow-box">Top-200<br>Candidates</div>
+</div>
+<div class="fix-grid">
+<div class="fix-card">
+<h3>Graph Construction</h3>
+<p>Jaccard similarity over shared note ingredients. Threshold 0.20 → <strong>16,244 edges</strong> covering <strong>99.2%</strong> of the catalog. 64-dim GraphSAGE embeddings trained via unsupervised link prediction.</p>
+</div>
+<div class="fix-card">
+<h3>5-State Dispatcher</h3>
+<p>Anonymous → Popularity. Quiz → GraphSAGE (USER_VECTOR). Cold → Hybrid β-blend. Warm → Feature-Based. Mature → Feature + Diversity. Graceful degradation at every state.</p>
+</div>
+</div>
+<div class="highlight warn">
+<strong>Key design:</strong> GraphSAGE is a preference initialization layer, not a standalone recommender. It sits alongside a feature-based scorer; a dispatcher selects the strategy by user signal level.
+</div>
+</div>
+</div>
+
+<!-- SLIDE 3: EVALUATION METHODOLOGY -->
+<div class="slide" data-index="2">
+<div class="slide-inner">
+<h2>Evaluation Design</h2>
+<p class="subtitle">Six models, two honest cold-start baselines, stratified leave-cold-out</p>
+<div class="table-wrap">
+<table>
+<tr><th>Model</th><th>Type</th><th>Source</th></tr>
+<tr><td>GraphSAGE-Jaccard</td><td>Graph</td><td>Jaccard note-similarity graph</td></tr>
+<tr><td>GraphSAGE-Embedding</td><td>Graph</td><td>Description embedding KNN graph</td></tr>
+<tr><td>Feature-Only</td><td>Feature overlap</td><td>Direct accord + note matching</td></tr>
+<tr><td>Content-Only</td><td>Embedding similarity</td><td>Description embedding cosine</td></tr>
+<tr><td>Popularity</td><td>Baseline</td><td>Global rating count (cold-start floor)</td></tr>
+<tr><td>Random</td><td>Baseline</td><td>Shuffled catalog (performance floor)</td></tr>
+</table>
+</div>
+<div class="fix-grid">
+<div class="fix-card">
+<h3>Metrics</h3>
+<p>Precision@10 and NDCG@10 via ranx. Standard information retrieval metrics with position-based discounting.</p>
+</div>
+<div class="fix-card">
+<h3>Split Strategy</h3>
+<p>Stratified leave-cold-out. CF/MF excluded — they require warm-start interactions. Fully reproducible via env-var control.</p>
+</div>
+</div>
+<div class="highlight">
+<strong>Reproducible:</strong> <code style="font-size:.8rem">SCENTRIX_EVAL_GT_MODE=brand_accord python -m ml.eval.pipeline --mode pure_cold --seed 42</code>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 4: EVALUATION LEAKAGE DISCOVERY -->
+<div class="slide" data-index="3">
+<div class="slide-inner">
+<h2>Two Hidden Flaws in Our Evaluation Pipeline</h2>
+<p class="subtitle">The claimed 2.7× improvement was entirely artifact</p>
+<div class="fix-grid">
+<div class="fix-card" style="border-left:4px solid var(--red)">
+<h3><span class="pill pill-red">Fix A</span> Metric Bug</h3>
+<p><strong>NDCG@10 was RR@10.</strong> Reciprocal rank stops accumulating after the first relevant item found. True NDCG accumulates gains across all 10 positions with logarithmic discounting. This overestimated any model that placed one result high — nearly all models in cold-start evaluation.</p>
+</div>
+<div class="fix-card" style="border-left:4px solid var(--red)">
+<h3><span class="pill pill-red">Fix B</span> Circular Ground Truth</h3>
+<p><strong>Same signal for graph and evaluation.</strong> The original GT defined relevance as note-Jaccard &gt;0.20 — the same function and threshold used to build the GraphSAGE graph. The model was evaluated against itself. Fixed with <strong>brand + accord</strong>: brand is independent of note chemistry; accord agreement is perfumer-labeled, not structural.</p>
+</div>
+</div>
+<div class="highlight bad" style="margin-top:.5rem">
+<strong>Effect when both fixes applied:</strong> The claimed 2.7× NDCG improvement disappeared entirely. Feature-Only — zero machine learning, simple accord overlap — outperformed GraphSAGE by 3.47×.
+</div>
+<p style="font-size:.85rem;color:var(--muted)">GT Sensitivity: 4 alternative definitions tested. Feature-Only leads under every non-circular variant. Brand_accord selected as strictest (31.7% coverage).</p>
+</div>
+</div>
+
+<!-- SLIDE 5: CANONICAL FINDINGS (HERO) -->
+<div class="slide" data-index="4">
+<div class="slide-inner">
+<h2 style="text-align:center;font-size:1.6rem">Evaluation Methodology &gt; Model Complexity</h2>
+<div class="chart-container">
+<div class="chart" id="heroChart">
+<div class="bar-wrapper">
+<div class="bar-value" style="color:#059669">0.399</div>
+<div class="bar" style="height:var(--chart-height);background:#059669;max-width:80px"></div>
+<div class="bar-label">Feature<br>Only</div>
+</div>
+<div class="bar-wrapper">
+<div class="bar-value" style="color:#6366f1">0.115</div>
+<div class="bar" style="height:63px;background:#6366f1;max-width:80px;position:relative">
+<div class="bar-annot" style="top:-1.8rem;color:#dc2626;font-size:.75rem">3.47×</div>
+</div>
+<div class="bar-label">GraphSAGE<br>Jaccard</div>
+</div>
+<div class="bar-wrapper">
+<div class="bar-value" style="color:#6366f1">0.095</div>
+<div class="bar" style="height:52px;background:#6366f1;max-width:80px"></div>
+<div class="bar-label">GraphSAGE<br>Embedding</div>
+</div>
+<div class="bar-wrapper">
+<div class="bar-value" style="color:#6b7280">0.047</div>
+<div class="bar" style="height:26px;background:#9ca3af;max-width:80px"></div>
+<div class="bar-label">Content<br>Only</div>
+</div>
+<div class="bar-wrapper">
+<div class="bar-value" style="color:#dc2626">0.000</div>
+<div class="bar" style="height:2px;background:#dc2626;max-width:80px"></div>
+<div class="bar-label">Popularity</div>
+</div>
+<div class="bar-wrapper">
+<div class="bar-value" style="color:#dc2626">0.001</div>
+<div class="bar" style="height:2px;background:#dc2626;max-width:80px"></div>
+<div class="bar-label">Random</div>
+</div>
+</div>
+</div>
+<div class="final-box" style="padding:1rem">
+<p>After removing evaluation leakage, a simple feature-based method outperformed<br>every graph-based model by a wide margin.</p>
+</div>
+<div class="fix-grid" style="margin-top:.3rem">
+<div class="fix-card"><p style="font-size:.8rem"><strong>Coldness stratification:</strong> Feature-Only flat across all levels (0.399→0.401→0.419). GS-Jaccard monotonic (0.115→0.081→0.152). GS-Embedding non-monotonic — embedding graphs isolate low-popularity items.</p></div>
+<div class="fix-card"><p style="font-size:.8rem"><strong>Bootstrap (n=10,000):</strong> Jaccard vs Embedding p=0.008, d=0.11. Jaccard vs Feature-Only p=1.000, d=−0.96 (Feature-Only leads by one full standard deviation).</p></div>
+</div>
+</div>
+</div>
+
+<!-- SLIDE 6: USER_VECTOR -->
+<div class="slide" data-index="5">
+<div class="slide-inner">
+<h2>Secondary Contribution: The Data Audit<br>That Found a Better Pipeline</h2>
+<p class="subtitle">The frontend sent rich ratings (1–10) for nine months; the backend discarded them</p>
+<div class="fix-grid">
+<div class="fix-card" style="border-left:4px solid var(--accent)">
+<h3 style="color:var(--muted)">Old: Centroid Path</h3>
+<p>Quiz confidence → 5 accord seeds → weighted centroid of seed embeddings → KNN. Threw away 90% of the signal: only binary liked/disliked was used, continuous 1–10 ratings were ignored.</p>
+</div>
+<div class="fix-card" style="border-left:4px solid var(--green)">
+<h3 style="color:var(--green)">New: USER_VECTOR</h3>
+<p>Rating-weighted mean of GraphSAGE item embeddings: Σ((ratingᵢ/10) × embeddingᵢ) / Σ(ratingᵢ/10). Every rating is a weight. No accord mapping, no centroid, no information loss.</p>
+</div>
+</div>
+<div class="stat-row">
+<div class="stat-card"><span class="stat-num" style="color:var(--green)">+41.4%</span><span class="stat-label">NDCG improvement</span></div>
+<div class="stat-card"><span class="stat-num" style="color:var(--green)">+44.0%</span><span class="stat-label">Recall improvement</span></div>
+<div class="stat-card"><span class="stat-num" style="color:var(--green)">10×</span><span class="stat-label">Faster (0.67 ms vs 6.76 ms)</span></div>
+<div class="stat-card"><span class="stat-num" style="color:var(--red)">0</span><span class="stat-label">Top-200 overlap with centroid</span></div>
+</div>
+<div class="highlight good">
+<strong>Not a model innovation — a data utilization fix.</strong> Discovered because the evaluation audit forced examination of every data flow stage. The centroid path and USER_VECTOR use identical embeddings; the 41.4% gain comes entirely from using rating weights that were previously discarded.
+</div>
+</div>
+</div>
+
+<!-- SLIDE 7: RESEARCH CONTRIBUTIONS -->
+<div class="slide" data-index="6">
+<div class="slide-inner">
+<h2>Research Contributions</h2>
+<p class="subtitle">Five distinct findings spanning methodology, domain knowledge, and architecture</p>
+<ul class="contrib-list">
+<li><div class="contrib-item"><span class="contrib-num">1</span><span><strong>Evaluation leakage discovery (primary):</strong> Exposed circular ground truth in graph-based cold-start evaluation — Jaccard graph and Jaccard GT share the same signal. A structural vulnerability likely present in other published results.</span></div></li>
+<li><div class="contrib-item"><span class="contrib-num">2</span><span><strong>Fix A — Metric correction:</strong> Identified and corrected RR@10 → true NDCG@10. RR systematically overestimates models that rank one item high and fail thereafter.</span></div></li>
+<li><div class="contrib-item"><span class="contrib-num">3</span><span><strong>Fix B — Non-circular GT:</strong> Introduced brand + accord agreement as cross-signal GT. Brand is independent of note chemistry; accord agreement is functional. Methodology generalizable to any domain with independent signals.</span></div></li>
+<li><div class="contrib-item"><span class="contrib-num">4</span><span><strong>USER_VECTOR discovery:</strong> Rating-weighted embedding mean outperforms centroid path by +41.4% NDCG. Discovered through data utilization audit — the signal was always there but being discarded.</span></div></li>
+<li><div class="contrib-item"><span class="contrib-num">5</span><span><strong>5-state architecture:</strong> Production state machine dispatching by user signal level with graceful degradation. Supporting evidence that research findings translate to a deployed service.</span></div></li>
+</ul>
+<div class="highlight" style="margin-top:.3rem">
+<strong>Primary contribution is methodological, not architectural:</strong> The field needs to audit evaluation methodology before believing model performance claims.
+</div>
+</div>
+</div>
+
+<!-- SLIDE 8: LIMITATIONS + FINAL TAKEAWAY -->
+<div class="slide" data-index="7">
+<div class="slide-inner">
+<h2 style="text-align:center;font-size:1.6rem;color:#1e40af">Evaluation Methodology &gt; Model Complexity</h2>
+<div class="final-box">
+<p>"We built a GraphSAGE recommender. We found evaluation leakage. We corrected it. After correction, a simple feature-based method outperformed our GNN by 3.47×.<br><br>That negative result is the contribution — because it tells the field: before asking what model to use, first ask whether you are measuring the right thing."</p>
+</div>
+<div class="fix-grid" style="margin-top:.5rem">
+<div class="fix-card" style="border-left:4px solid var(--amber)">
+<h3 style="font-size:.95rem">Limitations</h3>
+<p style="font-size:.8rem">Single domain (fragrance). Embedding graphs are inherently feature-circular. No real user study — simulated leave-cold-out. Quiz reranker not re-evaluated under Fix B.</p>
+</div>
+<div class="fix-card" style="border-left:4px solid var(--accent)">
+<h3 style="font-size:.95rem">Future Work</h3>
+<p style="font-size:.8rem">Port to feature-sparse domain (images, audio). Centroid disagreement analysis (instrumentation deployed). Real user A/B test. Meta-evaluation of published cold-start results.</p>
+</div>
+</div>
+<p style="text-align:center;font-size:.85rem;color:var(--muted);margin-top:.6rem">
+Scentrix — Repository frozen at <code>freeze-2026-06-07</code> · All artifacts reproducible via env-var-controlled pipeline
+</p>
+</div>
+</div>
+
+</div>
+
+<!-- NAVIGATION -->
+<div class="nav" id="nav">
+<button class="nav-dot active" data-slide="0" aria-label="Slide 1"></button>
+<button class="nav-dot" data-slide="1" aria-label="Slide 2"></button>
+<button class="nav-dot" data-slide="2" aria-label="Slide 3"></button>
+<button class="nav-dot" data-slide="3" aria-label="Slide 4"></button>
+<button class="nav-dot" data-slide="4" aria-label="Slide 5"></button>
+<button class="nav-dot" data-slide="5" aria-label="Slide 6"></button>
+<button class="nav-dot" data-slide="6" aria-label="Slide 7"></button>
+<button class="nav-dot" data-slide="7" aria-label="Slide 8"></button>
+<span class="nav-num" id="slideNum">1 / 8</span>
+</div>
+
+<button class="arrow-btn arrow-left" id="prevBtn" aria-label="Previous slide">←</button>
+<button class="arrow-btn arrow-right" id="nextBtn" aria-label="Next slide">→</button>
+
+<script>
+(function(){
+  const slides = document.querySelectorAll('.slide');
+  const dots = document.querySelectorAll('.nav-dot');
+  const slideNum = document.getElementById('slideNum');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  let current = 0;
+  const total = slides.length;
+
+  function goTo(idx){
+    if(idx < 0 || idx >= total) return;
+    slides[current].classList.remove('active');
+    dots[current].classList.remove('active');
+    current = idx;
+    slides[current].classList.add('active');
+    dots[current].classList.add('active');
+    slideNum.textContent = (current + 1) + ' / ' + total;
+    prevBtn.classList.toggle('hidden', current === 0);
+    nextBtn.classList.toggle('hidden', current === total - 1);
+  }
+
+  dots.forEach(d => d.addEventListener('click', function(){
+    goTo(parseInt(this.getAttribute('data-slide')));
+  }));
+
+  prevBtn.addEventListener('click', function(){ goTo(current - 1); });
+  nextBtn.addEventListener('click', function(){ goTo(current + 1); });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'ArrowLeft' || e.key === 'ArrowUp') goTo(current - 1);
+    if(e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') goTo(current + 1);
+  });
+
+  // Touch swipe
+  let touchStartX = 0, touchEndX = 0;
+  document.addEventListener('touchstart', function(e){ touchStartX = e.changedTouches[0].screenX; });
+  document.addEventListener('touchend', function(e){
+    touchEndX = e.changedTouches[0].screenX;
+    const diff = touchStartX - touchEndX;
+    if(Math.abs(diff) > 50){
+      if(diff > 0) goTo(current + 1);
+      else goTo(current - 1);
+    }
+  });
+
+  goTo(0);
+})();
+</script>
+</body>
+</html>
