@@ -16,32 +16,32 @@ help:
 	@echo "make enrich          - Process and enrich 24k fragrance dataset with canonical vibes"
 
 up:
-	docker-compose up -d
+	docker compose up -d
 	@echo "✓ All services started. Check logs with 'make logs'"
 
 down:
-	docker-compose down
+	docker compose down
 	@echo "✓ All services stopped"
 
 logs:
-	docker-compose logs -f
+	docker compose logs -f
 
 migrate:
-	docker-compose exec backend alembic upgrade head
+	docker compose exec backend alembic upgrade head
 
 seed:
-	docker-compose exec backend python -m scripts.seed_data
+	docker compose exec backend python -m scripts.seed_data
 
 test-backend:
-	docker-compose exec backend pytest --cov=app --cov-report=html
+	docker compose exec backend pytest --cov=app --cov-report=html
 
 test-frontend:
 	cd frontend && npm test
 
 lint:
 	@echo "Linting backend..."
-	docker-compose exec backend ruff check .
-	docker-compose exec backend mypy .
+	docker compose exec backend ruff check .
+	docker compose exec backend mypy .
 	@echo "Linting frontend..."
 	cd frontend && npm run lint
 	@echo "✓ Linting complete"
@@ -53,7 +53,7 @@ context:
 	@type .gitignore > nul
  
 audit:
-	docker-compose exec backend python ml/pipeline/diversity_audit.py
+	docker compose exec backend python ml/pipeline/diversity_audit.py
 
 test-diversity:
 	python internal/tools/diversity_audit.py
@@ -63,13 +63,13 @@ test-persona:
 
 enrich:
 	@echo "Enriching Unified SSOT with canonical vibes..."
-	docker-compose exec backend python ml/pipeline/clean.py ml/data/scentrix_master.json ml/data/scentrix_master_cleaned.json
+	docker compose exec backend python ml/pipeline/clean.py ml/data/scentrix_master.json ml/data/scentrix_master_cleaned.json
 	@echo "Updating Neo4j graph..."
-	docker-compose exec backend python ml/pipeline/ingest.py ml/data/scentrix_master_cleaned.json
+	docker compose exec backend python ml/pipeline/ingest.py ml/data/scentrix_master_cleaned.json
 	@echo "✓ Dataset enrichment complete"
 
 clean:
-	docker-compose down -v
+	docker compose down -v
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type d -name .pytest_cache -exec rm -rf {} +
 	find . -type d -name node_modules -exec rm -rf {} +
@@ -77,4 +77,4 @@ clean:
 	@echo "✓ Cleanup complete"
 
 ps:
-	docker-compose ps
+	docker compose ps

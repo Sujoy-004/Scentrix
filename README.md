@@ -11,6 +11,124 @@ Scentrix is a 3rd-year undergraduate research project for MEXT scholarship inter
 
 graph-based cold-start fragrance recommendation.
 
+---
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+| Tool | Version | Required for |
+|------|---------|-------------|
+| [Docker Desktop](https://docs.docker.com/get-docker/) | 24+ (with Compose v2 plugin) | Running all services (recommended path) |
+| [Python](https://python.org) | >= 3.11 | Backend (non-Docker dev) |
+| [Node.js](https://nodejs.org) | >= 20 | Frontend (non-Docker dev) |
+| [npm](https://npmjs.com) | (ships with Node 20+) | Frontend dependency management |
+
+**Docker Compose v2** (`docker compose` — space, not hyphen) is the plugin bundled with Docker Desktop. If you have the standalone `docker-compose` (v1, hyphenated), upgrade to v2.
+
+**Windows users:** `make` is not available by default. Use the raw `docker compose` commands shown inline, or install Make via [Chocolatey](https://chocolatey.org/) (`choco install make`) / [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/) (`winget install GnuWin32.Make`).
+
+## Quick Start
+
+These seven steps take you from a fresh clone to a running application with data loaded.
+
+```bash
+# 1. Clone the repository
+git clone <repo-url>
+cd Scentrix
+
+# 2. Configure environment (optional — defaults work out of the box)
+cp .env.example .env
+
+# 3. Start all Docker services (Postgres, Neo4j, Redis, backend, frontend)
+docker compose up -d
+
+# 4. Run database migrations
+docker compose exec backend alembic upgrade head
+
+# 5. Seed the database with fragrances and test data
+docker compose exec backend python -m scripts.seed_data
+
+# 6. Open the application
+#    → http://localhost:3000
+
+# 7. Complete the user journey (see § below)
+```
+
+> **Tip:** After step 3, check progress with `docker compose ps` or `docker compose logs -f`. All five containers must show `healthy` before proceeding.
+
+### Quick reference (Makefile)
+
+```bash
+make help         # Show all available make targets
+make up           # docker compose up -d
+make down         # docker compose down
+make logs         # docker compose logs -f
+make migrate      # docker compose exec backend alembic upgrade head
+make seed         # docker compose exec backend python -m scripts.seed_data
+make test-backend # Run backend test suite (requires running system)
+```
+
+---
+
+## User Journey
+
+Once the app is running at `http://localhost:3000`, follow this flow to experience the full recommendation pipeline:
+
+### 1. Register an account
+
+- Open `http://localhost:3000/auth/register` (or click "Sign Up" from the landing page)
+- Enter an email and password
+- You will be logged in automatically after registration
+
+### 2. Browse the fragrance catalog
+
+- The landing/home page shows the fragrance catalog
+- Browse through the list or use search to find specific fragrances
+- Click on any card to see fragrance details (notes, accords, description)
+
+### 3. Take the preference quiz
+
+- Navigate to the quiz section (`/quiz` or from the nav menu)
+- You will be shown a series of fragrances — rate each on a 1–10 scale
+- The quiz adapts based on your responses (more items may be requested)
+- After rating, **finalise your quiz session** to submit your preferences
+- A success screen confirms your quiz is complete
+
+### 4. View your recommendations
+
+- Navigate to `/recommendations`
+- The system has now moved from **State 0 (Anonymous / Popularity)** to **State 1 (Quiz User / GraphSAGE)**
+- Recommendations are computed using your per-item ratings weighted by GraphSAGE embeddings (USER_VECTOR path)
+- The UI shows your current recommendation state (0–4) via the StateIndicator
+
+### 5. Rate individual fragrances (Star button)
+
+- On any recommendation or catalog page, click the **Star** icon to rate a fragrance (1–5 stars)
+- Each rating moves you closer to the next state:
+  - **1–4 ratings → State 2 (Cold / Hybrid):** Blend of GraphSAGE + feature-based scoring
+  - **5–19 ratings → State 3 (Warm / Feature-based):** Feature-based primary with GraphSAGE exploration
+  - **20+ ratings → State 4 (Mature / Feature-based + diversity):** Feature-based with diversity injection
+
+### 6. Check your profile
+
+- Visit `/profile/history` to see your **Last Quiz Summary** card
+- Shows total rated, average rating, top matches, and preferred notes/accords
+
+### State reference
+
+| State | Label | Ratings | Strategy |
+|-------|-------|---------|----------|
+| 0 | Anonymous | 0 | Popularity only |
+| 1 | Quiz User | 0 (quiz completed) | GraphSAGE (USER_VECTOR) |
+| 2 | Cold | 1–4 | Hybrid (GraphSAGE + Feature-based) |
+| 3 | Warm | 5–19 | Feature-based primary |
+| 4 | Mature | 20+ | Feature-based + diversity |
+
+See [ARCHITECTURE-FREEZE.md](./ARCHITECTURE-FREEZE.md) for full dispatch details.
+
+---
+
 ## what's the move?
 
 hybrid research + engineering. the thesis: **cold-start preference initialization via direct user-vector from quiz ratings**. the original pipeline (confidence → seeds → centroid → GraphSAGE) discarded per-item rating information at every stage. the USER_VECTOR path (rating-weighted embedding sum → KNN) preserves the full signal and achieves +14.9% FH / +41.4% NDCG over centroid — simpler, faster, better.
