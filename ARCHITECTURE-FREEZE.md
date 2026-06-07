@@ -332,7 +332,7 @@ If ratings deleted (GDPR): State 4 → State 0. State does NOT regress on quiz r
 
 **RQ:** Does quiz reranker (α=0.3) add value beyond pure GraphSAGE centroid for State 1?
 
-**Status:** Research says NO — mean NDCG 0.496 (quiz) vs 0.504 (pure cold), high variance. Disabled by default until proven with real user data.
+**Status:** Research says NO — under the original pipeline, mean NDCG 0.496 (quiz) vs 0.504 (pure cold), high variance. Not re-evaluated under Fix B because the quiz reranker operates on centroid-based GraphSAGE, which has been superseded by USER_VECTOR. Disabled by default until proven with real user data.
 
 ### Q3: Diversity injection parameters (LOW)
 

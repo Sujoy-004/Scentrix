@@ -12,6 +12,7 @@ from app.auth.dependencies import get_current_user_id, get_optional_user_id
 from app.cache import cache
 from app.config import settings
 from app.database import get_session
+from app.logging_config import get_correlation_id
 from app.models.models import FragranceRating as DBFragranceRating
 from app.models.models import User
 from app.schemas.schemas import (
@@ -218,17 +219,23 @@ async def submit_batch_ratings(
 async def get_guest_recommendations(
     request: GuestRecommendationRequest,
 ) -> StandardResponse:
-    print("REQUEST RECEIVED")
+    cid = get_correlation_id()
+    has_quiz = request.quiz_confidence is not None
+    rating_count = len(request.ratings)
+    logger.info(
+        "event=recommendation_request correlation_id=%s type=guest has_quiz=%s rating_count=%s",
+        cid, has_quiz, rating_count,
+    )
     log_mem("START")
     if _catalog_embeddings_cache is None:
-        logger.info("ML_LAZY_LOAD: Triggering first-time warmup for guest...")
+        logger.info("event=ml_lazy_load correlation_id=%s", cid)
         warmup_neural_engine()
         log_mem("AFTER_EMBEDDINGS")
 
     # ── Phase 8 dispatcher path ──────────────────────────────────────────
     logger.info(
-        "DISPATCHER_GATE: PHASE8_DISPATCHER_ENABLED=%s, path=%s",
-        PHASE8_DISPATCHER_ENABLED, "phase8" if PHASE8_DISPATCHER_ENABLED else "legacy",
+        "event=dispatcher_gate correlation_id=%s phase8_enabled=%s path=%s",
+        cid, PHASE8_DISPATCHER_ENABLED, "phase8" if PHASE8_DISPATCHER_ENABLED else "legacy",
     )
     if PHASE8_DISPATCHER_ENABLED:
         dispatcher = _get_dispatcher()
@@ -254,6 +261,10 @@ async def get_guest_recommendations(
             )
             result = await dispatcher.dispatch(dr)
             if result.recommendations:
+                logger.info(
+                    "event=recommendation_result correlation_id=%s type=guest source=%s state=%s state_label=%s count=%s",
+                    cid, result.source, result.state, result.state_label, len(result.recommendations),
+                )
                 data = [FragranceRecommendation(**r) for r in result.recommendations]
                 return {
                     "status": "success",
@@ -261,17 +272,27 @@ async def get_guest_recommendations(
                     "state": result.state,
                     "state_label": result.state_label,
                 }
-            logger.info("Phase 8 dispatcher returned empty results — falling through to legacy")
+            logger.info(
+                "event=dispatcher_empty correlation_id=%s type=guest",
+                cid,
+            )
 
     # ── Legacy path ──────────────────────────────────────────────────────
     try:
         seed_ids = [_normalize_id(r.fragrance_id) for r in request.ratings]
         results = recommender.get_recommendations(request.ratings, seed_ids)
+        logger.info(
+            "event=recommendation_result correlation_id=%s type=guest source=legacy count=%s",
+            cid, len(results),
+        )
         data = [FragranceRecommendation(**r) for r in results]
         return {"status": "success", "data": data}
 
     except Exception as e:
-        logger.error(f"Guest hybrid discovery failed: {e}")
+        logger.error(
+            "event=recommendation_error correlation_id=%s type=guest error=%s",
+            cid, e,
+        )
         raise HTTPException(
             status_code=500,
             detail="Recommendation engine encountered a fault.",
@@ -283,8 +304,17 @@ async def get_personalized_recommendations(
     user_id: int | None = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_session),
 ) -> StandardResponse:
+    cid = get_correlation_id()
+    logger.info(
+        "event=recommendation_request correlation_id=%s type=personalized user_id=%s",
+        cid, user_id,
+    )
     log_mem("START")
     if not user_id:
+        logger.info(
+            "event=recommendation_result correlation_id=%s type=personalized source=no_user count=0",
+            cid,
+        )
         return {"status": "success", "data": []}
 
     cached_recs = await cache.get(f"rec:user:{user_id}")
@@ -300,6 +330,10 @@ async def get_personalized_recommendations(
         rating_count = len(count_result.scalars().all())
         cached_state = RecommendationDispatcher.determine_state(rating_count, quiz_completed)
         state_label = {0: "anonymous", 1: "quiz_user", 2: "cold", 3: "warm", 4: "mature"}.get(cached_state, "unknown")
+        logger.info(
+            "event=recommendation_result correlation_id=%s type=personalized source=cache state=%s state_label=%s count=%s user_id=%s",
+            cid, cached_state, state_label, len(data), user_id,
+        )
         return {"status": "success", "data": data, "state": cached_state, "state_label": state_label}
 
     if not db:
@@ -350,6 +384,10 @@ async def get_personalized_recommendations(
                     dr_result.recommendations,
                     expire=3600,
                 )
+                logger.info(
+                    "event=recommendation_result correlation_id=%s type=personalized source=%s state=%s state_label=%s count=%s user_id=%s",
+                    cid, dr_result.source, dr_result.state, dr_result.state_label, len(dr_result.recommendations), user_id,
+                )
                 data = [FragranceRecommendation(**r) for r in dr_result.recommendations]
                 return {
                     "status": "success",
@@ -358,7 +396,10 @@ async def get_personalized_recommendations(
                     "state_label": dr_result.state_label,
                 }
 
-            logger.info("Phase 8 dispatcher returned empty — falling through to legacy")
+            logger.info(
+                "event=dispatcher_empty correlation_id=%s type=personalized user_id=%s",
+                cid, user_id,
+            )
 
     # ── Legacy path ──────────────────────────────────────────────────────
     stmt = select(DBFragranceRating).where(DBFragranceRating.user_id == user_id)
@@ -384,7 +425,10 @@ async def get_personalized_recommendations(
         seed_ids = [_normalize_id(r.fragrance_id) for r in guest_ratings]
         results = recommender.get_recommendations(guest_ratings, seed_ids)
     except Exception as e:
-        logger.error(f"Hybrid discovery hit a critical fault: {e}")
+        logger.error(
+            "event=recommendation_error correlation_id=%s type=personalized user_id=%s error=%s",
+            cid, user_id, e,
+        )
         raise HTTPException(
             status_code=500,
             detail="Recommendation engine encountered a fault.",

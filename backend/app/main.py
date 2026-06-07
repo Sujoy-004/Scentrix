@@ -20,8 +20,10 @@ from app.database import DB_AVAILABLE, close_db
 
 ML_ENABLED = settings.ml_enabled
 from app.database import engine
+from app.logging_config import CorrelationIDFilter, get_correlation_id
 from app.services.catalog import load_recommendation_catalog_async
 from app.limiter import limiter
+from app.middleware import CorrelationIDMiddleware
 from app.routers import auth, fragrances, leads, quiz, recommendations, users
 from app.services.gs_embeddings import gs_service, GSEmbeddingHealth
 from app.schemas.schemas import StandardResponse
@@ -33,8 +35,10 @@ init_sentry()
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+    format="%(asctime)s [%(name)s] %(levelname)s [correlation_id=%(correlation_id)s] %(message)s",
 )
+for handler in logging.getLogger().handlers:
+    handler.addFilter(CorrelationIDFilter())
 logger = logging.getLogger(__name__)
 
 
@@ -102,6 +106,9 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
+# Correlation ID middleware (must be first to capture all requests)
+app.add_middleware(CorrelationIDMiddleware)
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
@@ -114,6 +121,8 @@ app.add_middleware(
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
+    cid = get_correlation_id()
+    logger.error("event=http_exception correlation_id=%s status_code=%s detail=%s", cid, exc.status_code, exc.detail)
     return JSONResponse(
         status_code=exc.status_code,
         content={"status": "error", "code": exc.status_code, "message": exc.detail},
@@ -122,7 +131,8 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 @app.exception_handler(Exception)
 async def universal_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled error: {exc}", exc_info=True)
+    cid = get_correlation_id()
+    logger.error("event=unhandled_exception correlation_id=%s error=%s", cid, exc, exc_info=True)
     return JSONResponse(
         status_code=500,
         content={"status": "error", "code": 500, "message": "Internal server error"},

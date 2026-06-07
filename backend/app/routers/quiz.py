@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import get_current_user_id, get_optional_user_id
 from app.database import get_session
 from app.limiter import limiter
+from app.logging_config import get_correlation_id
 from app.models.models import FragranceRating, User
 from app.schemas.schemas import (
     QuizConfidenceComponents,
@@ -285,6 +286,7 @@ async def start_quiz_session(
     user_id: int | None = Depends(get_optional_user_id),
     session: AsyncSession = Depends(get_session),
 ) -> StandardResponse:
+    cid = get_correlation_id()
     effective_user_id = user_id if user_id is not None else 0
     catalog = load_recommendation_catalog()
     if not catalog:
@@ -304,6 +306,10 @@ async def start_quiz_session(
         logger.warning(f"Exclude-seen filter skipped for user {user_id}: DB_OFFLINE")
 
     session_id = f"qz_{uuid4().hex[:8]}"
+    logger.info(
+        "event=quiz_start correlation_id=%s session_id=%s user_id=%s seed_count=%s",
+        cid, session_id, user_id, quiz_data.seed_count,
+    )
     # Seed with session_id for intra-session determinism if needed,
     # but ensure variety across sessions.
     rng = random.Random(session_id)
@@ -370,6 +376,7 @@ async def submit_quiz_answer(
     user_id: int | None = Depends(get_optional_user_id),
     db_session: AsyncSession = Depends(get_session),
 ) -> StandardResponse:
+    cid = get_correlation_id()
     effective_user_id = user_id if user_id is not None else 0
     session_payload = _require_owned_session(
         await get_quiz_session(session_id), session_id, effective_user_id
@@ -439,6 +446,10 @@ async def submit_quiz_answer(
             detail=f"Quiz session store unavailable: {exc}",
         ) from exc
 
+    logger.info(
+        "event=quiz_answer correlation_id=%s session_id=%s user_id=%s answers_count=%s replaced=%s",
+        cid, session_id, user_id, len(responses), replaced,
+    )
     data = QuizSessionSubmitResponseResponse(
         accepted=True,
         normalized_rating_0_to_5=normalized,
@@ -454,6 +465,7 @@ async def finalize_quiz_session(
     db: AsyncSession = Depends(get_session),
 ) -> dict[str, int | str]:
     """Bridge transient quiz session data to permanent profile table."""
+    cid = get_correlation_id()
     session_payload = _require_owned_session(
         await get_quiz_session(session_id), session_id, user_id
     )
@@ -491,7 +503,8 @@ async def finalize_quiz_session(
 
     await db.commit()
     logger.info(
-        f"Quiz Session {session_id} finalized for user {user_id}. {len(responses)} ratings synced."
+        "event=quiz_finalize correlation_id=%s session_id=%s user_id=%s ratings_count=%s",
+        cid, session_id, user_id, len(responses),
     )
     return {
         "status": "success",
@@ -505,6 +518,7 @@ async def evaluate_quiz_session(
     request: QuizSessionEvaluateRequest,
     user_id: int | None = Depends(get_optional_user_id),
 ) -> StandardResponse:
+    cid = get_correlation_id()
     effective_user_id = user_id if user_id is not None else 0
     session_payload = _require_owned_session(
         await get_quiz_session(session_id), session_id, effective_user_id
@@ -575,6 +589,10 @@ async def evaluate_quiz_session(
             detail=f"Quiz session store unavailable: {exc}",
         ) from exc
 
+    logger.info(
+        "event=quiz_evaluate correlation_id=%s session_id=%s user_id=%s confidence_score=%s confidence_band=%s extension_required=%s stop_reason=%s total_answered=%s",
+        cid, session_id, user_id, confidence_score, confidence_band, extension_required, stop_reason, total_answered,
+    )
     data = QuizSessionEvaluateResponse(
         confidence_score=confidence_score,
         confidence_band=confidence_band,
@@ -598,6 +616,7 @@ async def guest_finalize_quiz_session(
     For authenticated users: delegates to standard finalize logic (DB upsert).
     For guests: marks session as finalized in Redis (no DB write).
     """
+    cid = get_correlation_id()
     effective_user_id = user_id if user_id is not None else 0
     session_payload = _require_owned_session(
         await get_quiz_session(session_id), session_id, effective_user_id
@@ -620,7 +639,10 @@ async def guest_finalize_quiz_session(
             detail=f"Quiz session store unavailable: {exc}",
         )
 
-    logger.info(f"Quiz Session {session_id} finalized for guest.")
+    logger.info(
+        "event=quiz_guest_finalize correlation_id=%s session_id=%s user_id=%s",
+        cid, session_id, user_id,
+    )
     return {"status": "success", "data": {"message": "Guest quiz finalized"}}
 
 
@@ -630,6 +652,7 @@ async def get_next_quiz_questions(
     count: int = Query(3, ge=1, le=5),
     user_id: int | None = Depends(get_optional_user_id),
 ) -> StandardResponse:
+    cid = get_correlation_id()
     effective_user_id = user_id if user_id is not None else 0
     session_payload = _require_owned_session(
         await get_quiz_session(session_id), session_id, effective_user_id
@@ -728,5 +751,9 @@ async def get_next_quiz_questions(
             # Silently log errors for guests (Quiz Session store is non-critical for guest flow)
             logger.error(f"Quiz Pulse Error: {exc}")
 
+    logger.info(
+        "event=quiz_next_questions correlation_id=%s session_id=%s user_id=%s count=%s",
+        cid, session_id, user_id, len(questions),
+    )
     data = QuizSessionNextQuestionsResponse(questions=questions, count=len(questions))
     return {"status": "success", "data": data}
