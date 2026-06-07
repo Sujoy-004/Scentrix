@@ -173,4 +173,15 @@ python -m ml.tests.test_graph neo4j://localhost:7687 neo4j password
 - Data is gender-neutral by default (`gender_label: "N/A"`)
 - Description text is capped at 500 characters
 - Fields with no data return None or empty list
+
+## Standalone External Bundle
+
+For environments where the Scrapy pipeline is blocked, a standalone resumable scraper is available at `fragrantica.py`.
+
+- **Target:** 5,000+ records with incremental output to `data/fragrantica_raw.json`
+- **Resume:** auto-reads `scraper_checkpoint.json` on re-run; progress saved on interrupt
+- **Setup:** `python -m venv .venv_scraper && pip install -r requirements.txt`
+- **Run:** `python fragrantica.py --target-records 5000 --min-delay 1 --max-delay 3`
+- **Runtime estimate:** ~6–14 hours for 5,000 records at 1–3s/request
+- **Validation:** `python import_licensed_feed.py --input data/fragrantica_raw.json && python dataset_gate.py` (exit 0 = pass)
 """
