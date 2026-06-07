@@ -9,6 +9,7 @@ import { useAdaptiveQuizSession } from '@/lib/hooks';
 import { api, VALID_IDS } from '@/lib/api';
 import { getFragrancePalette } from '@/lib/quizTheme';
 import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
+import { buildLearningSummary } from '@/lib/reason-engine';
 import posthog from 'posthog-js';
 import '@/app/quiz/quiz.css';
 
@@ -307,6 +308,26 @@ export default function StandardQuiz() {
                 <span className="success-stat-label">Profile Confidence</span>
               </div>
             </div>
+
+            {(() => {
+              const learning = buildLearningSummary(store.quizResponses);
+              return learning.highlights.length > 0 ? (
+                <div style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: '1rem',
+                  padding: '1.25rem 1.5rem',
+                  marginTop: '1.5rem',
+                  textAlign: 'left',
+                  maxWidth: '28rem',
+                }}>
+                  <p style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: '0.75rem' }}>Your Learning Profile</p>
+                  {learning.highlights.map((h, i) => (
+                    <p key={i} style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, marginBottom: '0.25rem' }}>• {h}</p>
+                  ))}
+                </div>
+              ) : null;
+            })()}
 
             {finalError && (
               <div className="phase-error" style={{ marginTop: '1.5rem' }}>
