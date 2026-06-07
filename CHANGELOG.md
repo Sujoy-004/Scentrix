@@ -52,9 +52,9 @@ Phase 11 delivered the end-to-end quiz flow across four waves of frontend and ba
 - **Success screen:** "Discovery Protocol Complete" with stats (scents rated, confidence level) and "View Your Recommendations" CTA.
 - **Error handling:** All 3 previously silent `.catch(console.warn)` sites replaced with visible inline error banners on loading/success screens (non-blocking, fail open).
 
-### Test inventory
+### Test inventory (updated 2026-06-07)
 
-137 backend tests across 8 files. 136 pass, 1 pre-existing failure (`test_health.py::test_health_check` — response shape mismatch). Phase 11 additions have zero dedicated test coverage. Frontend has no test infrastructure. E2E smoke test (`e2e_smoke.py`): 34 checks, all pass, but manual (out-of-repo, not in CI).
+160 backend tests across 10 files — all pass. 14 dedicated Phase 11 tests (`test_phase11_quiz.py`) cover guest-finalize, quiz-summary, state/state_label, and negative paths. 9 in-repo smoke tests (`test_e2e_smoke.py`) validate the full guest quiz lifecycle. The pre-existing `test_health.py` assertion gap was fixed. Frontend has Playwright E2E tests (6 spec files) and visual regression snapshots (ignored — generated on first run). Smoke test migrated from external temp file into the repository.
 
 ## [Unreleased] — Phase 8 Dispatcher Activation & Quiz-Finalize Bridge (2026-06-05)
 

@@ -57,13 +57,26 @@ The recommendation flow: zero ratings → State 0 (popularity). Complete quiz �
 
 API responses include `state` (0–4) and `state_label` to inform the frontend of the current dispatch state. Quiz endpoints include `POST /fragrances/quiz/session/{session_id}/guest-finalize` for guest persistence and `GET /recommendations/quiz-summary` for the Last Quiz Summary card on `/profile/history`.
 
-### run the web app
+### development commands
 
 ```bash
-docker compose up
-```
+# start everything
+docker compose up                                      # → http://localhost:3000
 
-Opens at `http://localhost:3000`.
+# run backend tests (requires running system)
+make test-backend                                      # or: docker compose exec backend pytest
+docker compose exec backend pytest tests/test_phase11_quiz.py  # single file
+
+# run frontend checks (from frontend/)
+npm run lint                                           # ESLint
+npm run format                                         # Prettier
+npm run type-check                                     # TypeScript (tsc --noEmit)
+npm run build                                          # Next.js production build
+
+# run e2e tests (Playwright, requires running system)
+npm run test:e2e                                       # headless
+npm run test:e2e:ui                                    # interactive UI mode
+```
 
 ## the threshold
 
