@@ -9,7 +9,7 @@ test.describe('Direct Rating MVP Runtime Verification', () => {
     await page.waitForTimeout(3000);
 
     // 2. Screenshot BEFORE rating
-    await page.screenshot({ path: '/tmp/before_rating.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/before_rating.png', fullPage: true });
 
     // 3. Get page content before rating
     const bodyTextBefore = await page.locator('body').innerText();
@@ -51,7 +51,7 @@ test.describe('Direct Rating MVP Runtime Verification', () => {
       await page.waitForTimeout(5000);
       
       // 7. Screenshot AFTER rating
-      await page.screenshot({ path: '/tmp/after_rating.png', fullPage: true });
+      await page.screenshot({ path: 'test-results/after_rating.png', fullPage: true });
 
       // 8. Get page content after rating
       const bodyTextAfter = await page.locator('body').innerText();

@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures';
-import type { Page, Request } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 async function acceptCookiesIfVisible(page: Page) {
   const acceptBtn = page.locator('#cookie-accept-all');
@@ -15,8 +15,8 @@ async function acceptCookiesIfVisible(page: Page) {
   }
 }
 
-test.describe('Phase E — Research Pipeline E2E Verification', () => {
-  test('quiz completion triggers evaluate, quiz_confidence reaches backend, dispatcher routes to State 1, GraphSAGE executes', async ({ page }) => {
+test.describe('Phase 11 — Quiz→Recommendations Pipeline E2E Verification', () => {
+  test('quiz completion triggers evaluate, quiz_confidence reaches backend, dispatcher routes to State 1, GraphSAGE executes (USER_VECTOR path)', async ({ page }, testInfo) => {
     test.setTimeout(120000);
 
     // ── Intercept requests for evidence capture ───────────────────────────
@@ -91,7 +91,7 @@ test.describe('Phase E — Research Pipeline E2E Verification', () => {
 
     // Take a screenshot for visual evidence
     await page.screenshot({
-      path: 'C:\\Users\\KIIT0001\\Documents\\antigravity skills\\Scentrix\\PHASE_E_ui_state.png',
+      path: await testInfo.outputPath('quiz_to_recommendations.png'),
       fullPage: true
     });
     console.log('5/7  Recommendations page rendered, screenshot captured');
@@ -140,7 +140,7 @@ test.describe('Phase E — Research Pipeline E2E Verification', () => {
 
     // ── Print full evidence summary ─────────────────────────────────────
     console.log('\n═══════════════════════════════════════════════════');
-    console.log('PHASE E — EVIDENCE SUMMARY');
+    console.log('PHASE 11 — QUIZ→RECOMMENDATIONS EVIDENCE SUMMARY');
     console.log('═══════════════════════════════════════════════════');
     console.log(`Evaluate endpoint called:     ${evaluateCalled}`);
     console.log(`Rec request body:             ${JSON.stringify(recPayload, null, 2)}`);
