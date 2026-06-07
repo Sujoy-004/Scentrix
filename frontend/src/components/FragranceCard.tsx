@@ -98,7 +98,7 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
       {/* Upper Visual Area */}
       <div className="relative aspect-[4/5] overflow-hidden">
         <img
-          src={frag.image_url || familyAsset?.src || '/assets/family/all.png'}
+          src={frag.image_url || familyAsset?.src || '/assets/family/all.webp'}
           alt={frag.name}
           className="w-full h-full object-cover transition-transform duration-700 hover:scale-110"
         />
