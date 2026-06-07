@@ -47,7 +47,13 @@ except ImportError:
     logger.warning("PyYAML not available — cannot read config.yaml")
 
 
-# ── Locked metrics from CHANGELOG (paper canonical values, Phase 5 locked) ──
+# ── ⚠️ OLD metrics from pre-Fix-B pipeline (Phase 5 locked) ──
+# These values used circular GT (note-Jaccard) and RR-as-NDCG.
+# Under Fix B (brand_accord GT, true NDCG) the canonical values are:
+#   Feature-Only=0.399, GS-Jaccard=0.115, GS-Embedding=0.095.
+# See CONTEXT.md and the Presentation Structure in RESPONSE.md for corrected results.
+# The script was never re-run with Fix B data. Update LOCKED_METRICS and the
+# narrative text below before re-generating mext_demo.html.
 LOCKED_METRICS: dict[str, dict[str, float]] = {
     "GraphSAGE-Jaccard":      {"Precision@10": 0.0745, "NDCG@10": 0.504, "Recall@10": 0.0926},
     "GraphSAGE-Embedding":    {"Precision@10": 0.0306, "NDCG@10": 0.197, "Recall@10": 0.0216},
@@ -347,6 +353,17 @@ def generate_html(
 </head>
 <body>
 
+<div style="background:#fee2e2;border:2px solid #dc2626;border-radius:8px;padding:1rem;margin-bottom:1.5rem;text-align:center">
+<strong style="color:#991b1b;font-size:1.1rem">⚠️ Outdated — Pre-Fix-B Metrics</strong>
+<p style="margin:0.3rem 0 0;font-size:0.85rem;color:#7f1d1d">
+This page was generated with the original evaluation pipeline (circular Jaccard GT, RR-as-NDCG).
+The values below (GS-Jaccard=0.504, Feature-Only=0.557) are <strong>not reproducible</strong>
+under the corrected methodology. Canonical Fix-B values: Feature-Only=0.399, GS-Jaccard=0.115,
+GS-Embedding=0.095. See the presentation at <code>docs/mext_presentation.html</code> and
+<code>docs/STUDY_GUIDE.md</code> for the corrected narrative.
+</p>
+</div>
+
 <h1>Cold-Start Recommendation via Graph-Based Preference Initialisation</h1>
 <p class="author">Structural Independence in Graph Construction for Zero-Interaction Recommendation</p>
 <p class="author" style="font-size: 0.8rem;">Generated: {generation_date}</p>
@@ -362,21 +379,25 @@ and matrix factorisation fail because they require interaction data.
 </p>
 
 <p>
-We propose a <strong>graph-based preference initialisation</strong> approach: given only a
-fragrance's inherent features (scent notes, accords, brand), we construct a similarity graph
-and train a <strong>GraphSAGE</strong> model to predict a cold-start item's relevant neighbours
-in this graph. The central finding is that <strong>graph construction methodology</strong> —
-not model architecture — <strong>is the critical determinant of GNN cold-start performance</strong>.
+We proposed a <strong>graph-based preference initialisation</strong> approach: given only a
+fragrance's inherent features (scent notes, accords, brand), we constructed a similarity graph
+and trained a <strong>GraphSAGE</strong> model to predict a cold-start item's relevant neighbours
+in this graph. A subsequent evaluation audit (Fix A + Fix B) revealed that the originally claimed
+2.7× improvement was an artifact of circular ground truth and a metric bug. Under corrected
+evaluation, a simple feature-based method outperforms GraphSAGE by 3.47×. The central finding
+is that <strong>evaluation methodology matters more than model complexity</strong>.
 </p>
 
-<div class="key-result">
-    <strong>Key Finding:</strong> Embedding-derived similarity graphs degrade NDCG by
-    <strong>63% relative</strong> to a Feature-Only baseline (0.197 vs 0.557, p&le;0.001,
-    d=0.93). Replacing circular embedding edges with structurally independent Jaccard
-    edges over fragrance notes recovers 2.7&times; performance (NDCG 0.197 &rarr; 0.504,
-    p&le;0.001, d=0.93). <strong>GraphSAGE-Jaccard (0.504) vs GraphSAGE-Embedding (0.197)</strong>.
-    Feature-Only (0.557) beats GraphSAGE-Jaccard — graph claim is scoped to <strong>structural independence</strong>,
-    not absolute performance.
+<div class="key-result" style="border-left-color:#dc2626;background:#fef2f2">
+    <strong>⚠️ Historical record (original pipeline, pre-Fix-B):</strong> Under the original evaluation
+    (circular Jaccard GT, RR-as-NDCG), embedding graphs appeared to degrade NDCG by
+    <strong>63% relative</strong> to a Feature-Only baseline (0.197 vs 0.557). Jaccard graphs
+    appeared to recover <strong>2.7&times;</strong> (0.197 &rarr; 0.504). A subsequent audit
+    (Phase 5.1 — Fix A + Fix B) found both the metric (RR labeled as NDCG) and the ground truth
+    (Jaccard-based evaluation of Jaccard-based graph) were circular. Under corrected evaluation
+    (brand_accord GT, true NDCG), the gap narrows to <strong>1.21&times;</strong> (0.115 vs 0.095),
+    and Feature-Only dominates by <strong>3.47&times;</strong> (0.399 vs 0.115). See the
+    presentation at <code>docs/mext_presentation.html</code> for the corrected narrative.
 </div>
 
 <!-- Section 2: Problem Statement -->
@@ -458,11 +479,14 @@ SentenceTransformer embeddings (384-d) concatenated with accord one-hot (48-d) =
 <p><strong>Six models compared:</strong></p>
 <ul>
     <li><strong>GraphSAGE-Jaccard</strong> (primary) — Same GraphSAGE architecture, Jaccard-based
-    structurally independent graph. NDCG@10=0.504.</li>
+    structurally independent graph. <s>NDCG@10=0.504</s> (original pipeline).
+    <strong>Corrected (Fix B): 0.115</strong>.</li>
     <li><strong>GraphSAGE-Embedding</strong> (ablative) — Identical model, embedding-derived KNN
-    graph. NDCG@10=0.197. Isolates graph construction as the performance determinant.</li>
+    graph. <s>NDCG@10=0.197</s> (original pipeline).
+    <strong>Corrected (Fix B): 0.095</strong>. Isolates graph construction effect.</li>
     <li><strong>Feature-Only</strong> (near-oracle) — Cosine similarity on raw 432-d features.
-    NDCG@10=0.557. Uses the same embedding space as the graph construction.</li>
+    <s>NDCG@10=0.557</s> (original pipeline).
+    <strong>Corrected (Fix B): 0.399</strong>. Uses the same embedding space as the graph construction.</li>
     <li><strong>Content-Only</strong> (oracle, invalid baseline) — Direct Jaccard over notes.
     NDCG@10=0.581. Same criterion as ground truth — included as upper-bound reference only.</li>
     <li><strong>Popularity</strong> — Global ranking by accord count. NDCG@10=0.008.</li>
@@ -503,22 +527,22 @@ SentenceTransformer embeddings (384-d) concatenated with accord one-hot (48-d) =
 <p style="font-size: 0.85rem; color: #666;">
 Content-Only (oracle) uses the same Jaccard-over-notes criterion as the ground truth definition
 and is included as an upper-bound reference only. It is not a valid baseline for fairness comparisons.
-<strong>Primary comparison:</strong> GraphSAGE-Jaccard (0.504) vs GraphSAGE-Embedding (0.197) —
-2.7&times; improvement from graph construction alone.
+<strong>⚠️ Original pipeline comparison (pre-Fix-B):</strong> GraphSAGE-Jaccard (0.504) vs
+GraphSAGE-Embedding (0.197) — appeared as 2.7&times; improvement.
+<strong>Corrected (Fix B):</strong> 1.21&times; (0.115 vs 0.095). See <code>docs/mext_presentation.html</code>.
 </p>
 
 {plots_html}
 
 <div class="limitations-box">
-    <strong>Feature Circularity:</strong> GraphSAGE-Embedding (NDCG@10=0.197) achieves
-    <strong>63% lower relative NDCG</strong> than the Feature-Only baseline (0.557).
-    The embedding-derived graph causes <strong>destructive smoothing</strong> — the GNN
-    aggregates neighbours already maximally similar in the feature space, producing
-    representations worse than raw feature cosine similarity. GraphSAGE-Jaccard (0.504)
-    recovers from this degradation but does not statistically beat Feature-Only (0.557,
-    p=1.000, d=-0.149). The graph claim is scoped to <strong>structural independence</strong>:
-    Jaccard edges provide a foundation that can incorporate interaction data, multi-hop
-    semantics, and dynamic updates — capabilities content-based methods fundamentally cannot offer.
+    <strong>⚠️ Historical record (original pipeline):</strong> The feature circularity finding
+    (GraphSAGE-Embedding <s>0.197</s> vs Feature-Only <s>0.557</s>) was based on circular
+    ground truth and a metric bug. Under the corrected evaluation (Fix A + Fix B), the gap
+    narrows: GraphSAGE-Embedding=0.095, Feature-Only=0.399. The graph claim (structural
+    independence) remains valid — Jaccard edges are orthogonal to the embedding space and
+    provide a foundation that can incorporate interaction data — <strong>but the magnitude
+    of the graph advantage is 1.21×, not 2.7×</strong>. The primary contribution is now
+    methodological: evaluation methodology matters more than model complexity.
 </div>
 
 {live_example}
@@ -548,12 +572,13 @@ We explicitly enumerate the limitations:
         content-based methods.
     </li>
     <li>
-        <strong>Graph claim is structural, not absolute:</strong> GraphSAGE-Jaccard
-        (NDCG@10=0.504) does <strong>not</strong> statistically beat Feature-Only
-        (0.557, p=1.000, d=-0.149). The contribution is <strong>structural independence</strong>
-        — Jaccard edges are orthogonal to the embedding space and can scale with interaction
-        data, temporal dynamics, and multi-hop semantics. Content-based baselines hit their
-        ceiling on day one; graph methods can improve with data.
+        <strong>⚠️ Original pipeline values — corrected below:</strong> GraphSAGE-Jaccard
+        (<s>0.504</s> → 0.115) does <strong>not</strong> statistically beat Feature-Only
+        (<s>0.557</s> → 0.399, p=1.000, d=-0.96). The primary contribution is that
+        <strong>evaluation methodology matters more than model complexity</strong> — after
+        removing circular GT and a metric bug, Feature-Only leads by 3.47×. The structural
+        independence of Jaccard edges is a secondary contribution: Jaccard vs Embedding
+        shows a significant but small effect (p=0.008, d=0.11, 1.21× gain).
     </li>
     <li>
         <strong>No real user interaction data:</strong> All evaluation is conducted on the
@@ -595,8 +620,11 @@ proxy approach. The next section outlines how they can be addressed.
     <li>
         <strong>Adaptive preference refinement (quiz-init):</strong> Combine graph-based
         initialisation with interactive preference quizzes. A post-prediction reranker
-        that blends quiz confidence with GraphSAGE scores is implemented but does not
-        yet reliably beat pure cold-start (mean NDCG 0.496 vs 0.504, high variance).
+        that blends quiz confidence with GraphSAGE scores was implemented but did not
+        reliably beat pure cold-start under the original pipeline (mean NDCG 0.496 vs 0.504).
+        Superseded by USER_VECTOR — rating-weighted embedding mean that improves NDCG by
+        +41.4% over the centroid path and runs 10× faster. Discovered through a data flow
+        audit during Fix B investigation.
     </li>
     <li>
         <strong>Beyond-accuracy metrics:</strong> Evaluate diversity, novelty, coverage,
