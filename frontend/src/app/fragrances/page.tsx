@@ -71,14 +71,16 @@ function FragrancesContent() {
               'Discover Fragrances'
             )}
           </h1>
-          <p className="text-sm text-white/50">
-            Explore by family, note, or brand
+          <p className="browse-header-count">
+            {total > 0
+              ? `${total.toLocaleString()} fragrance${total !== 1 ? 's' : ''}`
+              : 'Explore by family, note, or brand'}
           </p>
         </header>
 
         <BrowseFilters total={total} loading={loading} />
 
-        <div className="mt-10">
+        <div className="browse-results">
           {initialLoading ? (
             <div className="text-white/40 text-center py-20 text-sm">Loading fragrances…</div>
           ) : data.length === 0 ? (
