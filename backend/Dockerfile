@@ -45,7 +45,6 @@ COPY backend/app app/
 COPY ml/data/scentrix_master.json ml/data/
 COPY ml/models ml/models
 COPY backend/alembic.ini .
-COPY backend/Procfile .
 
 # Ensure all files are world-readable/executable where needed
 RUN chmod -R 755 /usr/local/bin
