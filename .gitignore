@@ -25,6 +25,7 @@ ml/data/
 # Results packages
 mext_demo_package_*.zip
 ml/eval/runs/
+archive/research/evaluation-runs/
 ml/models/serving/v1/
 
 # junk / generated

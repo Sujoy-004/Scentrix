@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 CATALOG_PATH = "ml/data/scentrix_master_cleaned.json"
 EMBEDDINGS_PATH = "ml/data/embeddings.npy"
 EMBEDDING_INDEX_PATH = "ml/data/embedding_index.json"
-CHECKPOINT_PATH = "ml/eval/runs/20260528_165737/models/graphsage_jaccard.pt"
+CHECKPOINT_PATH = "archive/research/evaluation-runs/20260528_165737/models/graphsage_jaccard.pt"
 OUTPUT_DIR = Path("ml/models/serving/v1")
 
 JACCARD_K = 10

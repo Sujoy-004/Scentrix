@@ -320,35 +320,11 @@ If ratings deleted (GDPR): State 4 → State 0. State does NOT regress on quiz r
 
 ---
 
-## 8. Open Research Questions
+## 8. Final Architecture Summary
 
-### Q1: Centroid disagreement analysis (HIGH)
+> **Note:** Open research questions have been moved to [docs/RESEARCH.md](./docs/RESEARCH.md) §Future Work.
 
-**RQ:** How does centroid disagreement correlate with recommendation quality degradation?
 
-**Status:** `mean_pairwise` logged per request. Not yet analyzed. If a degradation threshold exists, design multi-centroid retrieval experiment.
-
-### Q2: Quiz reranker efficacy (MEDIUM)
-
-**RQ:** Does quiz reranker (α=0.3) add value beyond pure GraphSAGE centroid for State 1?
-
-**Status:** Research says NO — under the original pipeline, mean NDCG 0.496 (quiz) vs 0.504 (pure cold), high variance. Not re-evaluated under Fix B because the quiz reranker operates on centroid-based GraphSAGE, which has been superseded by USER_VECTOR. Disabled by default until proven with real user data.
-
-### Q3: Diversity injection parameters (LOW)
-
-**RQ:** Optimal number and position of diversity-injected items for States 3–4?
-
-**Status:** Needs real user data and A/B test.
-
-### Q4: Embedding staleness detection (LOW)
-
-**RQ:** How does recommendation quality degrade as embeddings age relative to catalog changes?
-
-**Status:** Deferred to Phase 9 (graph sync).
-
----
-
-## 9. Final Architecture Summary
 
 ```
                      STATE DISPATCHER
@@ -406,7 +382,7 @@ If ratings deleted (GDPR): State 4 → State 0. State does NOT regress on quiz r
 
 ---
 
-## 10. API Layer Exposures (Phase 11)
+## 9. API Layer Exposures (Phase 11)
 
 The following API additions surface dispatch state and quiz data without changing the retrieval architecture.
 
