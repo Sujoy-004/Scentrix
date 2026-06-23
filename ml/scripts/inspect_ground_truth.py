@@ -19,7 +19,7 @@ for item in all_items:
         "primary_accord": raw_accords[0] if raw_accords else "Unknown",
     }
 
-split_file = Path("ml/eval/runs/20260526_035624/splits/cold_items.csv")
+split_file = Path("archive/research/evaluation-runs/20260526_035624/splits/cold_items.csv")
 with open(split_file) as f:
     cold_ids = [line.split(",")[0].strip() for line in f.readlines()[1:] if line.strip()]
 

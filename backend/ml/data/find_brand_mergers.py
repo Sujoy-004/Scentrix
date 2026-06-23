@@ -2,7 +2,8 @@ import json
 from pathlib import Path
 
 def find_brand_mergers():
-    data_path = Path(r"c:\Users\KIIT0001\Documents\antigravity skills\Scentrix\backend\ml\data\fra_elite_24k.json")
+    # Requires fra_elite_24k.json (removed from repo; regenerate or restore from backup)
+    data_path = Path("fra_elite_24k.json")
     
     with open(data_path, "r", encoding="utf-8") as f:
         data = json.load(f)
