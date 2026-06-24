@@ -52,4 +52,4 @@ Build with `npm run build` then `npm start`. For Docker-based deployment, see th
 
 ## Architecture
 
-See [ARCHITECTURE-FREEZE.md](../ARCHITECTURE-FREEZE.md) for the canonical 5-state dispatch design and [backend/app/services/dispatcher.py](../backend/app/services/dispatcher.py) for the state machine implementation.
+See [ARCHITECTURE.md](../docs/ARCHITECTURE.md) for the canonical 5-state dispatch design and [backend/app/services/dispatcher.py](../backend/app/services/dispatcher.py) for the state machine implementation.

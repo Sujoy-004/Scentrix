@@ -54,10 +54,10 @@
 |---|---|---|
 | `docs/RESEARCH.md` | NEW — consolidated research thesis, all results tables, methodology, reproducibility | ✅ Created (10 sections) |
 | `README.md` | REWRITTEN — product-first narrative, no MEXT references | ✅ 0 MEXT references |
-| `CHANGELOG.md` | RESTRUCTURED — product entries only | ✅ No Fix B, canonical results, or requirement traceability |
-| `archive/changelog/RESEARCH_CHANGELOG.md` | NEW — full research audit trail preserved | ✅ Created |
+| `../docs/CHANGELOG.md` | RESTRUCTURED — product entries only | ✅ No Fix B, canonical results, or requirement traceability |
+| `archive/changelog/RESEARCH_../docs/CHANGELOG.md` | NEW — full research audit trail preserved | ✅ Created |
 | `ml/README.md` | REWRITTEN — technical reference, no research narrative | ✅ No "NOT reproducible" |
-| `ARCHITECTURE-FREEZE.md` | SLIMMED — §8 removed, future work in RESEARCH.md | ✅ §8 gone, ref numbering fixed |
+| `../docs/ARCHITECTURE.md` | SLIMMED — §8 removed, future work in RESEARCH.md | ✅ §8 gone, ref numbering fixed |
 
 ## Backend Test Results
 
@@ -88,15 +88,15 @@ All tests pass. No failures related to file removals or path changes.
 | Link | Exists | Status |
 |---|---|---|
 | `docs/RESEARCH.md` | ✅ Yes | OK |
-| `ARCHITECTURE-FREEZE.md` | ✅ Yes | OK |
-| `CHANGELOG.md` | ✅ Yes | OK |
+| `../docs/ARCHITECTURE.md` | ✅ Yes | OK |
+| `../docs/CHANGELOG.md` | ✅ Yes | OK |
 
 ## MEXT Reference Check
 
 | File | Pattern | Result |
 |---|---|---|
 | `README.md` | "MEXT", "3rd-year", "undergraduate", "scholarship" | ✅ 0 matches |
-| `CHANGELOG.md` | "Fix B", "canonical results", "Requirement Traceability" | ✅ 0 matches |
+| `../docs/CHANGELOG.md` | "Fix B", "canonical results", "Requirement Traceability" | ✅ 0 matches |
 
 ## Unexpected Findings
 
@@ -120,8 +120,8 @@ All tests pass. No failures related to file removals or path changes.
 **Breakdown:**
 - **Working tree changes (not yet staged):**
   - `README.md`: Rewritten (-233 lines, new content)
-  - `CHANGELOG.md`: Restructured (-121 lines, new content)
-  - `ARCHITECTURE-FREEZE.md`: Slimmed (-30 lines)
+  - `../docs/CHANGELOG.md`: Restructured (-121 lines, new content)
+  - `../docs/ARCHITECTURE.md`: Slimmed (-30 lines)
   - `ml/README.md`: Rewritten (-130 lines, new content)
   - `ml/export/export_jaccard_embeddings.py`: 1 line changed (checkpoint path)
   - `docs/mext_presentation.html`, `frontend/tests/E2E_TEST_GUIDE.md`: Removed

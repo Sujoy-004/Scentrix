@@ -92,7 +92,7 @@ Activated Phase 8 dispatcher (config default True, docker-compose env var) and w
 
 ## Architecture Freeze (2026-05-30)
 
-5-state dispatch architecture: dispatcher is single entry point, state machine routes by user state, extracted services over monolith, GraphSAGE is preference init (not inference runtime), legacy hybrid_search retained as fallback. See `ARCHITECTURE-FREEZE.md`.
+5-state dispatch architecture: dispatcher is single entry point, state machine routes by user state, extracted services over monolith, GraphSAGE is preference init (not inference runtime), legacy hybrid_search retained as fallback. See `docs/ARCHITECTURE.md`.
 
 ## Phase History
 

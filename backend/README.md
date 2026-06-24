@@ -8,7 +8,7 @@ FastAPI-based REST API for fragrance discovery, direct rating onboarding, and st
 - Fragrance catalog search and detail from Neo4j knowledge graph
 - State-driven 5-state recommendation dispatcher (Cold Exploration → Taste Initialising → Taste Active → Taste Mature)
 - Direct rating via Star button on FragranceCards — replaces quiz as primary initialization path
-- Adaptive quiz — per-item quiz ratings are the primary input for State 1 USER_VECTOR preference initialization (see ARCHITECTURE-FREEZE.md §5)
+- Adaptive quiz — per-item quiz ratings are the primary input for State 1 USER_VECTOR preference initialization (see docs/ARCHITECTURE.md §5)
 - Lead capture and GDPR data deletion
 - Sommelier AI insight generation for fragrance collections
 
@@ -75,7 +75,7 @@ See `/docs` when the backend is running for OpenAPI documentation.
 
 ## Service Architecture
 
-See [ARCHITECTURE-FREEZE.md](../ARCHITECTURE-FREEZE.md) for the canonical 5-state dispatch architecture.
+See [ARCHITECTURE.md](../docs/ARCHITECTURE.md) for the canonical 5-state dispatch architecture.
 
 | Service | Role |
 |---------|------|

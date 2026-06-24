@@ -118,7 +118,7 @@ graph TB
 | 3 | Warm | 5–19 ratings | Feature-based primary |
 | 4 | Mature | 20+ ratings | Feature-based + diversity injection |
 
-Every path has a graceful fallback. The system never returns empty results. See [ARCHITECTURE-FREEZE.md](./ARCHITECTURE-FREEZE.md) for full dispatch details.
+Every path has a graceful fallback. The system never returns empty results. See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for full dispatch details.
 
 ### Screenshots
 
@@ -214,7 +214,7 @@ Key milestones:
 - **Quiz Flow Integration** (2026-06-07) — Guest persistence, state-aware UI, quiz summary
 - **Observability** (2026-06-07) — Correlation ID tracing, structured logging, load testing
 
-See [CHANGELOG.md](./CHANGELOG.md) for the full change history.
+See [CHANGELOG.md](./docs/CHANGELOG.md) for the full change history.
 
 ---
 

@@ -72,6 +72,9 @@ DESIGN.md
 # session report (regeneratable per query, not tracked)
 report.md
 
+# interview study guide (private, not committed)
+study_guide/
+
 # session artifacts (regeneratable per session, not tracked)
 response.md
 fresh-state-0.png
