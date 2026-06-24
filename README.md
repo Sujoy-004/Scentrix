@@ -10,6 +10,11 @@ Full-stack ML fragrance discovery platform with a 5-state recommendation dispatc
 
 **Stack:** PostgreSQL 15 | Neo4j 5 | Redis 7 | FastAPI (Python 3.11) | Next.js 16 (TypeScript) | GraphSAGE (PyTorch Geometric) | Docker Compose
 
+<div align="center">
+  <img src="docs/screenshots/hero-catalog.png" alt="Scentrix fragrance catalog" width="700"/>
+  <p><em>Fragrance catalog with search, family filters, and rating cards</em></p>
+</div>
+
 ---
 
 ## Quick Start
@@ -57,6 +62,52 @@ make test-backend # Run backend test suite (requires running system)
 
 ## Architecture
 
+### Architecture Overview
+
+```mermaid
+graph TB
+    subgraph Frontend["Next.js 16 (TypeScript)"]
+        CAT[Catalog Page] --> API
+        QZ[Quiz Page] --> API
+        REC[Recommendations Page] --> API
+    end
+
+    subgraph Backend["FastAPI (Python 3.11)"]
+        API[REST API] --> DISP[5-State Dispatcher]
+        DISP --> S0[State 0: Popularity]
+        DISP --> S1[State 1: GraphSAGE USER_VECTOR]
+        DISP --> S2[State 2: Hybrid β-blend]
+        DISP --> S3[State 3: Feature-based]
+        DISP --> S4[State 4: Feature-based + Diversity]
+    end
+
+    subgraph Data["Data Layer"]
+        PG[(PostgreSQL 15<br/>Auth, Ratings, Catalog)]
+        RE[(Redis 7<br/>Cache, Quiz Sessions)]
+        NE[(Neo4j 5<br/>Knowledge Graph)]
+    end
+
+    subgraph ML["ML Pipeline"]
+        GS[GraphSAGE<br/>Jaccard Embeddings<br/>4559 x 64]
+        FB[Feature-Based<br/>Accord/Note Overlap]
+    end
+
+    API --> PG
+    API --> RE
+    API -.-> NE
+    S1 --> GS
+    S2 --> GS
+    S2 --> FB
+    S3 --> FB
+    S4 --> FB
+
+    style S0 fill:#f0f0f0,stroke:#999
+    style S1 fill:#e3f2fd,stroke:#1565c0
+    style S2 fill:#fff3e0,stroke:#e65100
+    style S3 fill:#e8f5e9,stroke:#2e7d32
+    style S4 fill:#fce4ec,stroke:#c62828
+```
+
 ### 5-State Recommendation Dispatcher
 
 | State | Label | Trigger | Strategy |
@@ -68,6 +119,14 @@ make test-backend # Run backend test suite (requires running system)
 | 4 | Mature | 20+ ratings | Feature-based + diversity injection |
 
 Every path has a graceful fallback. The system never returns empty results. See [ARCHITECTURE-FREEZE.md](./ARCHITECTURE-FREEZE.md) for full dispatch details.
+
+### Screenshots
+
+<div align="center">
+  <img src="docs/screenshots/quiz-interface.png" alt="Adaptive preference quiz" width="340"/>
+  <img src="docs/screenshots/recommendations.png" alt="Recommendations with state indicator" width="340"/>
+  <p><em>Left: Adaptive quiz with 1–10 rating scale. Right: State-driven recommendations with match scores.</em></p>
+</div>
 
 ### User Journey
 

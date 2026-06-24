@@ -1,5 +1,13 @@
 # Scentrix — Research Thesis
 
+## Key Findings (tl;dr)
+
+- **Feature-Only beats GraphSAGE by 3.47×** (0.399 vs 0.115 NDCG@10) under non-circular evaluation — direct note/accord overlap is substantially more predictive of brand+accord relevance than graph embeddings on this dataset.
+- **USER_VECTOR is the production-ready contribution**: +14.9% FH / +41.4% NDCG over centroid, ~10× faster, simpler to implement. This is what runs in production.
+- **GraphSAGE-Jaccard modestly beats GraphSAGE-Embedding** (0.115 vs 0.095, p=0.008) — structural independence helps, but not by enough to justify the complexity cost.
+- **Research integrity finding**: An evaluation audit discovered NDCG@10 was being computed as RR@10, and ground truth used note-Jaccard (circular with the Jaccard graph). Fixing both flipped the headline result — the 2.7× GraphSAGE advantage was an artifact.
+- **Architecture implications**: GraphSAGE is deployed as a preference initialization layer alongside feature-based scoring (never alone), consistent with the evidence that it adds value only at extreme cold-start.
+
 ## Abstract
 
 Graph-Based Preference Initialisation for Cold-Start Recommendation in Zero-Interaction Domains. A full evaluation of GraphSAGE on a Jaccard-similarity graph for cold-start fragrance recommendation, with a corrected evaluation methodology that surfaced surprising findings about model complexity vs evaluation rigor.
