@@ -79,8 +79,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      neo4j:
-        condition: service_healthy
       redis:
         condition: service_healthy
     volumes:
@@ -94,12 +92,14 @@ services:
       start_period: 180s
     networks:
       - Scentrix
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
   frontend:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
+      context: frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     container_name: Scentrix-frontend
     ports:
       - "3000:3000"
@@ -108,14 +108,9 @@ services:
         condition: service_healthy
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
-      NODE_ENV: development
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
+      NODE_ENV: production
     networks:
       - Scentrix
-    command: npm run dev -- --hostname 0.0.0.0 --port 3000
 
 volumes:
   postgres_data:

@@ -1,5 +1,7 @@
 """Backend configuration module."""
 
+import os
+
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -87,9 +89,7 @@ class Settings(BaseSettings):
     api_prefix: str = "/api/v1"
 
     # CORS
-    allowed_origins: list[str] = [
-        "http://localhost:3000",
-    ]
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     # Pinecone Vector Search
     pinecone_api_key: str | None = Field(
@@ -123,6 +123,15 @@ class Settings(BaseSettings):
     google_api_key: str | None = Field(
         default=None, validation_alias=AliasChoices("GOOGLE_API_KEY")
     )
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    def model_post_init(self, __context):
+        origins_env = os.environ.get("CORS_ORIGINS")
+        if origins_env:
+            self.cors_origins = origins_env
 
     @field_validator("database_url", mode="before")
     @classmethod
