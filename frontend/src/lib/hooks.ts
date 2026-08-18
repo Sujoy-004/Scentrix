@@ -7,11 +7,12 @@ export function useLogin() {
   return useMutation({
     mutationFn: async ({ email, password }: any) => {
       const { data } = await api.post('/auth/login', { email, password });
+      const tokenData = data?.data ?? {};
 
       // Store token so subsequent requests (like batch-rate) are authenticated
-      if (data.access_token) {
-        localStorage.setItem('auth_token', data.access_token);
-        setAuthToken(data.access_token);
+      if (tokenData.access_token) {
+        localStorage.setItem('auth_token', tokenData.access_token);
+        setAuthToken(tokenData.access_token);
 
         // Sync local guest data to the fresh account
         if (quizResponses.length > 0) {
@@ -25,7 +26,7 @@ export function useLogin() {
           }
         }
       }
-      return data;
+      return tokenData;
     },
   });
 }
@@ -35,11 +36,12 @@ export function useRegister() {
   return useMutation({
     mutationFn: async ({ email, password, full_name }: { email: string; password: string; full_name?: string }) => {
       const { data } = await api.post('/auth/register', { email, password, full_name });
+      const tokenData = data?.data ?? {};
 
       // Store token so subsequent requests are authenticated
-      if (data.access_token) {
-        localStorage.setItem('auth_token', data.access_token);
-        setAuthToken(data.access_token);
+      if (tokenData.access_token) {
+        localStorage.setItem('auth_token', tokenData.access_token);
+        setAuthToken(tokenData.access_token);
 
         // Sync local guest data to the fresh account
         if (quizResponses.length > 0) {
@@ -53,7 +55,7 @@ export function useRegister() {
           }
         }
       }
-      return data;
+      return tokenData;
     },
   });
 }
@@ -118,7 +120,7 @@ export function useUserProfile() {
     queryKey: ['user-profile'],
     queryFn: async () => {
       const { data } = await api.get('/users/profile');
-      return data;
+      return data?.data;
     },
   });
 }
@@ -137,7 +139,7 @@ export function useWishlist() {
     queryKey: ['wishlist'],
     queryFn: async () => {
       const { data } = await api.get('/users/saved');
-      return Array.isArray(data) ? data : [];
+      return Array.isArray(data?.data) ? data.data : [];
     },
   });
 }

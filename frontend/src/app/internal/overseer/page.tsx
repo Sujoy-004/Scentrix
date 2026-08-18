@@ -24,7 +24,7 @@ export default function OverseerDashboard() {
   const fetchFeed = async () => {
     try {
       const { data } = await api.get('/leads/feed');
-      setFeed(data);
+      setFeed(data?.data ?? []);
     } catch (error) {
       console.error("Overseer System Fault:", error);
     } finally {

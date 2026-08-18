@@ -90,7 +90,7 @@ export default function CollectionPage() {
             {shelfRows.map((row, rowIndex) => (
               <div key={rowIndex} className="shelf-row">
                 <div className="shelf-grid">
-                  {row.map((item: any, itemIndex) => {
+                  {row.map((item: any, itemIndex: number) => {
                     const fragrance = item.fragrance ?? { name: 'Unknown', brand: 'Archive' };
                     return (
                       <motion.div

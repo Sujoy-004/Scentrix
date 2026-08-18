@@ -48,7 +48,7 @@ export default function FamilyPage({ params: paramsPromise }: { params: Promise<
       setError(null);
       try {
         const page = await api.getFragranceCatalog(48, 0, { family: params.family });
-        setFragrances(Array.isArray(page?.items) ? page.items : []);
+        setFragrances(Array.isArray(page?.data?.items) ? page.data.items : []);
       } catch {
         setError('Failed to load fragrances. Please try again later.');
       } finally {
