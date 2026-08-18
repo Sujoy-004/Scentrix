@@ -11,9 +11,19 @@ logger = logging.getLogger(__name__)
 
 # Paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATASET_PATH = os.path.join(BASE_DIR, "data", "scentrix_master.json")
+# The embedding index must be built from the CLEANED catalog: the raw file
+# (scentrix_master.json, 4577 items) contains 18 duplicate name+brand pairs
+# that are excluded from the 4559-item production universe. Building from raw
+# would leave the index with 18 orphaned IDs that never match the runtime
+# catalog (loaded from Neo4j/cleaned JSON).
+DATASET_PATH = os.path.join(BASE_DIR, "data", "scentrix_master_cleaned.json")
 EMBEDDINGS_OUTPUT = os.path.join(BASE_DIR, "data", "embeddings.npy")
 INDEX_OUTPUT = os.path.join(BASE_DIR, "data", "embedding_index.json")
+
+# Guard: the cleaned catalog is the canonical universe for embedding artifacts.
+# Refuse to run against any catalog whose length diverges from it so the index
+# can never drift from the runtime catalog again.
+EXPECTED_CATALOG_SIZE = 4559
 
 def generate_embeddings():
     if not os.path.exists(DATASET_PATH):
@@ -25,6 +35,16 @@ def generate_embeddings():
         catalog = json.load(f)
 
     logger.info(f"Loaded {len(catalog)} fragrances.")
+
+    if len(catalog) != EXPECTED_CATALOG_SIZE:
+        raise SystemExit(
+            f"Aborting: expected {EXPECTED_CATALOG_SIZE} fragrances from the "
+            f"cleaned catalog ({DATASET_PATH}), got {len(catalog)}. The raw "
+            f"catalog ({EXPECTED_CATALOG_SIZE + 18} items) includes 18 "
+            f"duplicate name+brand pairs and must not be used to build the "
+            f"embedding index. Regenerate the cleaned catalog with "
+            f"ml/pipeline/clean.py first."
+        )
     
     # Initialize model
     model_name = 'all-MiniLM-L6-v2'

@@ -83,7 +83,8 @@ def _load_from_neo4j() -> list[dict[str, Any]]:
                 f.concentration as concentration,
                 f.gender_label as gender_label,
                 f.popularity as popularity,
-                f.rating_count as rating_count
+                f.rating_count as rating_count,
+                f.rating_value as rating_value
             """
             result = session.run(query)
             items_dict = {}
@@ -175,7 +176,17 @@ def load_recommendation_catalog(force_reload: bool = False) -> list[dict[str, An
             stable = abs(hash(str(row.get("id", ""))))
             row["rating"] = min(round(3.6 + ((stable % 14) / 10.0), 1), 5.0)
             row["match_score"] = min(round(70 + (stable % 31), 1), 100.0)
-            row["rating_count"] = (stable % 48) + 1
+
+            # Real engagement data flows through from the graph (seeded from the
+            # cleaned catalog by ml/pipeline/ingest.py). Never synthesize a
+            # pseudo-random rating_count — it breaks popularity ranking.
+            # Null-safe coercion: absent graph values become 0 (no engagement
+            # data yet) instead of crashing downstream `.get("rating_count", 0)`
+            # callers, which would receive None for a present-but-null key.
+            rating_count = row.get("rating_count")
+            row["rating_count"] = int(rating_count) if rating_count is not None else 0
+            rating_value = row.get("rating_value")
+            row["rating_value"] = float(rating_value) if rating_value is not None else 3.5
 
             # Pre-compute sets for performance (Heuristic Reranking)
             all_notes = (

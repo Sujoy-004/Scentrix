@@ -235,6 +235,11 @@ class FragranceDataCleaner:
                 "middle_notes": self._normalize_notes(frag.get("middle_notes", []), "middle"),
                 "base_notes": self._normalize_notes(frag.get("base_notes", []), "base"),
                 "accords": self._validate_accords(frag.get("accords", [])),
+                # Preserve real engagement data (scraped rating count/value).
+                # These drive popularity ranking downstream; dropping them here
+                # would force consumers to synthesize fake engagement values.
+                "rating_count": frag.get("rating_count"),
+                "rating_value": frag.get("rating_value"),
             }
 
             # Validate result

@@ -1,4 +1,10 @@
-"""Fragrance graph ingestor — creates Neo4j nodes and edges from cleaned fragrance data."""
+"""Fragrance graph ingestor — creates Neo4j nodes and edges from cleaned fragrance data.
+
+The canonical seed source is the CLEANED catalog (`ml/data/scentrix_master_cleaned.json`,
+4559 items). The raw catalog (`ml/data/scentrix_master.json`, 4577 items) contains 18
+duplicate name+brand pairs and must NOT be used for seeding — it would leave orphan
+nodes in the graph that never match the runtime catalog.
+"""
 
 import json
 import logging
@@ -70,7 +76,11 @@ SET f.name = $name,
     f.year = $year,
     f.description = $description,
     f.concentration = $concentration,
-    f.gender_label = $gender_label
+    f.gender_label = $gender_label,
+    f.image_url = $image_url,
+    f.popularity = $popularity,
+    f.rating_count = $rating_count,
+    f.rating_value = $rating_value
 """
 
 _CREATE_BRAND_RELATIONSHIP = """
@@ -128,6 +138,8 @@ class FragranceGraphIngestor:
             fragrances: Cleaned fragrance dicts with fields:
                 id, name, brand, year, description, concentration, gender_label,
                 top_notes, middle_notes, base_notes, accords
+                Optional engagement fields (written to the graph when present):
+                image_url, popularity, rating_count, rating_value
 
         Returns:
             Dict with counts: fragrances_created, notes_created, accords_created,
@@ -162,6 +174,14 @@ class FragranceGraphIngestor:
                     base_notes = f.get("base_notes") or []
                     accords = f.get("accords") or []
 
+                    # Engagement/attribute properties. Only real source values
+                    # are written — never synthesized. image_url/popularity are
+                    # null when the source catalog does not carry them.
+                    image_url = f.get("image_url")
+                    popularity = f.get("popularity")
+                    rating_count = f.get("rating_count")
+                    rating_value = f.get("rating_value")
+
                     # Create fragrance node
                     session.run(
                         _CREATE_FRAGRANCE_NODE,
@@ -172,6 +192,10 @@ class FragranceGraphIngestor:
                         description=description,
                         concentration=concentration,
                         gender_label=gender_label,
+                        image_url=image_url,
+                        popularity=popularity,
+                        rating_count=rating_count,
+                        rating_value=rating_value,
                     )
 
                     # Create brand relationship
@@ -259,7 +283,8 @@ def ingest_fragrances_from_file(
 
     Args:
         driver: Neo4j driver instance
-        filepath: Path to cleaned fragrance JSON file
+        filepath: Path to cleaned fragrance JSON file. The canonical source is
+            `ml/data/scentrix_master_cleaned.json` (4559 items).
 
     Returns:
         Ingest statistics
@@ -273,6 +298,18 @@ def ingest_fragrances_from_file(
         else:
             raise ValueError(f"Expected list of fragrances, got {type(fragrances)}")
 
+    # Guard against re-seeding the RAW catalog (4577 items): its 18 duplicate
+    # name+brand pairs produce orphan Fragrance nodes that never match the
+    # runtime catalog. Log a prominent warning rather than hard-failing so the
+    # tool stays usable for exploratory seeds of other datasets.
+    if len(fragrances) != 4559:
+        logger.warning(
+            f"Expected 4559 fragrances from the cleaned catalog "
+            f"(ml/data/scentrix_master_cleaned.json), got {len(fragrances)} from "
+            f"{filepath}. If this is scentrix_master.json, re-run against the "
+            f"cleaned file — the raw file seeds 18 duplicate name+brand pairs."
+        )
+
     logger.info(f"Loaded {len(fragrances)} fragrances from {filepath}")
     ingestor = FragranceGraphIngestor(driver)
     return ingestor.ingest_fragrances(fragrances)
@@ -285,7 +322,12 @@ if __name__ == "__main__":
     import sys
 
     parser = argparse.ArgumentParser(description="Ingest fragrance data into Neo4j")
-    parser.add_argument("file", help="Path to cleaned fragrance JSON file")
+    parser.add_argument(
+        "file",
+        help="Path to CLEANED fragrance JSON file "
+        "(ml/data/scentrix_master_cleaned.json is the canonical 4559-item source; "
+        "the raw 4577-item file contains 18 duplicate name+brand pairs)",
+    )
     parser.add_argument("--uri", default="bolt://localhost:7687", help="Neo4j URI")
     parser.add_argument("--user", default="neo4j", help="Neo4j username")
     parser.add_argument("--password", default="neo4j_password", help="Neo4j password")
