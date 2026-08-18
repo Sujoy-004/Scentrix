@@ -75,6 +75,11 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("REFRESH_TOKEN_EXPIRE_DAYS"),
     )
     data_encryption_key: str = Field(
+        # Dev default so fresh clones boot without DATA_ENCRYPTION_KEY set
+        # (compose backend env does not pass it). Real deployments must set
+        # DATA_ENCRYPTION_KEY explicitly — existing encrypted data requires
+        # the original key.
+        default="d3_q8YEDiZl7fWE8-_EOeahljkGdp1Kdgwad6AHzMiA=",
         validation_alias=AliasChoices("DATA_ENCRYPTION_KEY"),
     )
 
@@ -84,9 +89,6 @@ class Settings(BaseSettings):
     sentry_traces_sample_rate: float = 1.0
     debug: bool = False
     log_level: str = "INFO"
-
-    # API
-    api_prefix: str = "/api/v1"
 
     # CORS
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
