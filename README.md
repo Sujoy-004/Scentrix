@@ -5,7 +5,7 @@ Full-stack ML fragrance discovery platform with a 5-state recommendation dispatc
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue)]()
 [![Next.js 16](https://img.shields.io/badge/next.js-16-black)]()
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green)]()
-[![Tests](https://img.shields.io/badge/tests-160-passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-173-passing-brightgreen)]()
 [![Docker](https://img.shields.io/badge/docker-compose-blue)]()
 
 **Stack:** PostgreSQL 15 | Neo4j 5 | Redis 7 | FastAPI (Python 3.11) | Next.js 16 (TypeScript) | GraphSAGE (PyTorch Geometric) | Docker Compose
@@ -26,7 +26,9 @@ These seven steps take you from a fresh clone to a running application with data
 git clone <repo-url>
 cd Scentrix
 
-# 2. Configure environment (optional — defaults work out of the box)
+# 2. Configure environment (optional — config.py ships dev defaults incl. a Fernet
+#    DATA_ENCRYPTION_KEY, so a fresh clone boots without .env; deployments MUST set a
+#    real key)
 cp .env.example .env
 
 # 3. Start all Docker services (Postgres, Neo4j, Redis, backend, frontend)
@@ -163,23 +165,24 @@ Once the app is running at `http://localhost:3000`, follow this flow to experien
 ## Key Engineering Achievements
 
 - **5-state state machine dispatcher** routing by user signal maturity — anonymous users get popularity, quiz completers get GraphSAGE user vectors, frequent raters get feature-based scoring with diversity injection
-- **GraphSAGE preference initialization** producing 64-dimensional embeddings from a Jaccard-similarity graph over 4,559 fragrance nodes — precomputed at build time, loaded at serving time as `.npy` files with zero PyTorch runtime dependency
+- **GraphSAGE preference initialization** producing 64-dimensional embeddings from a Jaccard-similarity graph over 4,559 fragrance nodes — precomputed at build time, loaded at serving time as `.npy` files. Loading/serving the artifacts requires no PyTorch (the serving module reads NumPy arrays directly); note the backend Docker image still installs torch + torch-geometric + sentence-transformers via the `[runtime,ml]` extras (~2 GB)
 - **Full-stack containerized deployment** — 5 Docker services (PostgreSQL 15, Neo4j 5, Redis 7, FastAPI, Next.js 16) orchestrated with Docker Compose
 - **Observability** — Correlation ID tracing across all API endpoints, 10 structured event types, Sentry error monitoring
-- **160 backend tests** (pytest) + Playwright E2E with visual regression across the complete quiz→recommendation flow
-- **Load-tested at 20 concurrent users** (1,875 requests, 0 true errors, 8/8 success criteria PASS)
-- **4,559 quality-filtered fragrance entries** from 22,740 raw scraped items, 24 brands, 48 accords, 16,244 graph edges
+- **173 backend tests** (pytest; dispatcher + rating-normalization suite 105 passing) + Playwright E2E with visual regression across the complete quiz→recommendation flow
+- **Load-tested at 20 concurrent users** — 1,875 requests, 1,561 successful and 314 failures (313× 429 rate-limited quiz-start responses + 1 connection error, ≈16.7%). The 429s are rate-limit responses by design; evidence in `backend/tests/load/results/load_results_stats.csv`
+- **4,559 quality-filtered fragrance entries** (cleaned from 4,577 raw items by removing 18 duplicate name+brand rows), 397 brands, 72 accords
 
 ---
 
 ## Testing & Quality
 
 ```bash
-# Backend tests (requires running system)
-docker compose exec backend pytest
+# Backend tests — run on the host venv (the backend Docker image excludes dev deps,
+# so pytest is not available via `docker compose exec backend pytest`)
+.venv\Scripts\python.exe -m pytest backend/tests -q
 
 # Single test file
-docker compose exec backend pytest tests/test_phase11_quiz.py
+.venv\Scripts\python.exe -m pytest backend/tests/test_phase11_quiz.py -q
 
 # Frontend checks (from frontend/)
 npm run lint                                           # ESLint

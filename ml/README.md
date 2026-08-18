@@ -4,7 +4,7 @@ Cold-start fragrance recommendation via GraphSAGE on a Jaccard-similarity graph.
 
 ## What It Does
 
-The ML system produces precomputed GraphSAGE embeddings [4559×64] used by the backend recommendation dispatcher at serving time. Backend loads the embeddings as `.npy` files — zero PyTorch runtime dependency.
+The ML system produces precomputed GraphSAGE embeddings [4559×64] used by the backend recommendation dispatcher at serving time. Backend loads the embeddings as `.npy` files — no PyTorch is required to load or serve them (the serving module reads NumPy arrays directly).
 
 ## Directory Structure
 
@@ -60,7 +60,7 @@ The backend loads precomputed embeddings from `ml/models/serving/v1/`:
 - `node_ids_jaccard.json` — aligned fragrance IDs
 - `metadata.json` — provenance and validation results
 
-These artifacts are produced by `ml/export/export_jaccard_embeddings.py` using the canonical GraphSAGE checkpoint from the evaluation pipeline. The serving artifacts are checked into the repository and do not require PyTorch or model training to load.
+These artifacts are produced by `ml/export/export_jaccard_embeddings.py` using the canonical GraphSAGE checkpoint from the evaluation pipeline. The serving artifacts are now version-controlled in the repository (the `.gitignore` rule for `ml/models/serving/v1/` was removed) and require no PyTorch or model training to load. `ml/data/embeddings.npy` (4559×384 sentence-transformer embeddings) remains gitignored and is regenerable via `ml/scripts/generate_embeddings.py`.
 
 ## Research
 

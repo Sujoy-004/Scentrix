@@ -14,7 +14,8 @@ cd Scentrix
 
 # Configure environment
 cp .env.example .env
-# Edit .env: set JWT_SECRET_KEY, DATA_ENCRYPTION_KEY, and DATABASE_URL
+# Edit .env: set JWT_SECRET_KEY and DATABASE_URL. DATA_ENCRYPTION_KEY ships a dev-only
+# default in config.py so fresh clones boot, but deployments MUST set a real Fernet key.
 
 # Build and start everything
 docker compose up --build -d
@@ -25,14 +26,16 @@ curl http://localhost:8000/health # Backend API
 curl http://localhost:8000/docs   # API documentation
 ```
 
+> **Note:** `docker compose up` does not run DB migrations automatically. Run `docker compose run --rm backend alembic upgrade head` before first use — this picks up the new `006_backfill_fragrance_rating_prefixes` migration, which backfills legacy unprefixed fragrance rating IDs. Also, the Postgres/Neo4j/Redis ports bind to `127.0.0.1` only; they are not exposed to the network.
+
 ## Environment Variables
 
 | Variable | Required | Default | Purpose |
 |----------|----------|---------|---------|
 | `DATABASE_URL` | Yes | — | PostgreSQL async connection string |
 | `JWT_SECRET_KEY` | Yes | — | Secret for signing auth tokens |
-| `DATA_ENCRYPTION_KEY` | Yes | — | Secret for encrypting PII data |
-| `ALLOWED_ORIGINS` | No | `http://localhost:3000` | Comma-separated CORS origins |
+| `DATA_ENCRYPTION_KEY` | Yes | Dev-only Fernet key (config.py) | Secret for encrypting PII data — MUST override in production |
+| `CORS_ORIGINS` | No | `http://localhost:3000,http://127.0.0.1:3000` | Comma-separated CORS origins |
 | `REDIS_URL` | No | `redis://localhost:6379/0` | Redis connection string |
 | `NEO4J_URI` | No | `neo4j://localhost:7687` | Neo4j connection string |
 | `NEO4J_USERNAME` | No | `neo4j` | Neo4j username |
@@ -135,7 +138,7 @@ docker compose run --rm backend python -m scripts.seed_data
 
 - [ ] Generate unique `JWT_SECRET_KEY` (`openssl rand -hex 32`)
 - [ ] Generate unique `DATA_ENCRYPTION_KEY` (`openssl rand -base64 32`)
-- [ ] Set `ALLOWED_ORIGINS` to your frontend domain(s)
+- [ ] Set `CORS_ORIGINS` to your frontend domain(s)
 - [ ] Configure PostgreSQL with a strong password
 - [ ] Enable HTTPS via a reverse proxy (Caddy, Nginx, or Traefik recommended)
 - [ ] Set up regular database backups
@@ -149,7 +152,7 @@ Ensure PostgreSQL is running and `DATABASE_URL` is correct. The backend logs the
 
 ### CORS errors in browser
 
-The `ALLOWED_ORIGINS` env var must include the exact origin (protocol + domain + port) of your frontend. Example: `ALLOWED_ORIGINS=https://myapp.com`.
+The `CORS_ORIGINS` env var must include the exact origin (protocol + domain + port) of your frontend. Example: `CORS_ORIGINS=https://myapp.com`.
 
 ### Frontend shows blank page
 
