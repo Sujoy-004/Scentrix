@@ -1092,6 +1092,135 @@ class TestSourceAttribution:
                 )
 
 
+class TestCandidateCountTruncation:
+    """Proves dispatch() truncates results to request.candidate_count."""
+
+    async def test_blended_truncated_to_candidate_count(
+        self,
+        dispatcher: RecommendationDispatcher,
+        mock_gs_service: Any,
+        mock_feature_based: Any,
+    ) -> None:
+        """State 2 blended union (10 GS + 12 FB = 22) is truncated to 3."""
+        ratings = [MagicMock(fragrance_id="f001", rating=8.0)]
+        req = DispatchRequest(
+            user_id=1,
+            ratings=ratings,
+            quiz_completed=False,
+            catalog=[],
+            candidate_count=3,
+            gs_service=mock_gs_service,
+            feature_based_service=mock_feature_based,
+        )
+        result = await dispatcher.dispatch(req)
+        assert result.state == 2
+        assert len(result.recommendations) == 3, (
+            f"expected truncation to candidate_count=3, got {len(result.recommendations)}"
+        )
+
+    async def test_graphsage_truncated_to_candidate_count(
+        self,
+        dispatcher: RecommendationDispatcher,
+        mock_gs_service: Any,
+        mock_feature_based: Any,
+        sample_catalog: list[dict[str, Any]],
+    ) -> None:
+        """State 1 graphsage output is truncated to candidate_count."""
+        # Include the GS ids in the catalog so KNN results survive hydration.
+        catalog = sample_catalog + [
+            {"id": f"gs_{i}", "name": f"GS {i}", "brand": "B",
+             "accords": ["x"], "rating_count": 5,
+             "_accords_set": {"x"}, "_notes_set": {"y"}}
+            for i in range(10)
+        ]
+        req = DispatchRequest(
+            user_id=None,
+            ratings=[],
+            quiz_completed=True,
+            quiz_confidence={"fresh": 0.8, "woody": 0.4},
+            catalog=catalog,
+            candidate_count=4,
+            gs_service=mock_gs_service,
+            feature_based_service=mock_feature_based,
+        )
+        result = await dispatcher.dispatch(req)
+        assert result.state == 1
+        assert len(result.recommendations) == 4, (
+            f"expected truncation to candidate_count=4, got {len(result.recommendations)}"
+        )
+
+
+class TestBlendedSeedExclusion:
+    """Proves BlendedStrategy excludes seed ids from GraphSAGE KNN."""
+
+    async def test_knn_search_receives_exclude_ids(
+        self,
+        dispatcher: RecommendationDispatcher,
+        mock_gs_service: Any,
+        mock_feature_based: Any,
+    ) -> None:
+        ratings = [MagicMock(fragrance_id="frag_f001", rating=8.0)]
+        req = DispatchRequest(
+            user_id=1,
+            ratings=ratings,
+            quiz_completed=False,
+            catalog=[],
+            gs_service=mock_gs_service,
+            feature_based_service=mock_feature_based,
+        )
+        await dispatcher.dispatch(req)
+        # BlendedStrategy must pass exclude_ids=seed_ids to knn_search so the
+        # rated fragrance cannot recommend itself.
+        call_kwargs = mock_gs_service.knn_search.call_args.kwargs
+        assert call_kwargs.get("exclude_ids") == ["frag_f001"], (
+            f"knn_search called without seed exclusion: {call_kwargs}"
+        )
+
+    async def test_seed_id_never_in_blended_output(
+        self,
+        dispatcher: RecommendationDispatcher,
+        mock_gs_service: Any,
+        mock_feature_based: Any,
+    ) -> None:
+        """Even if GS would return the seed id, exclusion keeps it out."""
+        # Simulate the real knn_search contract: exclude_ids are honoured.
+        def _knn(centroid, top_k: int = 200, exclude_ids: list[str] | None = None):
+            items = [
+                {"id": "frag_f001", "score": 0.99},  # the seed itself
+                {"id": "frag_f002", "score": 0.80},
+                {"id": "frag_f003", "score": 0.70},
+            ]
+            exclude = set(exclude_ids or [])
+            return [i for i in items if i["id"] not in exclude][:top_k]
+
+        mock_gs_service.knn_search.side_effect = _knn
+        mock_feature_based.score.return_value = [
+            {
+                "id": "frag_f004",
+                "name": "Other",
+                "brand": "B",
+                "match_score": 60.0,
+                "reason": "R",
+                "top_accords": ["fresh"],
+                "top_notes": ["lemon"],
+            }
+        ]
+        ratings = [MagicMock(fragrance_id="frag_f001", rating=8.0)]
+        req = DispatchRequest(
+            user_id=1,
+            ratings=ratings,
+            quiz_completed=False,
+            catalog=[],
+            gs_service=mock_gs_service,
+            feature_based_service=mock_feature_based,
+        )
+        result = await dispatcher.dispatch(req)
+        result_ids = {str(r["id"]) for r in result.recommendations}
+        assert "frag_f001" not in result_ids, (
+            f"seed fragrance leaked into its own recommendations: {result_ids}"
+        )
+
+
 # ===================================================================
 # CP8D — GraphSAGE Wiring tests
 # ===================================================================

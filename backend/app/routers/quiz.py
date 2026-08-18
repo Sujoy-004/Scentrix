@@ -14,7 +14,7 @@ from statistics import pstdev
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user_id, get_optional_user_id
@@ -418,16 +418,24 @@ async def submit_quiz_answer(
 
         # BRIDGE: Sync to permanent database for authenticated users
         if user_id and db_session:
-            neo4j_id = quiz_data.fragrance_id.replace("frag_syn_", "").replace("frag_", "")
+            # Canonicalise to the prefixed form (catalog/GraphSAGE convention).
+            # Legacy rows may hold the unprefixed variant — match both and
+            # upgrade the row in place.
+            raw_id = quiz_data.fragrance_id
+            neo4j_id = raw_id if raw_id.startswith("frag_") else f"frag_{raw_id}"
+            legacy_id = neo4j_id[len("frag_"):] if neo4j_id.startswith("frag_") else neo4j_id
             existing = await db_session.execute(
                 select(FragranceRating).where(
                     FragranceRating.user_id == user_id,
-                    FragranceRating.fragrance_neo4j_id == neo4j_id,
+                    FragranceRating.fragrance_neo4j_id.in_([neo4j_id, legacy_id]),
                 )
             )
             row = existing.scalar_one_or_none()
             if row:
                 row.quiz_rating = quiz_data.rating_1_to_10
+                if row.fragrance_neo4j_id != neo4j_id:
+                    # Migrate the legacy unprefixed row to the canonical form.
+                    row.fragrance_neo4j_id = neo4j_id
             else:
                 db_session.add(
                     FragranceRating(
@@ -485,8 +493,23 @@ async def finalize_quiz_session(
     from app.models.models import FragranceRating
 
     for res in responses:
-        fid = str(res.get("fragrance_id", "")).replace("frag_syn_", "").replace("frag_", "")
+        raw_fid = str(res.get("fragrance_id", ""))
+        # Canonicalise to the prefixed form (catalog/GraphSAGE convention).
+        fid = raw_fid if raw_fid.startswith("frag_") else f"frag_{raw_fid}"
         rating = float(res.get("rating_1_to_10") or 0)
+
+        # Migrate any legacy unprefixed row so the upsert conflict target
+        # (user_id, fragrance_neo4j_id) matches the canonical id.
+        legacy_fid = fid[len("frag_"):] if fid.startswith("frag_") else fid
+        if legacy_fid != fid:
+            await db.execute(
+                update(FragranceRating)
+                .where(
+                    FragranceRating.user_id == user_id,
+                    FragranceRating.fragrance_neo4j_id == legacy_fid,
+                )
+                .values(fragrance_neo4j_id=fid)
+            )
 
         stmt = (
             insert(FragranceRating)

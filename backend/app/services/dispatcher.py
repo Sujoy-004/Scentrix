@@ -238,7 +238,9 @@ class BlendedStrategy(RecommendationStrategy):
                 seed_ids = [r.fragrance_id for r in request.ratings]
                 weights = [getattr(r, "rating", 5.0) / 10 for r in request.ratings]
                 centroid = gs.compute_centroid(seed_ids, weights)
-                gs_candidates = gs.knn_search(centroid, top_k=100)
+                gs_candidates = gs.knn_search(
+                    centroid, top_k=100, exclude_ids=seed_ids,
+                )
 
             if fb_svc is not None and request.catalog:
                 fb_candidates = fb_svc.score(
@@ -793,6 +795,9 @@ class RecommendationDispatcher:
         result.recommendations = _hydrate_from_catalog(
             result.recommendations, request.catalog
         )
+        # Single enforcement point for candidate_count across all strategies
+        # (strategies may over-produce, e.g. blended unions or exploration).
+        result.recommendations = result.recommendations[: request.candidate_count]
         result.state = state
         result.state_label = _state_label(state)
         return result

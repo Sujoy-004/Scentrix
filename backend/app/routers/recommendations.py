@@ -18,6 +18,7 @@ from app.models.models import User
 from app.schemas.schemas import (
     FragranceRecommendation,
     FragranceRatingInput,
+    GuestRatingInput,
     GuestRecommendationRequest,
     QuizSummaryResponse,
     StandardResponse,
@@ -93,8 +94,37 @@ class BatchRatingRequest(BaseModel):
 
 
 def _normalize_id(raw_id: str) -> str:
-    """Strip common prefix variants so IDs match the catalog."""
-    return raw_id.replace("frag_syn_", "").replace("frag_", "")
+    """Return the canonical prefixed form (``frag_``) of a fragrance ID.
+
+    The catalog SSOT (``ml/data/scentrix_master.json``), the GraphSAGE node
+    index (``ml/models/serving/v1/node_ids_jaccard.json``) and the embedding
+    index (``ml/data/embedding_index.json``) all key fragrances as
+    ``frag_<brand>_<name>_<year>``.  Ratings persisted before the prefix
+    convention (unprefixed ``FragranceRating.fragrance_neo4j_id``) are
+    canonicalised on read; this helper guarantees every path (write and read)
+    uses the same prefixed format.
+    """
+    if not raw_id or not raw_id.strip():
+        return raw_id
+    if raw_id.startswith("frag_"):
+        return raw_id
+    return f"frag_{raw_id}"
+
+
+def _canonicalize_ratings(
+    ratings: list[FragranceRatingInput | GuestRatingInput],
+) -> list[FragranceRatingInput | GuestRatingInput]:
+    """Return the same ratings with every ``fragrance_id`` canonicalised.
+
+    The dispatcher resolves seeds against the GraphSAGE node index and the
+    catalog, both of which key on the ``frag_``-prefixed form.  Applying the
+    same canonicalisation the write paths use guarantees guest seeds resolve
+    even if a client sends an unprefixed id.
+    """
+    return [
+        r.model_copy(update={"fragrance_id": _normalize_id(r.fragrance_id)})
+        for r in ratings
+    ]
 
 
 def _cosine_similarity(v1: list[float], v2: list[float]) -> float:
@@ -135,19 +165,25 @@ async def submit_fragrance_rating(
         return {"status": "success", "data": {"status": "guest_local_fallback"}}
 
     try:
-        # Use fragrance_neo4j_id (the actual DB column name)
+        # Use fragrance_neo4j_id (the actual DB column name).
+        # Canonicalise to the prefixed form; legacy rows may still hold the
+        # unprefixed variant, so match both and upgrade the row in place.
         neo4j_id = _normalize_id(request.fragrance_id)
+        legacy_id = neo4j_id[len("frag_"):] if neo4j_id.startswith("frag_") else neo4j_id
 
         existing = await db.execute(
             select(DBFragranceRating).where(
                 DBFragranceRating.user_id == user_id,
-                DBFragranceRating.fragrance_neo4j_id == neo4j_id,
+                DBFragranceRating.fragrance_neo4j_id.in_([neo4j_id, legacy_id]),
             )
         )
         row = existing.scalar_one_or_none()
 
         if row:
             row.quiz_rating = request.rating
+            if row.fragrance_neo4j_id != neo4j_id:
+                # Migrate the legacy unprefixed row to the canonical form.
+                row.fragrance_neo4j_id = neo4j_id
         else:
             db.add(
                 DBFragranceRating(
@@ -182,17 +218,21 @@ async def submit_batch_ratings(
         count = 0
         for r in request.ratings:
             neo4j_id = _normalize_id(r.fragrance_id)
+            legacy_id = neo4j_id[len("frag_"):] if neo4j_id.startswith("frag_") else neo4j_id
             # Fast update/upsert logic
             existing = await db.execute(
                 select(DBFragranceRating).where(
                     DBFragranceRating.user_id == user_id,
-                    DBFragranceRating.fragrance_neo4j_id == neo4j_id,
+                    DBFragranceRating.fragrance_neo4j_id.in_([neo4j_id, legacy_id]),
                 )
             )
             row = existing.scalar_one_or_none()
 
             if row:
                 row.quiz_rating = r.rating
+                if row.fragrance_neo4j_id != neo4j_id:
+                    # Migrate the legacy unprefixed row to the canonical form.
+                    row.fragrance_neo4j_id = neo4j_id
             else:
                 db.add(
                     DBFragranceRating(
@@ -247,8 +287,8 @@ async def get_guest_recommendations(
                 # responses via quiz_ratings for the user-vector path.
                 # When there is no quiz, ratings are accumulated user ratings
                 # and drive normal State 2/3/4 routing.
-                ratings=[] if request.quiz_confidence else request.ratings,
-                quiz_ratings=request.ratings if request.quiz_confidence else [],
+                ratings=[] if request.quiz_confidence else _canonicalize_ratings(request.ratings),
+                quiz_ratings=_canonicalize_ratings(request.ratings) if request.quiz_confidence else [],
                 # Shortcut: quiz_confidence present → quiz completed.
                 # Functionally equivalent to the design spec's
                 # len(responses) > 0 check on the session payload.
@@ -361,7 +401,7 @@ async def get_personalized_recommendations(
 
             ratings = [
                 FragranceRatingInput(
-                    fragrance_id=r.fragrance_neo4j_id,
+                    fragrance_id=_normalize_id(str(r.fragrance_neo4j_id)),
                     rating=r.quiz_rating or 5.0,
                 )
                 for r in saved_ratings
@@ -415,7 +455,7 @@ async def get_personalized_recommendations(
 
     guest_ratings = [
         FragranceRatingInput(
-            fragrance_id=r.fragrance_neo4j_id,
+            fragrance_id=_normalize_id(str(r.fragrance_neo4j_id)),
             rating=r.quiz_rating or 5.0,
         )
         for r in saved_ratings
@@ -472,7 +512,7 @@ async def get_quiz_summary(
 
     ratings_list = [
         FragranceRatingInput(
-            fragrance_id=r.fragrance_neo4j_id,
+            fragrance_id=_normalize_id(str(r.fragrance_neo4j_id)),
             rating=r.quiz_rating or 5.0,
         )
         for r in saved_ratings
@@ -494,7 +534,9 @@ async def get_quiz_summary(
         note_counter: dict[str, int] = {}
         accord_counter: dict[str, int] = {}
         for r in saved_ratings:
-            item = catalog_map.get(r.fragrance_neo4j_id)
+            # Canonicalise stored ids so legacy unprefixed rows match the
+            # prefixed catalog_map (otherwise top_notes/top_accords stay empty).
+            item = catalog_map.get(_normalize_id(str(r.fragrance_neo4j_id)))
             if item:
                 for note in item.get("top_notes", []):
                     note_counter[str(note)] = note_counter.get(str(note), 0) + 1
