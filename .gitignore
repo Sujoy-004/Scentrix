@@ -16,16 +16,6 @@ env/
 dist/
 build/
 logs/
-ml/scripts/tmp/
-ml/data/
-!ml/data/__init__.py
-!ml/data/embedding_index.json
-!ml/data/scentrix_master.json
-!ml/data/scentrix_master_cleaned.json
-# Results packages
-mext_demo_package_*.zip
-ml/eval/runs/
-archive/research/evaluation-runs/
 
 # junk / generated
 _brain/
@@ -50,29 +40,20 @@ frontend/tests/visual-regression.spec.ts-snapshots/
 credentials*
 service-account*.json
 secrets*
-docker-compose.override.yml
-
-# planning docs (kept local, not committed)
-.planning/
 
 # opencode tooling artifacts (regeneratable)
 .opencode/node_modules/
 .opencode/sdk/node_modules/
 .opencode/sdk/dist/
-# opencode/gsd framework internals (regeneratable)
+.opencode/
 .agent/
-# opencode design documentation
 DESIGN.md
+
 # coverage artifacts
 .coverage
-# opencode tooling artifacts
-.opencode/
 
 # session report (regeneratable per query, not tracked)
 report.md
-
-# interview study guide (private, not committed)
-study_guide/
 
 # session artifacts (regeneratable per session, not tracked)
 response.md
@@ -82,14 +63,6 @@ state0.png
 # screenshots (local evidence, not committed)
 _screenshots/
 
-# deliverables (local evidence packages, not committed)
-deliverables/
-DELIVERABLES/
-
 # root-level stray npm installs (project lives in frontend/)
 /package.json
 /package-lock.json
-
-# superseded study docs (kept local, replaced by STUDY_GUIDE.md)
-/docs/scentrix_study_guide.html
-/docs/SCENTRIX_LEARNING_ROADMAP.md
