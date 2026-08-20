@@ -2,7 +2,7 @@
 
 AI-driven fragrance discovery built for the cold-start problem: a 3-state "warmth" machine that turns a handful of ratings into good recommendations using precomputed GraphSAGE embeddings and feature-based scoring.
 
-**Two commands to run. No Docker, no Postgres, no Redis, no Neo4j.**
+**One command to run. No Docker, no Postgres, no Redis, no Neo4j.**
 
 ---
 
@@ -56,16 +56,31 @@ Minimal by design — a FastAPI backend that owns all the logic, a Next.js front
 
 ## Quickstart
 
-Prerequisites: **Python 3.11+**, **Node 20+**.
+Prerequisites: **Python 3.11+**, **Node 20+**, PowerShell 7+.
+
+### Option A — one command (Windows)
+
+From the repo root, the bundled script sets up a fresh venv, installs backend deps,
+then launches **both** servers in two windows:
+
+```powershell
+.\start.ps1
+```
+
+Backend → http://localhost:8000 (`/docs` for the interactive API explorer) ·
+Frontend → http://localhost:3000.
+
+### Option B — two terminals (manual)
 
 **1. Backend** (from `backend/`):
 
 ```bash
 cd backend
-python -m venv .venv
-.venv\Scripts\activate          # Windows   (macOS/Linux: source .venv/bin/activate)
-pip install -r requirements.txt
-python -m uvicorn app.main:app --reload
+python -m venv venv
+venv\Scripts\python.exe -m pip install -r requirements.txt   # Windows
+# macOS/Linux: source venv/bin/activate && pip install -r requirements.txt
+venv\Scripts\python.exe -m uvicorn app.main:app --reload     # Windows
+# macOS/Linux: python -m uvicorn app.main:app --reload
 ```
 
 The API is now at http://localhost:8000 (`/health` responds `{"status": "success", "data": {...}}`).
@@ -79,6 +94,9 @@ npm run dev
 ```
 
 Open http://localhost:3000.
+
+> Windows note: always call the interpreter as `venv\Scripts\python.exe -m pip …`.
+> A bare `venv\Scripts\pip` is misread by PowerShell as `Module\Command` and fails.
 
 ### Environment
 
@@ -142,6 +160,7 @@ CLI args: `--epochs` (default 100), `--text-model` (default `all-MiniLM-L6-v2`),
 ## Project structure
 
 ```
+start.ps1                     # one-command dev launcher (backend + frontend)
 backend/
 ├── app/
 │   ├── main.py               # FastAPI entry — mounts routers, /health, lifespan init
@@ -200,6 +219,6 @@ The suite covers the dispatcher state transitions, user-vector + KNN behavior, f
 
 - **Why 3 states?** Warmth is a gradient — unknown → quiz-cold → known. The earlier 5-state design added β-blends and diversity injection that complicated the code without defensible user value at this scale, so it was cut.
 - **Why precomputed embeddings?** Cold-start recommendations don't change with every request — training once offline and serving a NumPy lookup makes the API fast, dependency-free (no PyTorch at runtime), and trivially reproducible via `train.py`.
-- **Why no Docker?** The whole system runs on two processes (`uvicorn` + `next dev`). Docker orchestration for a single service each of backend and frontend was overhead, not value.
+- **Why no Docker?** The whole system runs on two processes (`uvicorn` + `next dev`), launched by a single `start.ps1`. Docker orchestration for one backend and one frontend was overhead, not value.
 - **Own every line.** The codebase is intentionally small and fully understood — no framework boilerplate you can't explain.
 - **Honest about the ML.** Embeddings give you "similar to what you rated"; once a user has enough ratings, interpretable feature overlap takes over. The system is honest about what each state can and can't do.

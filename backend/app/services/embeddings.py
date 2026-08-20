@@ -1,9 +1,10 @@
 """GraphSAGE embedding cache service (replaces gs_embeddings.py).
 
 Loads precomputed Jaccard embedding artifacts from ``app/data`` and serves
-user-vector + KNN lookups. numpy is optional at serving time: when it is
-unavailable ``initialize()`` returns False and callers fall back to
-popularity. No torch, no model inference, no forward pass.
+user-vector + KNN lookups. numpy is a runtime dependency (see
+``requirements.txt``); the import guard below is defensive only — when numpy
+is somehow unavailable ``initialize()`` returns False and callers fall back
+to popularity. No torch, no model inference, no forward pass.
 """
 
 from __future__ import annotations
