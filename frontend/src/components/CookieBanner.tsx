@@ -15,11 +15,18 @@ export default function CookieBanner() {
   useEffect(() => {
     // Only show if no decision has been stored
     const stored = localStorage.getItem(COOKIE_KEY);
-    if (!stored) {
-      // Delay slightly so the rest of the page renders first
-      const t = setTimeout(() => setVisible(true), 800);
-      return () => clearTimeout(t);
-    }
+    if (stored) return;
+
+    // Show only after the user scrolls, so the hero CTAs are never blocked on first load
+    const onScroll = () => {
+      if (window.scrollY > 120) {
+        setVisible(true);
+        window.removeEventListener('scroll', onScroll);
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   const save = (state: ConsentState, prefs?: { analytics: boolean; marketing: boolean }) => {
