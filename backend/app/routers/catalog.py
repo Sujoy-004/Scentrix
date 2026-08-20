@@ -42,11 +42,12 @@ def _row_to_item(row: dict[str, Any], match_score: float | None = None) -> dict[
     """
     accords = _as_list(row.get("accords"))
     rating_value = row.get("rating_value")
+    primary_accords = _primary_families(accords[0]) if accords else []
     return {
         "id": str(row.get("id", "")),
         "name": str(row.get("name", "") or ""),
         "brand": str(row.get("brand", "") or "Unknown"),
-        "family": accords[0] if accords else "Unknown",
+        "family": (primary_accords[0] if primary_accords else (accords[0] if accords else "Unknown")),
         "year": row.get("year"),
         "concentration": str(row.get("concentration", "") or "N/A"),
         "gender_label": str(row.get("gender_label", "") or "N/A"),
@@ -68,6 +69,95 @@ def _matches_text(value: str, query: str) -> bool:
     return query in value.lower()
 
 
+# Canonical family slugs (substring-matched against a fragrance's primary accord).
+_CANONICAL_FAMILIES = [
+    "amber",
+    "animalic",
+    "aquatic",
+    "aromatic",
+    "citrus",
+    "earthy",
+    "floral",
+    "fresh",
+    "fruity",
+    "gourmand",
+    "green",
+    "leather",
+    "musky",
+    "oriental",
+    "powdery",
+    "smoky",
+    "spicy",
+    "woody",
+]
+
+# Lowercased primary-accord labels -> family slug(s). Compound labels resolve to
+# both constituent families (e.g. Amber-Oriental counts toward amber AND oriental).
+PRIMARY_ACCORD_TO_FAMILY: dict[str, list[str]] = {
+    "amber-oriental": ["amber", "oriental"],
+    "white-floral": ["floral"],
+    "marine-aquatic": ["aquatic"],
+    "marin-aquatic": ["aquatic"],
+    "earthy-mossy": ["earthy"],
+    "warm spicy": ["spicy"],
+    "fresh spicy": ["spicy"],
+    "soft spicy": ["spicy"],
+    "rose": ["floral"],
+    "iris": ["floral"],
+    "tuberose": ["floral"],
+    "violet": ["floral"],
+    "jasmine": ["floral"],
+    "oud": ["woody"],
+    "sandalwood": ["woody"],
+    "cedar": ["woody"],
+    "vetiver": ["woody"],
+    "patchouli": ["woody"],
+    "agarwood": ["woody"],
+    "lactonic": ["gourmand"],
+    "caramel": ["gourmand"],
+    "chocolate": ["gourmand"],
+    "vanilla": ["gourmand"],
+    "sweet": ["gourmand"],
+    "almond": ["gourmand"],
+    "tropical": ["fruity"],
+    "cherry": ["fruity"],
+    "coconut": ["fruity"],
+    "cacao": ["fruity"],
+    "nutty": ["fruity"],
+    "coffee": ["fruity"],
+    "beeswax": ["fruity"],
+    "coca-cola": ["fruity"],
+    "lavender": ["aromatic"],
+    "herbal": ["aromatic"],
+    "aldehydic": ["powdery"],
+    "soapy": ["powdery"],
+    "talc": ["powdery"],
+    "tobacco": ["smoky"],
+    "incense": ["smoky"],
+    "musk": ["musky"],
+    "white musk": ["musky"],
+    "clean musk": ["musky"],
+    "mineral": ["aquatic"],
+    "balsamic": ["oriental"],
+    "resin": ["oriental"],
+    "cinnamon": ["spicy"],
+}
+
+
+def _primary_families(primary_accord: str) -> list[str]:
+    """Map a fragrance's PRIMARY (strongest) accord to family slug(s).
+
+    Exact compound/simple labels come from PRIMARY_ACCORD_TO_FAMILY; otherwise
+    the canonical family slugs are substring-matched against the label.
+    """
+    label = (primary_accord or "").strip().lower()
+    if not label:
+        return []
+    if label in PRIMARY_ACCORD_TO_FAMILY:
+        return PRIMARY_ACCORD_TO_FAMILY[label]
+    return [slug for slug in _CANONICAL_FAMILIES if slug in label]
+
+
 def _filter_rows(
     rows: list[dict[str, Any]],
     *,
@@ -76,10 +166,15 @@ def _filter_rows(
     family: str | None,
     accord: str | None,
 ) -> list[tuple[dict[str, Any], float]]:
-    """Apply filters; returns (row, match_score) pairs so q-ranking survives sort."""
+    """Apply filters; returns (row, match_score) pairs so q-ranking survives sort.
+
+    ``family`` matches only the PRIMARY (strongest) accord — the first element of
+    a fragrance's ``accords`` list. ``accord`` keeps the loose any-accord behavior.
+    """
     query_norm = (q or "").strip().lower()
     brand_norm = (brand or "").strip().lower()
-    family_norm = (family or accord or "").strip().lower()
+    family_norm = (family or "").strip().lower()
+    accord_norm = (accord or "").strip().lower()
 
     results: list[tuple[dict[str, Any], float]] = []
     for row in rows:
@@ -95,7 +190,12 @@ def _filter_rows(
             continue
 
         if family_norm:
-            if not any(family_norm in a.lower() for a in accords):
+            primary = accords[0] if accords else ""
+            if family_norm not in _primary_families(primary):
+                continue
+
+        if accord_norm:
+            if not any(accord_norm in a.lower() for a in accords):
                 continue
 
         if not query_norm:

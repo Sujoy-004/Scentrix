@@ -53,6 +53,33 @@
   }
 }
 
+@media (min-width: 1200px) {
+  .recommendations-grid-elite {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.75rem;
+  }
+}
+
+@media (min-width: 1440px) {
+  .recommendations-grid-elite {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1.5rem;
+  }
+
+  .recommendations-grid-elite .fragrance-card-elite .p-6 {
+    padding: 1.25rem !important;
+  }
+
+  .recommendations-grid-elite .fragrance-card-elite .mb-5 {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .recommendations-grid-elite .fragrance-card-elite h3 {
+    font-size: 1rem;
+  }
+}
+
 .recommendation-card-elite {
   position: relative;
   background: rgba(255, 255, 255, 0.03);
