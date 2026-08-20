@@ -1,49 +1,102 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
+import { FAMILIES } from '@/lib/families';
+import { getFamilyAsset } from '@/lib/family-mapping';
+import '@/styles/fragrance-families.css';
 import './families.css';
 
-const FAMILIES = [
-  { id: 'floral',   name: 'Floral',   description: 'Delicate, romantic, and elegant fragrances celebrating flowers like roses and jasmine.' },
-  { id: 'woody',    name: 'Woody',    description: 'Rich, warm, and grounding fragrances with deep base notes of sandalwood, cedar, and vetiver.' },
-  { id: 'citrus',   name: 'Citrus',   description: 'Bright, fresh, and energizing scents with zesty top notes of bergamot, lemon, and orange.' },
-  { id: 'amber',    name: 'Amber',    description: 'Sweet, sensual, and warm scents with vanilla, tonka bean, and amber notes.' },
-  { id: 'aromatic', name: 'Aromatic', description: 'Fresh, herbal, and invigorating fragrances featuring lavender, rosemary, and mint.' },
-  { id: 'fruity',   name: 'Fruity',   description: 'Juicy, playful, and vibrant fragrances bursting with apple, peach, and berry notes.' },
-  { id: 'chypre',   name: 'Chypré',   description: 'Classic, elegant, and timeless fragrances blending citrus, florals, and woody base notes.' },
-  { id: 'aquatic',  name: 'Aquatic',  description: 'Light, airy, and refreshing scents that evoke the ocean and cool breeze.' },
-];
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+    },
+  },
+};
 
-const FAMILY_EMOJIS: Record<string, string> = {
-  floral: '🌸', woody: '🌲', citrus: '🍊', amber: '🍯',
-  aromatic: '🌿', fruity: '🍓', chypre: '✨', aquatic: '💧',
+const cardVariants = {
+  hidden: { opacity: 0, scale: 0.95, y: 30 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: { type: 'spring' as const, stiffness: 60, damping: 20 },
+  },
 };
 
 export default function FamiliesPage() {
+  const router = useRouter();
+
   return (
     <div className="families-page">
       <div className="families-container">
-        <div className="families-header">
-          <h1>Fragrance Families</h1>
-          <p>Find your scent profile across these carefully curated families</p>
-        </div>
+        <motion.header
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="families-header"
+        >
+          <p className="families-eyebrow">The Scentrix Collection</p>
+          <h1 className="families-title">Fragrance Families</h1>
+          <p className="families-subtitle">
+            Eighteen olfactive worlds, each with its own identity and story. Discover the family that speaks to your skin.
+          </p>
+        </motion.header>
 
-        <div className="families-grid">
-          {FAMILIES.map((family) => (
-            <div
-              key={family.id}
-              className="family-card"
-            >
-              <div className="family-emoji">
-                {FAMILY_EMOJIS[family.id] || '🧴'}
-              </div>
-              <div className="family-content">
-                <h2 className="family-name">{family.name}</h2>
-                <p className="family-description">{family.description}</p>
-                <span className="family-explore-btn">Explore →</span>
-              </div>
-            </div>
-          ))}
-        </div>
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="families-grid"
+        >
+          {FAMILIES.map((family) => {
+            const asset = getFamilyAsset(family.slug);
+            return (
+              <motion.div
+                key={family.slug}
+                variants={cardVariants}
+                className="elite-family-card"
+                role="button"
+                tabIndex={0}
+                aria-label={`Explore the ${family.name} fragrance family`}
+                onClick={() => router.push(`/families/${family.slug}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    router.push(`/families/${family.slug}`);
+                  }
+                }}
+              >
+                <div className="family-image-container">
+                  {asset.error ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                      <span className="text-[10px] text-[#f4bb92]/50 italic">{asset.error}</span>
+                    </div>
+                  ) : (
+                    <img
+                      src={asset.src!}
+                      alt={family.name}
+                      className="family-image"
+                      loading="lazy"
+                    />
+                  )}
+                  <div className="family-overlay" />
+                </div>
+
+                <div className="family-content">
+                  <h2 className="family-name">{family.name}</h2>
+                  <p className="family-desc">{family.tagline}</p>
+                  <div className="explore-trigger">
+                    <span className="explore-text">Explore Collection</span>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </motion.div>
       </div>
     </div>
   );

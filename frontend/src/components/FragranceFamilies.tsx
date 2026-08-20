@@ -4,6 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { getFamilyAsset } from '@/lib/family-mapping';
+import { FAMILIES } from '@/lib/families';
 import '@/styles/fragrance-families.css';
 
 const containerVariants = {
@@ -25,28 +26,6 @@ const cardVariants = {
     transition: { type: 'spring' as const, stiffness: 60, damping: 20 }
   }
 };
-
-// Expanded list of 18 families (excluding 'all.png' for the primary grid)
-const families = [
-  { name: 'Floral', slug: 'floral', description: 'Delicate Petals' },
-  { name: 'Woody', slug: 'woody', description: 'Ancient Forests' },
-  { name: 'Citrus', slug: 'citrus', description: 'Zesty Vibrance' },
-  { name: 'Oriental', slug: 'oriental', description: 'Exotic Splendor' },
-  { name: 'Amber', slug: 'amber', description: 'Resinous Warmth' },
-  { name: 'Smoky', slug: 'smoky', description: 'Incense & Embers' },
-  { name: 'Fruity', slug: 'fruity', description: 'Sun-Drenched' },
-  { name: 'Gourmand', slug: 'gourmand', description: 'Divine Sweets' },
-  { name: 'Leather', slug: 'leather', description: 'Tanned Elegance' },
-  { name: 'Spicy', slug: 'spicy', description: 'Warm Sands' },
-  { name: 'Aquatic', slug: 'aquatic', description: 'Oceanic Mist' },
-  { name: 'Aromatic', slug: 'aromatic', description: 'Herbal Harmony' },
-  { name: 'Green', slug: 'green', description: 'Verdant Leaves' },
-  { name: 'Musky', slug: 'musky', description: 'Velvet Aura' },
-  { name: 'Powdery', slug: 'powdery', description: 'Silk Dust' },
-  { name: 'Earthy', slug: 'earthy', description: 'Foraged Roots' },
-  { name: 'Animalic', slug: 'animalic', description: 'Raw Sensuality' },
-  { name: 'Fresh', slug: 'fresh', description: 'Crisp Morning' },
-];
 
 export function FragranceFamilies() {
   const router = useRouter();
@@ -70,12 +49,12 @@ export function FragranceFamilies() {
           viewport={{ once: false, margin: "-100px" }}
           className="families-grid"
         >
-          {families.slice(0, 10).map((family) => (
+          {FAMILIES.slice(0, 10).map((family) => (
             <motion.div 
               key={family.slug}
               variants={cardVariants}
               className="elite-family-card"
-              onClick={() => router.push('/families')}
+              onClick={() => router.push(`/families/${family.slug}`)}
             >
               <div className="family-image-container">
                 {(() => {
@@ -104,7 +83,7 @@ export function FragranceFamilies() {
                   {family.name}
                 </h3>
                 <p className="family-desc">
-                  {family.description}
+                  {family.tagline}
                 </p>
                 <div className="explore-trigger">
                   <span className="explore-text">Explore Collection</span>

@@ -1,0 +1,187 @@
+/* ========== FAMILY DETAIL PAGE ========== */
+
+.family-page {
+  min-height: 100vh;
+  padding: 8rem 2rem 6rem;
+  background: #0a0a0a;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+/* ========== HEADER ========== */
+
+.family-header {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.family-back-link {
+  display: inline-block;
+  margin-bottom: 2.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  transition: color 0.2s ease;
+}
+
+.family-back-link:hover {
+  color: var(--color-primary, #f4bb92);
+}
+
+.family-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--color-primary, #f4bb92);
+  margin: 0 0 1.25rem 0;
+}
+
+.family-title {
+  font-family: var(--font-display), serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  color: #fff;
+  margin: 0 0 1.5rem 0;
+}
+
+.family-description {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.65);
+  max-width: 640px;
+  margin: 0 auto 1.5rem auto;
+}
+
+.family-count {
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+  margin: 0;
+}
+
+/* ========== STATES ========== */
+
+.family-loader {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+}
+
+.family-loader-spinner {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--color-primary, #f4bb92);
+  animation: family-spin 0.9s linear infinite;
+}
+
+@keyframes family-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.family-state {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 1rem;
+  padding: 0 1rem;
+}
+
+.family-state-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--color-primary, #f4bb92);
+  margin: 0;
+}
+
+.family-state-title {
+  font-family: var(--font-display), serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(2rem, 4vw, 3rem);
+  color: #fff;
+  margin: 0;
+}
+
+.family-state-text {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.6);
+  max-width: 480px;
+  margin: 0;
+}
+
+.family-state-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.family-back-btn {
+  padding: 0.85rem 1.75rem;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  background: var(--color-primary, #f4bb92);
+  color: #0a0a0a;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.family-back-btn:hover {
+  transform: translateY(-2px);
+  opacity: 0.9;
+}
+
+.family-back-btn-ghost {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* ========== TRUNCATION NOTE ========== */
+
+.family-truncation-note {
+  text-align: center;
+  margin-top: 3rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* ========== RESPONSIVE ========== */
+
+@media (max-width: 640px) {
+  .family-page {
+    padding: 7rem 1.25rem 4rem;
+  }
+
+  .family-header {
+    margin-bottom: 3rem;
+  }
+}
