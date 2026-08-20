@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/stores/app-store';
 import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
-import FlashcardQuiz from '@/components/FlashcardQuiz';
 import StandardQuiz from '@/components/StandardQuiz';
 import './quiz.css';
 
@@ -21,5 +20,5 @@ export default function QuizPage() {
     return <DiscoveryNeuralLoader title="Initializing Neural Core..." />;
   }
 
-  return isAuthenticated ? <FlashcardQuiz /> : <StandardQuiz />;
+  return <StandardQuiz />;
 }

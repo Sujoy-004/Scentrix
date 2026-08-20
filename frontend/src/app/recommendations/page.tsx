@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles,
@@ -207,12 +206,10 @@ export default function RecommendationsPage() {
               </div>
               <div className="flex-1">
                 <h4 className="text-[0.7rem] uppercase tracking-widest font-bold text-white mb-0.5">Guest Discovery Session</h4>
-                <p className="text-[0.6rem] text-white/50 leading-tight">{ratingCount === 0 ? "Your session is temporary. Sign up to save your favorites." : "Your neural profile is temporary. Sign up to save these matches to your lifetime library."}</p>
+                <p className="text-[0.6rem] text-white/50 leading-tight">{ratingCount === 0 ? "Your session is temporary. Take the quiz to build your scent profile." : "Your neural profile is temporary. Take the quiz to refine your matches."}</p>
               </div>
               <div className="flex gap-2">
-                <Link href="/auth/register">
-                  <button className="btn btn-primary px-8">Create Profile to Save</button>
-                </Link>
+                <button className="btn btn-primary px-8" onClick={() => router.push('/quiz')}>Take the Quiz</button>
               </div>
             </div>
           </motion.div>

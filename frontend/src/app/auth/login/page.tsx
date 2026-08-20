@@ -221,9 +221,9 @@ export default function LoginPage() {
 
           <div className="auth-footer">
             <p>
-              Don&apos;t have an account?{' '}
-              <Link href="/auth/register" className="auth-link">
-                Sign up here
+              New to Scentrix?{' '}
+              <Link href="/quiz" className="auth-link">
+                Take the quiz
               </Link>
             </p>
           </div>

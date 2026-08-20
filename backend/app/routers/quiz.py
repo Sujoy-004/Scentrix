@@ -1,7 +1,8 @@
-"""Adaptive quiz session endpoints.
+"""Adaptive quiz session endpoints (stateless in-memory session store).
 
-Scaffolds a confidence-aware onboarding quiz flow that starts with 8
-questions and extends only when confidence is low.
+Quiz sessions live in a process-local dict — no Redis, no DB writes except
+``finalize``/``guest-finalize`` (which upsert FragranceRating rows for
+authenticated users). Sessions are ephemeral across restarts.
 """
 
 from __future__ import annotations
@@ -9,18 +10,16 @@ from __future__ import annotations
 import logging
 import random
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from statistics import pstdev
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user_id, get_optional_user_id
-from app.database import get_session
-from app.limiter import limiter
-from app.logging_config import get_correlation_id
+from app.database import get_db
 from app.models.models import FragranceRating, User
 from app.schemas.schemas import (
     QuizConfidenceComponents,
@@ -35,35 +34,65 @@ from app.schemas.schemas import (
     QuizSessionSubmitResponseResponse,
     StandardResponse,
 )
-from app.services.catalog import load_recommendation_catalog
-from app.services.quiz_store import (
-    create_quiz_session,
-    get_quiz_session,
-    quiz_expiry_utc,
-    save_quiz_session,
-)
+from app.services.catalog import _normalize_id, get_catalog
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/fragrances/quiz/session", tags=["quiz"])
 
+# ── In-memory session store ────────────────────────────────────────────────────
+QUIZ_TTL = timedelta(minutes=30)
+_sessions: dict[str, dict] = {}
+
+
+def _now_iso() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+def quiz_expiry_utc() -> datetime:
+    return datetime.now(UTC) + QUIZ_TTL
+
+
+def _create_session(session_id: str, payload: dict) -> None:
+    _sessions[session_id] = payload
+
+
+def _get_session(session_id: str) -> dict | None:
+    payload = _sessions.get(session_id)
+    if payload is None:
+        return None
+    try:
+        created = datetime.fromisoformat(payload.get("created_at", ""))
+        if datetime.now(UTC) - created > QUIZ_TTL:
+            _sessions.pop(session_id, None)
+            return None
+    except (ValueError, TypeError):
+        pass
+    return payload
+
+
+def _save_session(session_id: str, payload: dict) -> None:
+    _sessions[session_id] = payload
+
+
+def _delete_session(session_id: str) -> None:
+    _sessions.pop(session_id, None)
+
+
+# ── Constants ──────────────────────────────────────────────────────────────────
 CONFIDENCE_THRESHOLD = 0.72
 MEDIUM_BAND_THRESHOLD = 0.58
-DEFAULT_START_COUNT = 10
+DEFAULT_MAX_TOTAL = 16
 DEFAULT_MEDIUM_EXTENSION = 3
 DEFAULT_LOW_EXTENSION = 5
-DEFAULT_MAX_TOTAL = 16
 
 
 def _question_from_row(row: dict) -> QuizQuestion:
     raw_notes = row.get("top_notes") or []
     raw_accords = row.get("accords") or []
-
-    # Industrial Sanitizer: Handle strings or lists gracefully
     if isinstance(raw_notes, str):
         raw_notes = [n.strip() for n in raw_notes.split(",")]
     if isinstance(raw_accords, str):
         raw_accords = [a.strip() for a in raw_accords.split(",")]
-
     return QuizQuestion(
         fragrance_id=str(row.get("id", "")),
         name=str(row.get("name", "Unknown")),
@@ -95,13 +124,12 @@ def _safe_float(value: object) -> float:
 def _select_seed_questions(
     rows: list[dict], count: int, rng: random.Random | None = None
 ) -> list[dict]:
+    """Pick up to *count* seeds spanning distinct olfactory kingdoms."""
     if not rows:
         return []
 
-    # Use provided RNG or default random
     shuffle = rng.shuffle if rng else random.shuffle
 
-    # Olfactive Kingdoms: The 18 pillars of modern perfumery for full spectrum coverage
     KINGDOMS = {
         "citrus": ["citrus", "lemon", "bergamot", "orange", "lime", "grapefruit", "yuzu"],
         "floral": ["floral", "rose", "jasmine", "white floral", "tuberose", "iris", "violet"],
@@ -126,20 +154,16 @@ def _select_seed_questions(
     filled_kingdoms: set[str] = set()
     used_ids: set[str] = set()
 
-    # Priority 1: Randomized Kingdom Coverage (1 item per kingdom, picked randomly from the 18)
-    # Shuffling the kingdoms list ensures that different sessions cover different families.
     kingdom_list = list(KINGDOMS.items())
     shuffle(kingdom_list)
 
     for kingdom_name, keywords in kingdom_list:
         if len(selected) >= count:
             break
-
         for row in rows:
             row_id = str(row.get("id", ""))
             if row_id in used_ids:
                 continue
-
             accords = [str(a).lower() for a in (row.get("accords") or [])]
             notes = [
                 str(n).lower()
@@ -148,23 +172,18 @@ def _select_seed_questions(
                 + (row.get("base_notes") or [])
             ]
             traits = accords + notes
-
-            # Check if this fragrance fits the kingdom and doesn't overlap too much with already filled ones
             if any(k in traits for k in keywords):
-                # Exclusive Selection: Does this row belong to ANY kingdom we already filled?
                 already_covered = False
                 for prev_k in filled_kingdoms:
                     if any(k in traits for k in KINGDOMS[prev_k]):
                         already_covered = True
                         break
-
                 if not already_covered or len(selected) < 4:
                     selected.append(row)
                     used_ids.add(row_id)
                     filled_kingdoms.add(kingdom_name)
                     break
 
-    # Priority 2: Fill remaining slots with Greedy Diversity (Brand/Accord variation)
     if len(selected) < count:
         seen_brands: set[str] = {str(r.get("brand", "")).lower() for r in selected}
         for row in rows:
@@ -173,14 +192,12 @@ def _select_seed_questions(
             row_id = str(row.get("id", ""))
             if row_id in used_ids:
                 continue
-
             brand = str(row.get("brand", "")).lower()
             if brand not in seen_brands:
                 selected.append(row)
                 used_ids.add(row_id)
                 seen_brands.add(brand)
 
-    # Priority 3: Hard Fallback (Random Fill)
     if len(selected) < count:
         for row in rows:
             if len(selected) >= count:
@@ -214,8 +231,7 @@ def _build_confidence_components(
 
     unique_accords: set[str] = set()
     for item in responses:
-        fragrance_id = str(item.get("fragrance_id", ""))
-        row = catalog_by_id.get(fragrance_id)
+        row = catalog_by_id.get(str(item.get("fragrance_id", "")))
         if not row:
             continue
         for accord in row.get("accords") or []:
@@ -243,19 +259,8 @@ def _compute_confidence_score(components: QuizConfidenceComponents) -> float:
     return round(max(0.0, min(1.0, score)), 4)
 
 
-def _to_rules_payload(session_payload: dict) -> QuizSessionRules:
-    config = session_payload.get("config") or {}
-    return QuizSessionRules(
-        min_core_questions=int(config.get("min_core_questions", 8)),
-        max_total_questions=int(config.get("max_total_questions", DEFAULT_MAX_TOTAL)),
-        medium_extension=int(config.get("medium_extension", DEFAULT_MEDIUM_EXTENSION)),
-        low_extension=int(config.get("low_extension", DEFAULT_LOW_EXTENSION)),
-        confidence_threshold=float(config.get("confidence_threshold", CONFIDENCE_THRESHOLD)),
-    )
-
-
-async def _load_seen_ids(user_id: int, session: AsyncSession) -> set[str]:
-    result = await session.execute(
+def _load_seen_ids(user_id: int, db: Session) -> set[str]:
+    result = db.execute(
         select(FragranceRating.fragrance_neo4j_id).where(FragranceRating.user_id == user_id)
     )
     return {str(row[0]) for row in result.all() if row and row[0]}
@@ -266,7 +271,7 @@ def _require_owned_session(session_payload: dict | None, session_id: str, user_i
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz session not found")
 
     owner_id = int(session_payload.get("user_id") or 0)
-    if owner_id != user_id:
+    if owner_id and owner_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this quiz session",
@@ -278,17 +283,17 @@ def _require_owned_session(session_payload: dict | None, session_id: str, user_i
     return session_payload
 
 
+# ── Endpoints ──────────────────────────────────────────────────────────────────
+
+
 @router.post("/start", response_model=StandardResponse)
-@limiter.limit("30/minute")
-async def start_quiz_session(
+def start_quiz_session(
     quiz_data: QuizSessionStartRequest,
-    request: Request,
     user_id: int | None = Depends(get_optional_user_id),
-    session: AsyncSession = Depends(get_session),
+    db: Session = Depends(get_db),
 ) -> StandardResponse:
-    cid = get_correlation_id()
-    effective_user_id = user_id if user_id is not None else 0
-    catalog = load_recommendation_catalog()
+    """Create a quiz session with seed questions spanning diverse families."""
+    catalog = get_catalog()
     if not catalog:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -297,21 +302,13 @@ async def start_quiz_session(
 
     candidate_rows = [row for row in catalog if str(row.get("id", "")).strip()]
 
-    if quiz_data.filters.exclude_seen and user_id and session:
-        seen_ids = await _load_seen_ids(user_id, session)
+    if quiz_data.filters.exclude_seen and user_id:
+        seen_ids = _load_seen_ids(user_id, db)
         filtered = [row for row in candidate_rows if str(row.get("id", "")) not in seen_ids]
         if filtered:
             candidate_rows = filtered
-    elif quiz_data.filters.exclude_seen and user_id:
-        logger.warning(f"Exclude-seen filter skipped for user {user_id}: DB_OFFLINE")
 
     session_id = f"qz_{uuid4().hex[:8]}"
-    logger.info(
-        "event=quiz_start correlation_id=%s session_id=%s user_id=%s seed_count=%s",
-        cid, session_id, user_id, quiz_data.seed_count,
-    )
-    # Seed with session_id for intra-session determinism if needed,
-    # but ensure variety across sessions.
     rng = random.Random(session_id)
 
     if len(candidate_rows) > quiz_data.candidate_pool_size:
@@ -323,7 +320,7 @@ async def start_quiz_session(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Unable to initialize quiz session",
         )
-    now_iso = datetime.now(UTC).isoformat()
+
     rules = QuizSessionRules(
         min_core_questions=quiz_data.seed_count,
         max_total_questions=DEFAULT_MAX_TOTAL,
@@ -338,8 +335,8 @@ async def start_quiz_session(
     payload = {
         "session_id": session_id,
         "user_id": user_id,
-        "created_at": now_iso,
-        "updated_at": now_iso,
+        "created_at": _now_iso(),
+        "updated_at": _now_iso(),
         "config": rules.model_dump(),
         "seed_question_ids": seed_ids,
         "served_ids": seed_ids,
@@ -349,14 +346,7 @@ async def start_quiz_session(
         "low_gain_streak": 0,
         "stop_reason": None,
     }
-
-    try:
-        await create_quiz_session(session_id=session_id, payload=payload)
-    except RuntimeError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Quiz session store unavailable: {exc}",
-        ) from exc
+    _create_session(session_id, payload)
 
     data = QuizSessionStartResponse(
         session_id=session_id,
@@ -368,18 +358,15 @@ async def start_quiz_session(
 
 
 @router.post("/{session_id}/answer", response_model=StandardResponse)
-@limiter.limit("20/minute")
-async def submit_quiz_answer(
+def submit_quiz_answer(
     session_id: str,
     quiz_data: QuizSessionSubmitResponseRequest,
-    request: Request,
     user_id: int | None = Depends(get_optional_user_id),
-    db_session: AsyncSession = Depends(get_session),
 ) -> StandardResponse:
-    cid = get_correlation_id()
+    """Record one quiz answer in the in-memory session (no DB write)."""
     effective_user_id = user_id if user_id is not None else 0
     session_payload = _require_owned_session(
-        await get_quiz_session(session_id), session_id, effective_user_id
+        _get_session(session_id), session_id, effective_user_id
     )
 
     served_ids = [str(v) for v in (session_payload.get("served_ids") or [])]
@@ -396,7 +383,7 @@ async def submit_quiz_answer(
         "rating_1_to_10": round(quiz_data.rating_1_to_10, 2),
         "rating_0_to_5": normalized,
         "source": quiz_data.source,
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": _now_iso(),
     }
 
     replaced = False
@@ -411,53 +398,9 @@ async def submit_quiz_answer(
 
     session_payload["served_ids"] = served_ids
     session_payload["responses"] = responses
-    session_payload["updated_at"] = datetime.now(UTC).isoformat()
+    session_payload["updated_at"] = _now_iso()
+    _save_session(session_id, session_payload)
 
-    try:
-        await save_quiz_session(session_id=session_id, payload=session_payload)
-
-        # BRIDGE: Sync to permanent database for authenticated users
-        if user_id and db_session:
-            # Canonicalise to the prefixed form (catalog/GraphSAGE convention).
-            # Legacy rows may hold the unprefixed variant — match both and
-            # upgrade the row in place.
-            raw_id = quiz_data.fragrance_id
-            neo4j_id = raw_id if raw_id.startswith("frag_") else f"frag_{raw_id}"
-            legacy_id = neo4j_id[len("frag_"):] if neo4j_id.startswith("frag_") else neo4j_id
-            existing = await db_session.execute(
-                select(FragranceRating).where(
-                    FragranceRating.user_id == user_id,
-                    FragranceRating.fragrance_neo4j_id.in_([neo4j_id, legacy_id]),
-                )
-            )
-            row = existing.scalar_one_or_none()
-            if row:
-                row.quiz_rating = quiz_data.rating_1_to_10
-                if row.fragrance_neo4j_id != neo4j_id:
-                    # Migrate the legacy unprefixed row to the canonical form.
-                    row.fragrance_neo4j_id = neo4j_id
-            else:
-                db_session.add(
-                    FragranceRating(
-                        user_id=user_id,
-                        fragrance_neo4j_id=neo4j_id,
-                        quiz_rating=quiz_data.rating_1_to_10,
-                    )
-                )
-            await db_session.commit()
-        elif user_id:
-            logger.warning(f"Quiz Answer Sync skipped for user {user_id}: DB_OFFLINE")
-
-    except RuntimeError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Quiz session store unavailable: {exc}",
-        ) from exc
-
-    logger.info(
-        "event=quiz_answer correlation_id=%s session_id=%s user_id=%s answers_count=%s replaced=%s",
-        cid, session_id, user_id, len(responses), replaced,
-    )
     data = QuizSessionSubmitResponseResponse(
         accepted=True,
         normalized_rating_0_to_5=normalized,
@@ -466,88 +409,19 @@ async def submit_quiz_answer(
     return {"status": "success", "data": data}
 
 
-@router.post("/{session_id}/finalize", response_model=StandardResponse)
-async def finalize_quiz_session(
-    session_id: str,
-    user_id: int = Depends(get_current_user_id),
-    db: AsyncSession = Depends(get_session),
-) -> dict[str, int | str]:
-    """Bridge transient quiz session data to permanent profile table."""
-    cid = get_correlation_id()
-    session_payload = _require_owned_session(
-        await get_quiz_session(session_id), session_id, user_id
-    )
-    responses = session_payload.get("responses") or []
-
-    user = await db.get(User, user_id)
-
-    if not responses:
-        if user:
-            if user.quiz_completed_at is None:
-                user.quiz_completed_at = datetime.now(UTC).replace(tzinfo=None)
-            await db.commit()
-        return {"status": "success", "data": {"message": "No data to sync"}}
-
-    from sqlalchemy.dialects.postgresql import insert
-
-    from app.models.models import FragranceRating
-
-    for res in responses:
-        raw_fid = str(res.get("fragrance_id", ""))
-        # Canonicalise to the prefixed form (catalog/GraphSAGE convention).
-        fid = raw_fid if raw_fid.startswith("frag_") else f"frag_{raw_fid}"
-        rating = float(res.get("rating_1_to_10") or 0)
-
-        # Migrate any legacy unprefixed row so the upsert conflict target
-        # (user_id, fragrance_neo4j_id) matches the canonical id.
-        legacy_fid = fid[len("frag_"):] if fid.startswith("frag_") else fid
-        if legacy_fid != fid:
-            await db.execute(
-                update(FragranceRating)
-                .where(
-                    FragranceRating.user_id == user_id,
-                    FragranceRating.fragrance_neo4j_id == legacy_fid,
-                )
-                .values(fragrance_neo4j_id=fid)
-            )
-
-        stmt = (
-            insert(FragranceRating)
-            .values(user_id=user_id, fragrance_neo4j_id=fid, quiz_rating=rating)
-            .on_conflict_do_update(
-                index_elements=["user_id", "fragrance_neo4j_id"], set_={"quiz_rating": rating}
-            )
-        )
-        await db.execute(stmt)
-
-    if user:
-        if user.quiz_completed_at is None:
-            user.quiz_completed_at = datetime.now(UTC).replace(tzinfo=None)
-
-    await db.commit()
-    logger.info(
-        "event=quiz_finalize correlation_id=%s session_id=%s user_id=%s ratings_count=%s",
-        cid, session_id, user_id, len(responses),
-    )
-    return {
-        "status": "success",
-        "data": {"count": len(responses), "message": "Quiz data synced to profile"},
-    }
-
-
 @router.post("/{session_id}/evaluate", response_model=StandardResponse)
-async def evaluate_quiz_session(
+def evaluate_quiz_session(
     session_id: str,
     request: QuizSessionEvaluateRequest,
     user_id: int | None = Depends(get_optional_user_id),
 ) -> StandardResponse:
-    cid = get_correlation_id()
+    """Compute confidence and decide whether more questions are needed."""
     effective_user_id = user_id if user_id is not None else 0
     session_payload = _require_owned_session(
-        await get_quiz_session(session_id), session_id, effective_user_id
+        _get_session(session_id), session_id, effective_user_id
     )
 
-    catalog = load_recommendation_catalog()
+    catalog = get_catalog()
     catalog_by_id = {
         str(row.get("id", "")): row for row in catalog if str(row.get("id", "")).strip()
     }
@@ -557,7 +431,12 @@ async def evaluate_quiz_session(
     ]
     total_answered = len(responses)
 
-    rules = _to_rules_payload(session_payload)
+    config = session_payload.get("config") or {}
+    min_core_questions = int(config.get("min_core_questions", 8))
+    max_total_questions = int(config.get("max_total_questions", DEFAULT_MAX_TOTAL))
+    medium_extension = int(config.get("medium_extension", DEFAULT_MEDIUM_EXTENSION))
+    low_extension = int(config.get("low_extension", DEFAULT_LOW_EXTENSION))
+
     components = _build_confidence_components(session_payload, catalog_by_id)
     confidence_score = _compute_confidence_score(components)
     confidence_band = _confidence_band(confidence_score)
@@ -576,21 +455,21 @@ async def evaluate_quiz_session(
     additional_questions_target = 0
     stop_reason: str | None = None
 
-    if total_answered < rules.min_core_questions and not request.force:
+    if total_answered < min_core_questions and not request.force:
         stop_reason = "core_incomplete"
-    elif confidence_score >= rules.confidence_threshold:
+    elif confidence_score >= CONFIDENCE_THRESHOLD:
         stop_reason = "confidence_threshold_met"
-    elif total_answered >= rules.max_total_questions:
+    elif total_answered >= max_total_questions:
         stop_reason = "hard_cap_reached"
-    elif low_gain_streak >= 2 and total_answered > rules.min_core_questions:
+    elif low_gain_streak >= 2 and total_answered > min_core_questions:
         stop_reason = "low_marginal_gain"
     else:
         if confidence_band == "medium":
-            additional_questions_target = rules.medium_extension
+            additional_questions_target = medium_extension
         elif confidence_band == "low":
-            additional_questions_target = rules.low_extension
+            additional_questions_target = low_extension
 
-        remaining_budget = max(rules.max_total_questions - total_answered, 0)
+        remaining_budget = max(max_total_questions - total_answered, 0)
         additional_questions_target = min(additional_questions_target, remaining_budget)
         extension_required = additional_questions_target > 0
 
@@ -602,20 +481,9 @@ async def evaluate_quiz_session(
     session_payload["confidence_components"] = components.model_dump()
     session_payload["low_gain_streak"] = low_gain_streak
     session_payload["stop_reason"] = stop_reason
-    session_payload["updated_at"] = datetime.now(UTC).isoformat()
+    session_payload["updated_at"] = _now_iso()
+    _save_session(session_id, session_payload)
 
-    try:
-        await save_quiz_session(session_id=session_id, payload=session_payload)
-    except RuntimeError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Quiz session store unavailable: {exc}",
-        ) from exc
-
-    logger.info(
-        "event=quiz_evaluate correlation_id=%s session_id=%s user_id=%s confidence_score=%s confidence_band=%s extension_required=%s stop_reason=%s total_answered=%s",
-        cid, session_id, user_id, confidence_score, confidence_band, extension_required, stop_reason, total_answered,
-    )
     data = QuizSessionEvaluateResponse(
         confidence_score=confidence_score,
         confidence_band=confidence_band,
@@ -628,60 +496,19 @@ async def evaluate_quiz_session(
     return {"status": "success", "data": data}
 
 
-@router.post("/{session_id}/guest-finalize", response_model=StandardResponse)
-async def guest_finalize_quiz_session(
-    session_id: str,
-    user_id: int | None = Depends(get_optional_user_id),
-    db: AsyncSession = Depends(get_session),
-) -> StandardResponse:
-    """Finalize quiz session for guests or authenticated users.
-
-    For authenticated users: delegates to standard finalize logic (DB upsert).
-    For guests: marks session as finalized in Redis (no DB write).
-    """
-    cid = get_correlation_id()
-    effective_user_id = user_id if user_id is not None else 0
-    session_payload = _require_owned_session(
-        await get_quiz_session(session_id), session_id, effective_user_id
-    )
-
-    if user_id:
-        # Authenticated: delegate to standard finalize
-        return await finalize_quiz_session(session_id, user_id, db)
-
-    # Guest: mark session as finalized in Redis store
-    session_payload["finalized_at"] = datetime.now(UTC).isoformat()
-    session_payload["finalized"] = True
-    session_payload["updated_at"] = datetime.now(UTC).isoformat()
-
-    try:
-        await save_quiz_session(session_id=session_id, payload=session_payload)
-    except RuntimeError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Quiz session store unavailable: {exc}",
-        )
-
-    logger.info(
-        "event=quiz_guest_finalize correlation_id=%s session_id=%s user_id=%s",
-        cid, session_id, user_id,
-    )
-    return {"status": "success", "data": {"message": "Guest quiz finalized"}}
-
-
 @router.get("/{session_id}/next-questions", response_model=StandardResponse)
-async def get_next_quiz_questions(
+def get_next_quiz_questions(
     session_id: str,
     count: int = Query(3, ge=1, le=5),
     user_id: int | None = Depends(get_optional_user_id),
 ) -> StandardResponse:
-    cid = get_correlation_id()
+    """Return the next extension questions ranked by uncertainty/diversity."""
     effective_user_id = user_id if user_id is not None else 0
     session_payload = _require_owned_session(
-        await get_quiz_session(session_id), session_id, effective_user_id
+        _get_session(session_id), session_id, effective_user_id
     )
 
-    catalog = load_recommendation_catalog()
+    catalog = get_catalog()
     if not catalog:
         data = QuizSessionNextQuestionsResponse(questions=[], count=0)
         return {"status": "success", "data": data}
@@ -746,7 +573,6 @@ async def get_next_quiz_questions(
             accord_diversity = len(unseen_accords) / len(accords)
         else:
             accord_diversity = 0.5
-
         diversity = (0.6 * brand_diversity) + (0.4 * accord_diversity)
 
         review_count = _safe_float(row.get("review_count"))
@@ -756,7 +582,6 @@ async def get_next_quiz_questions(
             (review_count / 1000.0) + (view_count / 50000.0) + (popularity_score / 100.0), 1.0
         )
 
-        # Neural Scent Graph priority: Uncertainty (60%), Diversity (30%), Engagement (10%)
         total_score = (0.6 * uncertainty) + (0.3 * diversity) + (0.1 * engagement)
         scored.append((total_score, row))
 
@@ -767,16 +592,81 @@ async def get_next_quiz_questions(
     if questions:
         merged_served = list(served_ids.union({question.fragrance_id for question in questions}))
         session_payload["served_ids"] = merged_served
-        session_payload["updated_at"] = datetime.now(UTC).isoformat()
-        try:
-            await save_quiz_session(session_id=session_id, payload=session_payload)
-        except Exception as exc:
-            # Silently log errors for guests (Quiz Session store is non-critical for guest flow)
-            logger.error(f"Quiz Pulse Error: {exc}")
+        session_payload["updated_at"] = _now_iso()
+        _save_session(session_id, session_payload)
 
-    logger.info(
-        "event=quiz_next_questions correlation_id=%s session_id=%s user_id=%s count=%s",
-        cid, session_id, user_id, len(questions),
-    )
     data = QuizSessionNextQuestionsResponse(questions=questions, count=len(questions))
     return {"status": "success", "data": data}
+
+
+@router.post("/{session_id}/finalize", response_model=StandardResponse)
+def finalize_quiz_session(
+    session_id: str,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> StandardResponse:
+    """Persist session responses as FragranceRating rows and mark quiz complete."""
+    session_payload = _require_owned_session(_get_session(session_id), session_id, user_id)
+    responses = session_payload.get("responses") or []
+
+    user = db.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
+
+    if not responses:
+        if user and user.quiz_completed_at is None:
+            user.quiz_completed_at = datetime.now(UTC).replace(tzinfo=None)
+            db.commit()
+        _delete_session(session_id)
+        return {"status": "success", "data": {"message": "No data to sync", "count": 0}}
+
+    for res in responses:
+        fid = _normalize_id(str(res.get("fragrance_id", "")))
+        rating = float(res.get("rating_1_to_10") or 0)
+        row = db.execute(
+            select(FragranceRating).where(
+                FragranceRating.user_id == user_id,
+                FragranceRating.fragrance_neo4j_id == fid,
+            )
+        ).scalar_one_or_none()
+        if row:
+            row.quiz_rating = rating
+        else:
+            db.add(
+                FragranceRating(
+                    user_id=user_id,
+                    fragrance_neo4j_id=fid,
+                    quiz_rating=rating,
+                )
+            )
+
+    if user and user.quiz_completed_at is None:
+        user.quiz_completed_at = datetime.now(UTC).replace(tzinfo=None)
+
+    db.commit()
+    _delete_session(session_id)
+    return {
+        "status": "success",
+        "data": {"count": len(responses), "message": "Quiz data synced to profile"},
+    }
+
+
+@router.post("/{session_id}/guest-finalize", response_model=StandardResponse)
+def guest_finalize_quiz_session(
+    session_id: str,
+    user_id: int | None = Depends(get_optional_user_id),
+    db: Session = Depends(get_db),
+) -> StandardResponse:
+    """Finalize a quiz for guests (no DB write) or delegate to DB sync when authed."""
+    effective_user_id = user_id if user_id is not None else 0
+    session_payload = _require_owned_session(
+        _get_session(session_id), session_id, effective_user_id
+    )
+
+    if user_id:
+        return finalize_quiz_session(session_id, user_id, db)
+
+    session_payload["finalized_at"] = _now_iso()
+    session_payload["finalized"] = True
+    session_payload["updated_at"] = _now_iso()
+    _save_session(session_id, session_payload)
+
+    return {"status": "success", "data": {"message": "Guest quiz finalized"}}

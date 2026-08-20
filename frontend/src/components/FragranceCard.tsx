@@ -2,9 +2,9 @@
 
 import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Bookmark, Star, Sparkles } from 'lucide-react';
+import { Star, Sparkles } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
-import { useAddToCollection, useRemoveFromWishlist, useWishlist, useSubmitRating } from '@/lib/hooks';
+import { useSubmitRating } from '@/lib/hooks';
 import { getFamilyAsset } from '@/lib/family-mapping';
 import { computeReason } from '@/lib/reason-engine';
 import { useToastStore } from '@/stores/toast-store';
@@ -18,17 +18,10 @@ interface FragranceCardProps {
 export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCardProps) {
   const cardRef = useRef<HTMLElement>(null);
   
-  const { isAuthenticated, wishlist, addToWishlist, removeFromWishlist, quizResponses, addQuizResponse } = useAppStore();
-  const { data: serverCollection = [] } = useWishlist();
-  
-  const addMutation = useAddToCollection();
-  const removeMutation = useRemoveFromWishlist();
+  const { quizResponses, addQuizResponse } = useAppStore();
   const submitRating = useSubmitRating();
 
-  // Check if saved either in local store (for guests) or server collection (for users)
-  const isSavedLocally = wishlist.includes(frag.id);
-  const serverItem = serverCollection.find((item: any) => item.fragrance_neo4j_id === frag.id);
-  const isSaved = isAuthenticated ? !!serverItem : isSavedLocally;
+  // Check if already rated either in local store (for guests) or server collection (for users)
   const isRated = quizResponses.some(r => r.fragrance_id === frag.id);
 
   const addToast = useToastStore((s) => s.addToast);
@@ -62,25 +55,6 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
           },
         },
       });
-    }
-  };
-
-  const handleSaveToggle = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    if (isAuthenticated) {
-      if (isSaved && serverItem) {
-        await removeMutation.mutateAsync(serverItem.id);
-      } else {
-        await addMutation.mutateAsync({ fragranceId: frag.id });
-      }
-    } else {
-      // Guest flow
-      if (isSaved) {
-        removeFromWishlist(frag.id);
-      } else {
-        addToWishlist(frag.id);
-      }
     }
   };
 
@@ -132,20 +106,6 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
            <div className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
               <span className="text-[10px] font-medium text-white/50 uppercase tracking-tighter">{displayFamily}</span>
            </div>
-        </div>
-
-        {/* Action Buttons Overlay */}
-        <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ opacity: 1 /* for now keep visible */ }}>
-          <button
-            onClick={handleSaveToggle}
-            className={`p-2.5 rounded-full backdrop-blur-xl transition-all duration-300 ${
-              isSaved 
-                ? 'bg-white text-black' 
-                : 'bg-black/40 text-white border border-white/20 hover:bg-white/10'
-            }`}
-          >
-            <Bookmark size={18} fill={isSaved ? 'currentColor' : 'none'} />
-          </button>
         </div>
       </div>
 

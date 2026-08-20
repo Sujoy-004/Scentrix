@@ -1,226 +1,205 @@
 # Scentrix
 
-Full-stack ML fragrance discovery platform with a 5-state recommendation dispatcher. End-to-end from data pipeline to deployed UI in 5 Docker containers.
+AI-driven fragrance discovery built for the cold-start problem: a 3-state "warmth" machine that turns a handful of ratings into good recommendations using precomputed GraphSAGE embeddings and feature-based scoring.
 
-[![Python 3.11](https://img.shields.io/badge/python-3.11-blue)]()
-[![Next.js 16](https://img.shields.io/badge/next.js-16-black)]()
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green)]()
-[![Tests](https://img.shields.io/badge/tests-173-passing-brightgreen)]()
-[![Docker](https://img.shields.io/badge/docker-compose-blue)]()
-
-**Stack:** PostgreSQL 15 | Neo4j 5 | Redis 7 | FastAPI (Python 3.11) | Next.js 16 (TypeScript) | GraphSAGE (PyTorch Geometric) | Docker Compose
-
-<div align="center">
-  <img src="docs/screenshots/hero-catalog.png" alt="Scentrix fragrance catalog" width="700"/>
-  <p><em>Fragrance catalog with search, family filters, and rating cards</em></p>
-</div>
+**Two commands to run. No Docker, no Postgres, no Redis, no Neo4j.**
 
 ---
 
-## Quick Start
+## What it does
 
-These seven steps take you from a fresh clone to a running application with data loaded.
+The system figures out how much it knows about a user and picks a matching recommendation strategy. That's the "warmth" state:
 
-```bash
-# 1. Clone the repository
-git clone <repo-url>
-cd Scentrix
+| State | Trigger | Strategy |
+|---|---|---|
+| **0 — Anonymous** | 0 ratings, no quiz taken | **Popularity** — the most-rated fragrances in the catalog |
+| **1 — Cold** | Quiz submitted OR 1–2 ratings | **GraphSAGE user-vector + KNN** — your ratings are weighted into a 64-dim preference vector, then the nearest neighbors are found by cosine similarity |
+| **2 — Warm** | 3+ ratings | **Feature-based Jaccard** — overlap scoring on notes, accords, family, occasion, and popularity |
 
-# 2. Configure environment (optional — config.py ships dev defaults incl. a Fernet
-#    DATA_ENCRYPTION_KEY, so a fresh clone boots without .env; deployments MUST set a
-#    real key)
-cp .env.example .env
+Every state has a single safety net: if a strategy fails for any reason, the dispatcher falls back to popularity so the API never returns empty.
 
-# 3. Start all Docker services (Postgres, Neo4j, Redis, backend, frontend)
-docker compose up -d
-
-# 4. Run database migrations
-docker compose exec backend alembic upgrade head
-
-# 5. Seed the database with fragrances and test data
-docker compose exec backend python -m scripts.seed_data
-
-# 6. Open the application
-#    → http://localhost:3000
-
-# 7. Complete the user journey (see § below)
 ```
-
-> **Tip:** After step 3, check progress with `docker compose ps` or `docker compose logs -f`. All five containers must show `healthy` before proceeding.
-
-### Quick reference (Makefile)
-
-```bash
-make help         # Show all available make targets
-make up           # docker compose up -d
-make down         # docker compose down
-make logs         # docker compose logs -f
-make migrate      # docker compose exec backend alembic upgrade head
-make seed         # docker compose exec backend python -m scripts.seed_data
-make test-backend # Run backend test suite (requires running system)
+user ──▶ ratings ──▶ dispatcher ──▶ state (0 | 1 | 2)
+                                      │
+                    ┌─────────────────┼─────────────────┐
+                    ▼                 ▼                 ▼
+              popularity        GraphSAGE          feature-based
+             (rating_count)   user-vector + KNN    Jaccard scoring
+                    │                 │                 │
+                    └─────────────▶ recommendations ◀──┘
 ```
 
 ---
 
 ## Architecture
 
-### Architecture Overview
+Minimal by design — a FastAPI backend that owns all the logic, a Next.js frontend that calls it, and precomputed ML artifacts loaded as NumPy arrays.
 
-```mermaid
-graph TB
-    subgraph Frontend["Next.js 16 (TypeScript)"]
-        CAT[Catalog Page] --> API
-        QZ[Quiz Page] --> API
-        REC[Recommendations Page] --> API
-    end
-
-    subgraph Backend["FastAPI (Python 3.11)"]
-        API[REST API] --> DISP[5-State Dispatcher]
-        DISP --> S0[State 0: Popularity]
-        DISP --> S1[State 1: GraphSAGE USER_VECTOR]
-        DISP --> S2[State 2: Hybrid β-blend]
-        DISP --> S3[State 3: Feature-based]
-        DISP --> S4[State 4: Feature-based + Diversity]
-    end
-
-    subgraph Data["Data Layer"]
-        PG[(PostgreSQL 15<br/>Auth, Ratings, Catalog)]
-        RE[(Redis 7<br/>Cache, Quiz Sessions)]
-        NE[(Neo4j 5<br/>Knowledge Graph)]
-    end
-
-    subgraph ML["ML Pipeline"]
-        GS[GraphSAGE<br/>Jaccard Embeddings<br/>4559 x 64]
-        FB[Feature-Based<br/>Accord/Note Overlap]
-    end
-
-    API --> PG
-    API --> RE
-    API -.-> NE
-    S1 --> GS
-    S2 --> GS
-    S2 --> FB
-    S3 --> FB
-    S4 --> FB
-
-    style S0 fill:#f0f0f0,stroke:#999
-    style S1 fill:#e3f2fd,stroke:#1565c0
-    style S2 fill:#fff3e0,stroke:#e65100
-    style S3 fill:#e8f5e9,stroke:#2e7d32
-    style S4 fill:#fce4ec,stroke:#c62828
+```
+┌─────────────────────────────┐        ┌──────────────────────────────┐
+│  Next.js 16 (port 3000)     │  HTTP  │  FastAPI (port 8000)         │
+│  home · quiz ·              │ ─────► │  auth · catalog · quiz ·     │
+│  recommendations ·          │        │  recommendations · users     │
+│  login · families           │        │                              │
+└─────────────────────────────┘        │  dispatcher (3-state)        │
+                                       │  SQLite (users + ratings)    │
+                                       │  precomputed embeddings (.npy)│
+                                       └──────────────────────────────┘
 ```
 
-### 5-State Recommendation Dispatcher
-
-| State | Label | Trigger | Strategy |
-|---|---|---|---|
-| 0 | Anonymous | No session | Popularity → Random fallback |
-| 1 | Quiz User | Quiz completed | GraphSAGE (USER_VECTOR) → Feature-based fallback |
-| 2 | Cold | 1–4 ratings | Hybrid β-blend (GraphSAGE + Feature-based) |
-| 3 | Warm | 5–19 ratings | Feature-based primary |
-| 4 | Mature | 20+ ratings | Feature-based + diversity injection |
-
-Every path has a graceful fallback. The system never returns empty results. See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for full dispatch details.
-
-### Screenshots
-
-<div align="center">
-  <img src="docs/screenshots/quiz-interface.png" alt="Adaptive preference quiz" width="340"/>
-  <img src="docs/screenshots/recommendations.png" alt="Recommendations with state indicator" width="340"/>
-  <p><em>Left: Adaptive quiz with 1–10 rating scale. Right: State-driven recommendations with match scores.</em></p>
-</div>
-
-### User Journey
-
-Once the app is running at `http://localhost:3000`, follow this flow to experience the full recommendation pipeline:
-
-#### 1. Register an account
-- Open `http://localhost:3000/auth/register` (or click "Sign Up")
-- Enter an email and password; you'll be logged in automatically
-
-#### 2. Browse the fragrance catalog
-- The landing page shows the fragrance catalog with search
-- Click any card to see fragrance details (notes, accords, description)
-
-#### 3. Take the preference quiz
-- Navigate to `/quiz` — rate fragrances on a 1–10 scale
-- The quiz adapts based on your responses
-- Finalise your quiz session to submit your preferences
-
-#### 4. View your recommendations
-- Navigate to `/recommendations`
-- The system moves from **State 0 (Anonymous / Popularity)** to **State 1 (Quiz User / GraphSAGE)**
-- Recommendations are computed using per-item ratings weighted by GraphSAGE embeddings (USER_VECTOR path)
-
-#### 5. Rate individual fragrances
-- Click the Star icon on any fragrance card to rate (1–5 stars)
-- Each rating moves you closer to the next state
-
-#### 6. Check your profile
-- Visit `/profile/history` to see your Last Quiz Summary card
-- Shows total rated, average rating, top matches, and preferred notes/accords
+- **Backend** — FastAPI, sync SQLAlchemy, SQLite. Tables are created on startup; the quiz session store is a process-local dict (no Redis).
+- **Frontend** — Next.js (App Router), 5 pages, talks to the API via `NEXT_PUBLIC_API_URL`.
+- **ML artifacts** — a cleaned catalog JSON (4,559 fragrances) plus `[4559×64]` L2-normalized GraphSAGE embeddings shipped in `backend/app/data/`. No model is needed at serving time — only NumPy.
+- **No external infra** — no Docker, Postgres, Neo4j, Redis, Supabase, Pinecone, or message queues.
 
 ---
 
-## Key Engineering Achievements
+## Quickstart
 
-- **5-state state machine dispatcher** routing by user signal maturity — anonymous users get popularity, quiz completers get GraphSAGE user vectors, frequent raters get feature-based scoring with diversity injection
-- **GraphSAGE preference initialization** producing 64-dimensional embeddings from a Jaccard-similarity graph over 4,559 fragrance nodes — precomputed at build time, loaded at serving time as `.npy` files. Loading/serving the artifacts requires no PyTorch (the serving module reads NumPy arrays directly); note the backend Docker image still installs torch + torch-geometric + sentence-transformers via the `[runtime,ml]` extras (~2 GB)
-- **Full-stack containerized deployment** — 5 Docker services (PostgreSQL 15, Neo4j 5, Redis 7, FastAPI, Next.js 16) orchestrated with Docker Compose
-- **Observability** — Correlation ID tracing across all API endpoints, 10 structured event types, Sentry error monitoring
-- **173 backend tests** (pytest; dispatcher + rating-normalization suite 105 passing) + Playwright E2E with visual regression across the complete quiz→recommendation flow
-- **Load-tested at 20 concurrent users** — 1,875 requests, 1,561 successful and 314 failures (313× 429 rate-limited quiz-start responses + 1 connection error, ≈16.7%). The 429s are rate-limit responses by design; evidence in `backend/tests/load/results/load_results_stats.csv`
-- **4,559 quality-filtered fragrance entries** (cleaned from 4,577 raw items by removing 18 duplicate name+brand rows), 397 brands, 72 accords
+Prerequisites: **Python 3.11+**, **Node 20+**.
 
----
-
-## Testing & Quality
+**1. Backend** (from `backend/`):
 
 ```bash
-# Backend tests — run on the host venv (the backend Docker image excludes dev deps,
-# so pytest is not available via `docker compose exec backend pytest`)
-.venv\Scripts\python.exe -m pytest backend/tests -q
+cd backend
+python -m venv .venv
+.venv\Scripts\activate          # Windows   (macOS/Linux: source .venv/bin/activate)
+pip install -r requirements.txt
+python -m uvicorn app.main:app --reload
+```
 
-# Single test file
-.venv\Scripts\python.exe -m pytest backend/tests/test_phase11_quiz.py -q
+The API is now at http://localhost:8000 (`/health` responds `{"status": "success", "data": {...}}`).
 
-# Frontend checks (from frontend/)
-npm run lint                                           # ESLint
-npm run format                                         # Prettier
-npm run type-check                                     # TypeScript (tsc --noEmit)
-npm run build                                          # Next.js production build
+**2. Frontend** (from `frontend/`):
 
-# E2E tests (Playwright, requires running system)
-npm run test:e2e                                       # headless
-npm run test:e2e:ui                                    # interactive UI mode
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:3000.
+
+### Environment
+
+- **Backend** reads `backend/.env`. Required values: `DATABASE_URL=sqlite:///./scentrix.db` and a `JWT_SECRET_KEY` (any long random string for dev). `backend/.env` is already present with working defaults.
+- **Frontend** reads `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). Copy `frontend/.env.example` to `frontend/.env.local` if you need to override it.
+
+---
+
+## API endpoints
+
+All responses use a `{status, data}` envelope; recommendation responses also include `state`, `state_label`, and `source`.
+
+| Method | Path | Purpose | Auth |
+|---|---|---|---|
+| POST | `/auth/register` | Create an account (returns JWT) | — |
+| POST | `/auth/login` | Log in (returns JWT) | — |
+| GET | `/auth/me` | Current user profile | Bearer |
+| GET | `/fragrances/catalog` | Paginated catalog with search, brand/family/accord filters, sort | — |
+| GET | `/fragrances/{id}` | Single fragrance detail | — |
+| POST | `/fragrances/quiz/session/start` | Start a quiz session (seeds spanning olfactory families) | optional |
+| POST | `/fragrances/quiz/session/{id}/answer` | Record one answer (in-memory) | optional |
+| POST | `/fragrances/quiz/session/{id}/evaluate` | Compute confidence, decide if more questions are needed | optional |
+| GET | `/fragrances/quiz/session/{id}/next-questions` | Next extension questions (uncertainty/diversity ranked) | optional |
+| POST | `/fragrances/quiz/session/{id}/finalize` | Persist quiz ratings, mark quiz complete | Bearer |
+| POST | `/fragrances/quiz/session/{id}/guest-finalize` | Finalize a guest quiz (no DB write) | optional |
+| POST | `/recommendations/guest` | Guest recommendations through the 3-state dispatcher | — |
+| POST | `/recommendations/rate` | Save a single rating (1–10) | Bearer |
+| POST | `/recommendations/batch-rate` | Save many ratings at once | Bearer |
+| GET | `/recommendations/personalized` | Recommendations from a user's stored ratings | Bearer |
+| GET | `/users/profile` | Profile + rating count | Bearer |
+| POST | `/users/preferences` | Merge stored preferences | Bearer |
+| GET | `/health` | Health check incl. embedding-cache status | — |
+
+---
+
+## The ML bit
+
+**What the embeddings are.** Fragrances that share notes and accords are linked into a Jaccard-similarity graph (same primary accord, edge if note-Jaccard > 0.2, top-k 10 neighbors). A 2-layer GraphSAGE is trained with a contrastive InfoNCE loss so each of the 4,559 catalog items gets a 64-dimensional, L2-normalized vector that encodes "who smells like me."
+
+**How they're used at serving time.** No model inference, no PyTorch in the API. The embeddings are precomputed and shipped as a `.npy` file. When a cold user rates a few fragrances:
+
+1. Each rating becomes a weight (`rating / 10`), and the weighted average of the rated items' embeddings becomes a **user vector** (L2-normalized).
+2. Cosine similarity (a NumPy dot product) ranks all catalog items against that vector — a **KNN** search.
+3. The top matches are hydrated with catalog metadata and returned.
+
+If the embedding cache can't load (e.g., NumPy missing), the dispatcher automatically falls back to popularity.
+
+**Regenerating the embeddings.** The training code lives in `backend/train.py` and is *not* part of the app requirements — it needs training-only dependencies (`torch`, `numpy`, `sentence-transformers`). It rebuilds the Jaccard graph, regenerates the 384-d text features, trains inline, validates (no NaN/Inf, exact `[4559×64]`, unit L2 norm), and overwrites the artifacts in `backend/app/data/`.
+
+```bash
+cd backend
+pip install torch numpy sentence-transformers
+python train.py                     # defaults: 100 epochs, all-MiniLM-L6-v2
+python train.py --epochs 150 --skip-text   # reuse cached text embeddings
+```
+
+CLI args: `--epochs` (default 100), `--text-model` (default `all-MiniLM-L6-v2`), `--skip-text` (use cached `text_embeddings.npy`). The first run downloads the MiniLM model (~90 MB).
+
+---
+
+## Project structure
+
+```
+backend/
+├── app/
+│   ├── main.py               # FastAPI entry — mounts routers, /health, lifespan init
+│   ├── config.py             # settings: DATABASE_URL, JWT_SECRET_KEY, CORS
+│   ├── database.py           # sync SQLAlchemy engine + session (SQLite)
+│   ├── models/models.py      # 2 tables: users, fragrance_ratings
+│   ├── auth/
+│   │   ├── auth.py           # bcrypt hashing + JWT create/verify
+│   │   └── dependencies.py   # Bearer-token dependency (optional variant for quiz)
+│   ├── routers/
+│   │   ├── auth.py           # /auth/register, /auth/login, /auth/me
+│   │   ├── catalog.py        # /fragrances/catalog, /fragrances/{id}
+│   │   ├── quiz.py           # /fragrances/quiz/session/* (in-memory store)
+│   │   ├── recommendations.py# /recommendations/* routed via dispatcher
+│   │   └── users.py          # /users/profile, /users/preferences
+│   ├── schemas/schemas.py    # Pydantic request/response models
+│   └── services/
+│       ├── dispatcher.py     # the 3-state warmth machine
+│       ├── catalog.py        # loads + hydrates the JSON SSOT
+│       ├── embeddings.py     # numpy user-vector + KNN (no torch)
+│       ├── feature_based.py  # Jaccard note/accord scoring (warm state)
+│       └── popularity.py     # rating_count ranking (anonymous state)
+│
+├── app/data/                 # serving artifacts
+│   ├── scentrix_master_cleaned.json  # 4,559 fragrances (SSOT)
+│   ├── node_embeddings_jaccard.npy   # [4559×64] float32 L2-normalized
+│   └── node_ids_jaccard.json         # frag_ ids in catalog order
+│
+├── train.py                  # regenerates embeddings (training-only deps)
+├── requirements.txt          # app dependencies (no torch)
+└── pyproject.toml            # packaging, ruff/mypy/pytest config
+
+frontend/
+└── src/app/
+    ├── page.tsx              # home / catalog landing
+    ├── quiz/page.tsx         # adaptive preference quiz
+    ├── recommendations/page.tsx
+    ├── families/page.tsx     # browse fragrance families
+    └── auth/login/page.tsx   # login
 ```
 
 ---
 
-## ML Pipeline
+## Tests
 
-The ML system evaluates GraphSAGE's ability to reconstruct a cold-start fragrance's relevant neighbours from its feature profile, without any interaction history.
+```bash
+cd backend
+python -m pytest tests -q
+```
 
-**Key finding:** Evaluation showed that simple feature-based methods remained highly competitive against GraphSAGE under the final non-circular evaluation protocol.
-
-See [docs/RESEARCH.md](./docs/RESEARCH.md) for the full research thesis, canonical results, bootstrap analysis, coldness stratification, and reproducibility commands.
-
----
-
-## Project History
-
-Started as a product-oriented perfume platform, pivoted to cold-start recommendation research, shipped as a fully containerized 5-service stack with structured logging, load testing, and a complete quiz→recommendation E2E flow.
-
-Key milestones:
-- **Architecture Freeze** (2026-05-30) — 5-state dispatch architecture locked
-- **Dispatcher Activation** (2026-06-05) — State machine routing end-to-end through the UI
-- **Quiz Flow Integration** (2026-06-07) — Guest persistence, state-aware UI, quiz summary
-- **Observability** (2026-06-07) — Correlation ID tracing, structured logging, load testing
-
-See [CHANGELOG.md](./docs/CHANGELOG.md) for the full change history.
+The suite covers the dispatcher state transitions, user-vector + KNN behavior, feature-based scoring, auth, catalog loading, and the quiz flow.
 
 ---
 
-## Research
+## Notes / interview angles
 
-See [docs/RESEARCH.md](./docs/RESEARCH.md) for the full research thesis, evaluation methodology, canonical results, and reproducibility commands.
+- **Why 3 states?** Warmth is a gradient — unknown → quiz-cold → known. The earlier 5-state design added β-blends and diversity injection that complicated the code without defensible user value at this scale, so it was cut.
+- **Why precomputed embeddings?** Cold-start recommendations don't change with every request — training once offline and serving a NumPy lookup makes the API fast, dependency-free (no PyTorch at runtime), and trivially reproducible via `train.py`.
+- **Why no Docker?** The whole system runs on two processes (`uvicorn` + `next dev`). Docker orchestration for a single service each of backend and frontend was overhead, not value.
+- **Own every line.** The codebase is intentionally small and fully understood — no framework boilerplate you can't explain.
+- **Honest about the ML.** Embeddings give you "similar to what you rated"; once a user has enough ratings, interpretable feature overlap takes over. The system is honest about what each state can and can't do.

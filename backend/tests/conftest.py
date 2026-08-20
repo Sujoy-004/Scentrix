@@ -1,62 +1,57 @@
-import asyncio
-from collections.abc import AsyncGenerator, Generator
+"""Shared pytest fixtures for the Scentrix backend test suite.
+
+Bootstraps ``sys.path`` so ``app.*`` imports resolve when pytest is run
+from ``backend/`` (or anywhere), initialises the SQLite schema once, and
+cleans up test-only DB rows between tests.
+"""
+
+import sys
+from pathlib import Path
 
 import pytest
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from fastapi.testclient import TestClient
 
-from app.database import Base, get_session
-from app.main import app
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
-# Use SQLite in-memory database for testing
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+from app.database import SessionLocal, init_db  # noqa: E402
+from app.main import app  # noqa: E402
+from app.models.models import FragranceRating, User  # noqa: E402
+from app.services.embeddings import gs_service  # noqa: E402
 
-engine = create_async_engine(
-    TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=None,
-)
-
-TestingSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+TEST_EMAIL_PATTERN = "test-%@example.com"
 
 
-@pytest.fixture(scope="session")
-def event_loop() -> Generator:
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest_asyncio.fixture(scope="session", autouse=True)
-async def setup_test_db() -> AsyncGenerator:
-    """Setup test database tables before running tests."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+@pytest.fixture(scope="session", autouse=True)
+def _app_bootstrap():
+    """Create DB tables and warm the embedding cache once per session."""
+    init_db()
+    gs_service.initialize()
     yield
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
 
 
-@pytest_asyncio.fixture()
-async def db_session() -> AsyncGenerator[AsyncSession, None]:
-    """Provide a database session per test cases."""
-    async with TestingSessionLocal() as session:
-        yield session
+@pytest.fixture()
+def client():
+    """TestClient wrapping the real app (runs lifespan: init_db + embeddings)."""
+    with TestClient(app) as c:
+        yield c
 
 
-@pytest_asyncio.fixture()
-async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
-    """Provide an HTTP client with mocked database session."""
-
-    async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
-        yield db_session
-
-    app.dependency_overrides[get_session] = override_get_session
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
-    app.dependency_overrides.clear()
+@pytest.fixture(autouse=True)
+def _cleanup_test_data():
+    """Remove test users and their ratings after every test."""
+    yield
+    db = SessionLocal()
+    try:
+        rows = db.query(User).filter(User.email.like(TEST_EMAIL_PATTERN)).all()
+        user_ids = [u.id for u in rows]
+        if user_ids:
+            db.query(FragranceRating).filter(
+                FragranceRating.user_id.in_(user_ids)
+            ).delete(synchronize_session=False)
+            for u in rows:
+                db.delete(u)
+            db.commit()
+    finally:
+        db.close()

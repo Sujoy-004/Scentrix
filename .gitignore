@@ -32,6 +32,7 @@ htmlcov/
 frontend/test-results/
 frontend/playwright-report/
 frontend/tests/visual-regression.spec.ts-snapshots/
+*.db
 
 # secrets / credentials
 *.key
@@ -51,6 +52,9 @@ DESIGN.md
 
 # coverage artifacts
 .coverage
+
+# interview study guide (private, not committed)
+study_guide/
 
 # session report (regeneratable per query, not tracked)
 report.md

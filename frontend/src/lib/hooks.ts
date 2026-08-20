@@ -134,46 +134,6 @@ export function useUpdateUserPreferences() {
   });
 }
 
-export function useWishlist() {
-  return useQuery({
-    queryKey: ['wishlist'],
-    queryFn: async () => {
-      const { data } = await api.get('/users/saved');
-      return Array.isArray(data?.data) ? data.data : [];
-    },
-  });
-}
-
-export function useRemoveFromWishlist() {
-  return useMutation({
-    mutationFn: async (id: number | string) => {
-      const { data } = await api.delete(`/users/saved/${id}`);
-      return data;
-    },
-  });
-}
-
-export function useUpdateSavedNotes() {
-  return useMutation({
-    mutationFn: async ({ id, notes }: { id: number; notes: string }) => {
-      const { data } = await api.patch(`/users/saved/${id}/notes`, { notes });
-      return data;
-    },
-  });
-}
-
-export function useAddToCollection() {
-  return useMutation({
-    mutationFn: async ({ fragranceId, notes }: { fragranceId: string; notes?: string }) => {
-      const { data } = await api.post('/users/saved', {
-        fragrance_neo4j_id: fragranceId,
-        notes
-      });
-      return data;
-    },
-  });
-}
-
 export function useSubmitRating() {
   return useMutation({
     mutationFn: async ({ fragranceId, rating }: { fragranceId: string; rating: number }) => {

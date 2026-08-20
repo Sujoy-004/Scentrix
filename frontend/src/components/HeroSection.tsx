@@ -101,7 +101,7 @@ export function HeroSection() {
               whileHover={{ scale: 1.05, y: -4 }}
               whileTap={{ scale: 0.95 }}
               className="btn btn-outline px-10 py-5 text-sm"
-              onClick={() => router.push('/fragrances')}
+              onClick={() => router.push('/families')}
             >
               Browse Library <Search className="ml-2" size={18} />
             </motion.button>

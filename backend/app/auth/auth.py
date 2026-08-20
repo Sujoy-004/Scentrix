@@ -1,12 +1,13 @@
 """Authentication utilities and JWT handling.
 
-Provides token generation, verification, and password hashing.
+Provides local (non-Supabase) token generation, verification, and password
+hashing. No refresh tokens, no Fernet PII encryption.
 """
 
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
 
-from jose import JWTError, jwt
+from jose import jwt
+from jose.exceptions import JWTError
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
@@ -20,7 +21,6 @@ pwd_context = CryptContext(
 SECRET_KEY = settings.jwt_secret_key
 ALGORITHM = settings.jwt_algorithm
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
-REFRESH_TOKEN_EXPIRE_DAYS = settings.refresh_token_expire_days
 
 
 class TokenPayload(BaseModel):
@@ -29,7 +29,7 @@ class TokenPayload(BaseModel):
     sub: str  # subject (user_id)
     exp: datetime
     iat: datetime
-    type: str  # "access" or "refresh"
+    type: str  # "access"
 
 
 def hash_password(password: str) -> str:
@@ -63,34 +63,6 @@ def create_access_token(user_id: int, expires_delta: timedelta | None = None) ->
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
         "type": "access",
-        "jti": str(uuid4()),
-    }
-
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-
-
-def create_refresh_token(user_id: int, expires_delta: timedelta | None = None) -> str:
-    """Create a JWT refresh token.
-
-    Args:
-        user_id: User ID to encode in token
-        expires_delta: Custom expiration time. Defaults to REFRESH_TOKEN_EXPIRE_DAYS
-
-    Returns:
-        Encoded JWT token
-    """
-    if expires_delta is None:
-        expires_delta = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-
-    now = datetime.now(UTC)
-    expire = now + expires_delta
-
-    payload = {
-        "sub": str(user_id),
-        "iat": int(now.timestamp()),
-        "exp": int(expire.timestamp()),
-        "type": "refresh",
-        "jti": str(uuid4()),
     }
 
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
@@ -113,22 +85,3 @@ def verify_token(token: str) -> TokenPayload | None:
         return TokenPayload(**payload)
     except JWTError:
         return None
-
-
-def get_user_id_from_token(token: str) -> int | None:
-    """Extract user ID from JWT token.
-
-    Args:
-        token: JWT token string
-
-    Returns:
-        User ID if valid token, None otherwise
-    """
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("sub")
-        if user_id:
-            return int(user_id)
-    except (JWTError, ValueError):
-        pass
-    return None

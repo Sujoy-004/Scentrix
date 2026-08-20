@@ -75,7 +75,7 @@ export function FragranceFamilies() {
               key={family.slug}
               variants={cardVariants}
               className="elite-family-card"
-              onClick={() => router.push(`/fragrances?family=${family.slug}`)}
+              onClick={() => router.push('/families')}
             >
               <div className="family-image-container">
                 {(() => {
@@ -124,7 +124,7 @@ export function FragranceFamilies() {
             whileHover={{ scale: 1.05, y: -4 }}
             whileTap={{ scale: 0.95 }}
             className="btn btn-outline border-primary/30 text-primary px-12 py-5 text-xs tracking-[0.3em] font-bold"
-            onClick={() => router.push('/fragrances')}
+            onClick={() => router.push('/families')}
           >
             Explore More
           </motion.button>

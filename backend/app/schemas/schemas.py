@@ -30,16 +30,9 @@ class TokenResponse(BaseModel):
     """JWT token response."""
 
     access_token: str
-    refresh_token: str
     token_type: str = "bearer"
-    expires_in: int  # seconds
+    expires_in: int = 0  # seconds
     user_id: str | None = None
-
-
-class RefreshTokenRequest(BaseModel):
-    """Refresh token request."""
-
-    refresh_token: str
 
 
 # ============================================================================
@@ -74,34 +67,6 @@ class UserPreferencesUpdate(BaseModel):
     notes: str | None = None
 
     model_config = ConfigDict(extra="ignore")
-
-
-# ============================================================================
-# FRAGRANCE RATING SCHEMAS
-# ============================================================================
-
-
-class FragranceRatingCreate(BaseModel):
-    """Create fragrance rating."""
-
-    fragrance_neo4j_id: str
-    rating_sweetness: float = Field(..., ge=0, le=5)
-    rating_woodiness: float = Field(..., ge=0, le=5)
-    rating_longevity: float = Field(..., ge=0, le=5)
-    rating_projection: float = Field(..., ge=0, le=5)
-    rating_freshness: float = Field(..., ge=0, le=5)
-    overall_satisfaction: float = Field(..., ge=0, le=5)
-
-
-class FragranceRatingResponse(FragranceRatingCreate):
-    """Fragrance rating response."""
-
-    id: int
-    user_id: int
-    created_at: datetime
-    updated_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -199,31 +164,6 @@ class FragranceCatalogPage(BaseModel):
 # ============================================================================
 
 
-class RecommendationJob(BaseModel):
-    """Async recommendation job response."""
-
-    job_id: str
-    status: str  # "processing", "completed", "failed"
-    message: str = ""
-
-
-class RecommendationResult(BaseModel):
-    """Recommendation result with ranked fragrances."""
-
-    job_id: str
-    status: str = "completed"
-    fragrances: list[FragranceSearchResult]
-    generated_at: datetime
-    message: str = ""
-
-
-class TextRecommendationRequest(BaseModel):
-    """Text-based recommendation request."""
-
-    query: str = Field(..., min_length=5, max_length=500)
-    limit: int = Field(10, ge=1, le=50)
-
-
 class RecommendationInteractionEventCreate(BaseModel):
     """Recommendation interaction event for feedback loop ingestion."""
 
@@ -255,24 +195,6 @@ class RecommendationInteractionBatchResponse(BaseModel):
 
     accepted: int
     rejected: int = 0
-
-
-class RecommendationWeeklyMetrics(BaseModel):
-    """7-day recommendation quality and engagement summary."""
-
-    window_days: int = 7
-    impressions: int
-    detail_clicks: int
-    similar_clicks: int
-    wishlist_adds: int
-    purchases: int
-    avg_match_score: float | None = None
-    low_confidence_share_pct: float
-    click_through_rate_pct: float
-    wishlist_rate_pct: float
-    conversion_rate_pct: float
-    stock_coverage_pct: float
-    high_vs_low_ctr_delta_pct: float
 
 
 # ============================================================================
@@ -374,48 +296,8 @@ class QuizSessionNextQuestionsResponse(BaseModel):
 
 
 # ============================================================================
-# COLLECTION SCHEMAS
-# ============================================================================
-
-
-class SavedFragranceCreate(BaseModel):
-    """Add fragrance to collection."""
-
-    fragrance_neo4j_id: str
-    notes: str | None = None
-
-
-class SavedFragranceResponse(BaseModel):
-    """Saved fragrance response."""
-
-    id: int
-    user_id: int
-    fragrance_neo4j_id: str
-    notes: str | None = None
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-# ============================================================================
 # HEALTH & STATUS SCHEMAS
 # ============================================================================
-
-
-class HealthCheck(BaseModel):
-    """Health check response."""
-
-    status: str
-    version: str
-    timestamp: datetime
-
-
-class ErrorResponse(BaseModel):
-    """Error response."""
-
-    error: str
-    detail: str | None = None
-    code: int
 
 
 class StandardResponse(BaseModel):

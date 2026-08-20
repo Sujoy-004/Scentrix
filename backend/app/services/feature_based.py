@@ -1,51 +1,44 @@
 """Feature-based scoring service extracted from HybridRecommender.
 
-Provides FeatureBasedService.score() that replicates the exact scoring logic
-from hybrid_search.py:get_recommendations() for rule-based feature matching.
+Provides FeatureBasedService.score() that replicates the exact rule-based
+scoring logic from hybrid_search.py:get_recommendations() for feature
+matching. The semantic/embedding path is intentionally dropped — scoring
+is pure Jaccard/overlap on notes and accords.
 """
 
 import logging
 import math
 from typing import Any
 
-from app.services.catalog import load_recommendation_catalog
-from app.services.hybrid_search import FRESH_ACCORDS, WARM_ACCORDS
+from app.services.catalog import get_catalog, get_catalog_map
 
 logger = logging.getLogger(__name__)
 
-try:
-    import numpy as np
-except ImportError:
-    np = None
+# Fresh/Day Proxy Accords (inlined from the deleted hybrid_search.py)
+FRESH_ACCORDS = {"fresh", "citrus", "floral", "green", "aquatic", "aromatic", "fresh spicy"}
+# Warm/Night Proxy Accords (inlined from the deleted hybrid_search.py)
+WARM_ACCORDS = {
+    "warm spicy",
+    "amber",
+    "tobacco",
+    "leather",
+    "oud",
+    "sweet",
+    "vanilla",
+    "animalic",
+    "balsamic",
+}
 
 
 class FeatureBasedService:
-    """Rule-based feature scoring identical to HybridRecommender's feature pass.
+    """Rule-based feature scoring identical to HybridRecommender's feature pass."""
 
-    Accepts optional embedding_index/embeddings for semantic scoring. When
-    semantic data is unavailable, semantic_score defaults to 0.0 and the
-    weighting falls back to the pure rule-based formula.
-    """
-
-    def __init__(
-        self,
-        embedding_index: dict[str, int] | None = None,
-        embeddings: Any = None,
-        semantic_enabled: bool = False,
-    ):
-        self.embedding_index = embedding_index if embedding_index is not None else {}
-        self.embeddings = embeddings
-        self.semantic_enabled = semantic_enabled
+    def __init__(self) -> None:
+        pass
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
-
-    @staticmethod
-    def _cosine_similarity(a: Any, b: Any) -> float:
-        if a is None or b is None or np is None:
-            return 0.0
-        return float(np.dot(a, b))
 
     @staticmethod
     def _jaccard(a: set, b: set) -> float:
@@ -114,33 +107,6 @@ class FeatureBasedService:
             "target_occasions": target_occasions,
         }
 
-    def _compute_user_embedding(
-        self, ratings: list[Any], catalog: list[dict[str, Any]]
-    ) -> Any:
-        if not self.semantic_enabled or np is None:
-            return None
-        catalog_map = {str(item["id"]): item for item in catalog}
-        profile_vecs: list[Any] = []
-        for r in ratings:
-            fid = str(
-                getattr(
-                    r, "fragrance_id",
-                    r.get("fragrance_id", "") if isinstance(r, dict) else "",
-                )
-            )
-            idx = self.embedding_index.get(fid)
-            if idx is not None and self.embeddings is not None:
-                profile_vecs.append(self.embeddings[idx])
-
-        if not profile_vecs:
-            return None
-
-        user_embedding = np.mean(profile_vecs, axis=0)
-        u_norm = np.linalg.norm(user_embedding)
-        if u_norm > 0:
-            user_embedding = user_embedding / u_norm
-        return user_embedding
-
     # ------------------------------------------------------------------
     # Candidate pooling (mirrors hybrid_search.py lines 388-422)
     # ------------------------------------------------------------------
@@ -200,7 +166,6 @@ class FeatureBasedService:
         self,
         candidate_pool: list[dict[str, Any]],
         profile: dict[str, Any],
-        user_embedding: Any,
         seed_id_set: set[str],
         top_k: int = 50,
     ) -> list[dict[str, Any]]:
@@ -242,40 +207,21 @@ class FeatureBasedService:
             if target_occasions.intersection(item_occ):
                 occ_match = 1.0
 
-            # e) SEMANTIC_SCORE
-            semantic_score = 0.0
-            if user_embedding is not None:
-                item_idx = self.embedding_index.get(item_id)
-                if item_idx is not None and self.embeddings is not None:
-                    semantic_score = self._cosine_similarity(
-                        user_embedding, self.embeddings[item_idx]
-                    )
-
-            # f) POPULARITY_SCORE
+            # e) POPULARITY_SCORE
             rc = item.get("rating_count", 0)
             pop_count_score = min(math.log10(rc + 1) / 4.0, 1.0)
             rv = item.get("rating_value", 3.5)
             pop_val_score = (rv - 1.0) / 4.0
             popularity = (pop_count_score * 0.6) + (pop_val_score * 0.4)
 
-            # g) Final base score
-            if self.semantic_enabled and user_embedding is not None:
-                base_score = (
-                    (0.30 * note_sim)
-                    + (0.20 * accord_sim)
-                    + (0.15 * semantic_score)
-                    + (0.15 * cat_match)
-                    + (0.10 * occ_match)
-                    + (0.10 * popularity)
-                )
-            else:
-                base_score = (
-                    (0.35 * note_sim)
-                    + (0.25 * accord_sim)
-                    + (0.15 * cat_match)
-                    + (0.15 * occ_match)
-                    + (0.10 * popularity)
-                )
+            # f) Final base score (pure rule-based)
+            base_score = (
+                (0.35 * note_sim)
+                + (0.25 * accord_sim)
+                + (0.15 * cat_match)
+                + (0.15 * occ_match)
+                + (0.10 * popularity)
+            )
 
             scored.append({"id": item_id, "base_score": base_score, "item": item})
 
@@ -368,11 +314,10 @@ class FeatureBasedService:
         """Full feature-based scoring pipeline.
 
         Produces identical output to ``HybridRecommender.get_recommendations()``
-        for the same inputs when the semantic path is disabled or the
-        same embedding data is injected.
+        for the same inputs with the semantic path disabled.
         """
         if catalog is None:
-            catalog = load_recommendation_catalog()
+            catalog = get_catalog()
         if not catalog:
             return []
 
@@ -385,7 +330,5 @@ class FeatureBasedService:
         if not set(profile["target_notes"]) and not set(profile["target_accords"]):
             return self._popularity_fallback(catalog, count=top_k)
 
-        user_embedding = self._compute_user_embedding(ratings, catalog)
-
         candidate_pool = self._get_candidates(catalog, profile, seed_id_set)
-        return self._score_and_select(candidate_pool, profile, user_embedding, seed_id_set, top_k=top_k)
+        return self._score_and_select(candidate_pool, profile, seed_id_set, top_k=top_k)

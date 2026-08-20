@@ -1,6 +1,5 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import './families.css';
 
 const FAMILIES = [
@@ -20,8 +19,6 @@ const FAMILY_EMOJIS: Record<string, string> = {
 };
 
 export default function FamiliesPage() {
-  const router = useRouter();
-
   return (
     <div className="families-page">
       <div className="families-container">
@@ -35,7 +32,6 @@ export default function FamiliesPage() {
             <div
               key={family.id}
               className="family-card"
-              onClick={() => router.push(`/families/${family.id}`)}
             >
               <div className="family-emoji">
                 {FAMILY_EMOJIS[family.id] || '🧴'}
@@ -43,7 +39,7 @@ export default function FamiliesPage() {
               <div className="family-content">
                 <h2 className="family-name">{family.name}</h2>
                 <p className="family-description">{family.description}</p>
-                <button className="family-explore-btn">Explore →</button>
+                <span className="family-explore-btn">Explore →</span>
               </div>
             </div>
           ))}

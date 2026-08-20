@@ -7,7 +7,7 @@ popularity fallback logic from hybrid_search.py:get_recommendations().
 import logging
 from typing import Any
 
-from app.services.catalog import load_recommendation_catalog
+from app.services.catalog import get_catalog
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class PopularityService:
           top_accords[:3], top_notes[:3]
         """
         if catalog is None:
-            catalog = load_recommendation_catalog()
+            catalog = get_catalog()
         if not catalog:
             return []
 

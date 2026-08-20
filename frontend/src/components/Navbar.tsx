@@ -8,10 +8,7 @@ import {
   X, 
   LogOut, 
   User, 
-  Heart, 
-  Search, 
-  Sparkles, 
-  Settings 
+  Sparkles 
 } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import { ScentrixLogo } from './ScentrixLogo';
@@ -32,7 +29,7 @@ export default function Navbar() {
 
   const handleSearch = () => {
     const val = searchRef.current?.value;
-    router.push(`/fragrances${val ? `?q=${encodeURIComponent(val)}` : ''}`);
+    router.push(val ? `/?q=${encodeURIComponent(val)}` : '/');
   };
 
   // Prevent hydration mismatch
@@ -104,17 +101,15 @@ export default function Navbar() {
               <MagneticLink href="/recommendations" isActive={pathname === '/recommendations'} onClick={() => router.push('/recommendations')}>
                 Discover
               </MagneticLink>
+              <MagneticLink href="/quiz" isActive={pathname === '/quiz'} onClick={() => router.push('/quiz')}>
+                Quiz
+              </MagneticLink>
+              <MagneticLink href="/families" isActive={pathname === '/families'} onClick={() => router.push('/families')}>
+                Families
+              </MagneticLink>
               <MagneticLink href="/auth/login" isActive={pathname === '/auth/login'} onClick={() => router.push('/auth/login')}>
                 Log In
               </MagneticLink>
-              <motion.button
-                className="nav-cta-premium"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => router.push('/auth/register')}
-              >
-                Sign Up
-              </motion.button>
             </>
           ) : (
             <>
@@ -123,6 +118,9 @@ export default function Navbar() {
               </MagneticLink>
               <MagneticLink href="/quiz" isActive={pathname === '/quiz'} onClick={() => router.push('/quiz')}>
                 Quiz
+              </MagneticLink>
+              <MagneticLink href="/families" isActive={pathname === '/families'} onClick={() => router.push('/families')}>
+                Families
               </MagneticLink>
               <ProfileDropdown handleLogout={handleLogout} />
             </>
@@ -153,25 +151,19 @@ export default function Navbar() {
             animate="open"
             exit="closed"
           >
-            <div className="mobile-links-container">
+<div className="mobile-links-container">
               {!isAuthenticated ? (
                 <>
                   <MobileNavLink icon={<Sparkles size={18} />} label="Discover" onClick={() => { router.push('/recommendations'); setIsOpen(false); }} variants={itemVariants} />
+                  <MobileNavLink icon={<Sparkles size={18} />} label="Quiz" onClick={() => { router.push('/quiz'); setIsOpen(false); }} variants={itemVariants} />
+                  <MobileNavLink icon={<Sparkles size={18} />} label="Families" onClick={() => { router.push('/families'); setIsOpen(false); }} variants={itemVariants} />
                   <MobileNavLink icon={<User size={18} />} label="Log In" onClick={() => { router.push('/auth/login'); setIsOpen(false); }} variants={itemVariants} />
-                  <motion.button 
-                    variants={itemVariants}
-                    className="mobile-cta"
-                    onClick={() => { router.push('/auth/register'); setIsOpen(false); }}
-                  >
-                    Sign Up
-                  </motion.button>
                 </>
               ) : (
                 <>
                   <MobileNavLink icon={<Sparkles size={18} />} label="Discovery" onClick={() => { router.push('/recommendations'); setIsOpen(false); }} variants={itemVariants} />
                   <MobileNavLink icon={<Sparkles size={18} />} label="Personalized Quiz" onClick={() => { router.push('/quiz'); setIsOpen(false); }} variants={itemVariants} />
-                  <MobileNavLink icon={<Heart size={18} />} label="Scent Shelf" onClick={() => { router.push('/collection'); setIsOpen(false); }} variants={itemVariants} />
-                  <MobileNavLink icon={<Settings size={18} />} label="Account" onClick={() => { router.push('/profile'); setIsOpen(false); }} variants={itemVariants} />
+                  <MobileNavLink icon={<Sparkles size={18} />} label="Families" onClick={() => { router.push('/families'); setIsOpen(false); }} variants={itemVariants} />
                   <button className="mobile-logout" onClick={handleLogout}>
                     <LogOut size={18} /> Sign Out
                   </button>
@@ -207,7 +199,6 @@ function MagneticLink({ children, onClick, isActive }: { children: React.ReactNo
 
 function ProfileDropdown({ handleLogout }: { handleLogout: () => void }) {
   const [show, setShow] = useState(false);
-  const router = useRouter();
 
   return (
     <div className="profile-dropdown-wrap" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
@@ -227,9 +218,6 @@ function ProfileDropdown({ handleLogout }: { handleLogout: () => void }) {
             exit={{ opacity: 0, y: 5, scale: 0.95 }}
             transition={{ duration: 0.2 }}
           >
-            <button onClick={() => router.push('/profile')}><User size={14} /> Profile</button>
-            <button onClick={() => router.push('/collection')}><Heart size={14} /> Scent Shelf</button>
-            <div className="dropdown-divider" />
             <button className="logout-action" onClick={handleLogout}><LogOut size={14} /> Sign Out</button>
           </motion.div>
         )}
