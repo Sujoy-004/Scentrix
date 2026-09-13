@@ -40,9 +40,9 @@ Minimal by design — a FastAPI backend that owns all the logic, a Next.js front
 ```
 ┌─────────────────────────────┐        ┌──────────────────────────────┐
 │  Next.js 16 (port 3000)     │  HTTP  │  FastAPI (port 8000)         │
-│  home · quiz ·              │ ─────► │  auth · catalog · quiz ·     │
+│  home · quiz ·              │ ─────► │  catalog · quiz ·            │
 │  recommendations ·          │        │  recommendations · users     │
-│  login · families           │        │                              │
+│  families · fragrance detail│        │  (auth/* kept as legacy)     │
 └─────────────────────────────┘        │  dispatcher (3-state)        │
                                        │  SQLite (users + ratings)    │
                                        │  precomputed embeddings (.npy)│
@@ -50,9 +50,11 @@ Minimal by design — a FastAPI backend that owns all the logic, a Next.js front
 ```
 
 - **Backend** — FastAPI, sync SQLAlchemy, SQLite. Tables are created on startup; the quiz session store is a process-local dict (no Redis).
-- **Frontend** — Next.js (App Router), 5 pages, talks to the API via `NEXT_PUBLIC_API_URL`.
+- **Frontend** — Next.js (App Router), anonymous-first: the product never asks for an account. It talks to the API via `NEXT_PUBLIC_API_URL`.
 - **ML artifacts** — a cleaned catalog JSON (4,559 fragrances) plus `[4559×64]` L2-normalized GraphSAGE embeddings, an ID index, and a `metadata.json` validation record shipped in `backend/app/data/`. No model is needed at serving time — only NumPy.
 - **No external infra** — no Docker, Postgres, Neo4j, Redis, Supabase, Pinecone, or message queues.
+
+> **Auth is legacy.** The backend still mounts `/auth/*`, `/users/*`, and the Bearer-protected rating endpoints from earlier iterations, but the app you see at `localhost:3000` is fully anonymous. Catalog, quiz, and recommendations never require a token, so the frontend sends none.
 
 ---
 
@@ -95,7 +97,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000. The product is anonymous-only — no account, login, or sign-up anywhere in the flow.
 
 > Windows note: always call the interpreter as `venv\Scripts\python.exe -m pip …`.
 > A bare `venv\Scripts\pip` is misread by PowerShell as `Module\Command` and fails.
@@ -109,27 +111,27 @@ Open http://localhost:3000.
 
 ## API endpoints
 
-All responses use a `{status, data}` envelope; recommendation responses also include `state`, `state_label`, and `source`.
+All responses use a `{status, data}` envelope; recommendation responses also include `state`, `state_label`, and `source`. The demo flow is entirely anonymous — auth/profile rows below are legacy and the app never calls them.
 
 | Method | Path | Purpose | Auth |
 |---|---|---|---|
-| POST | `/auth/register` | Create an account (returns JWT) | — |
-| POST | `/auth/login` | Log in (returns JWT) | — |
-| GET | `/auth/me` | Current user profile | Bearer |
+| POST | `/auth/register` | Create an account (returns JWT) | legacy |
+| POST | `/auth/login` | Log in (returns JWT) | legacy |
+| GET | `/auth/me` | Current user profile | legacy |
 | GET | `/fragrances/catalog` | Paginated catalog with search, brand/family/accord filters, sort | — |
 | GET | `/fragrances/{id}` | Single fragrance detail | — |
 | POST | `/fragrances/quiz/session/start` | Start a quiz session (seeds spanning olfactory families) | optional |
 | POST | `/fragrances/quiz/session/{id}/answer` | Record one answer (in-memory) | optional |
 | POST | `/fragrances/quiz/session/{id}/evaluate` | Compute confidence, decide if more questions are needed | optional |
 | GET | `/fragrances/quiz/session/{id}/next-questions` | Next extension questions (uncertainty/diversity ranked) | optional |
-| POST | `/fragrances/quiz/session/{id}/finalize` | Persist quiz ratings, mark quiz complete | Bearer |
+| POST | `/fragrances/quiz/session/{id}/finalize` | Persist quiz ratings, mark quiz complete | legacy |
 | POST | `/fragrances/quiz/session/{id}/guest-finalize` | Finalize a guest quiz (no DB write) | optional |
 | POST | `/recommendations/guest` | Guest recommendations through the 3-state dispatcher | — |
-| POST | `/recommendations/rate` | Save a single rating (1–10) | Bearer |
-| POST | `/recommendations/batch-rate` | Save many ratings at once | Bearer |
-| GET | `/recommendations/personalized` | Recommendations from a user's stored ratings | Bearer |
-| GET | `/users/profile` | Profile + rating count | Bearer |
-| POST | `/users/preferences` | Merge stored preferences | Bearer |
+| POST | `/recommendations/rate` | Save a single rating (1–10) | legacy |
+| POST | `/recommendations/batch-rate` | Save many ratings at once | legacy |
+| GET | `/recommendations/personalized` | Recommendations from a user's stored ratings | legacy |
+| GET | `/users/profile` | Profile + rating count | legacy |
+| POST | `/users/preferences` | Merge stored preferences | legacy |
 | GET | `/health` | Health check incl. embedding-cache status | — |
 
 ---
@@ -238,7 +240,8 @@ frontend/
     ├── quiz/page.tsx         # adaptive preference quiz
     ├── recommendations/page.tsx
     ├── families/page.tsx     # browse fragrance families
-    └── auth/login/page.tsx   # login
+    ├── families/[family]/page.tsx
+    └── fragrances/[id]/page.tsx   # fragrance detail + rating
 ```
 
 ---
@@ -250,7 +253,7 @@ cd backend
 python -m pytest tests -q
 ```
 
-The backend suite (`python -m pytest tests -q` — 36 tests) covers the dispatcher state transitions, user-vector + KNN behavior, feature-based scoring, auth, catalog loading, and the quiz flow.
+The backend suite (`python -m pytest tests -q` — 38 tests) covers the dispatcher state transitions, user-vector + KNN behavior, feature-based scoring, auth, catalog loading, the quiz flow, and the public `/health` check.
 
 ML/training tests (`python -m pytest ml/tests -q` — 185 tests, needs `pip install -e ".[ml]"`) cover the training pipeline, embedding-validation gates, and the cold-start evaluator and its oracle. The evaluator is also isolated as pure functions so it runs without the app or a database.
 

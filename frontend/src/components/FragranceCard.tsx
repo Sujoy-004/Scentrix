@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Star, Sparkles } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
-import { useSubmitRating } from '@/lib/hooks';
 import { getFamilyAsset } from '@/lib/family-mapping';
 import { computeReason } from '@/lib/reason-engine';
 import { useToastStore } from '@/stores/toast-store';
+import { RatingControls } from './RatingControls';
 
 interface FragranceCardProps {
   frag: any;
@@ -18,53 +19,25 @@ interface FragranceCardProps {
 const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 
 export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCardProps) {
+  const router = useRouter();
   const cardRef = useRef<HTMLElement>(null);
-  const [showRatingControl, setShowRatingControl] = useState(false);
-  
-  const { quizResponses, addQuizResponse } = useAppStore();
-  const submitRating = useSubmitRating();
+  const { quizResponses } = useAppStore();
 
   const isRated = quizResponses.some(r => r.fragrance_id === frag.id);
 
   const addToast = useToastStore((s) => s.addToast);
 
-  const handleRate = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isRated) {
-      useAppStore.setState((state) => ({
-        quizResponses: state.quizResponses.filter(r => r.fragrance_id !== frag.id)
-      }));
-      addToast({ message: `Removed rating for ${frag.name}`, type: 'info' });
-    } else if (showRatingControl) {
-      setShowRatingControl(false);
-    } else {
-      setShowRatingControl(true);
-    }
+  const handleOpen = () => {
+    if (!frag.id) return;
+    router.push(`/fragrances/${encodeURIComponent(frag.id)}`);
   };
 
-  const handleSelectRating = (rating: number) => {
-    addQuizResponse({
-      fragrance_id: frag.id,
-      rating,
-      name: frag.name,
-      brand: frag.brand,
-      top_notes: frag.top_notes,
-      accords: frag.top_accords,
-    });
-    submitRating.mutate({ fragranceId: frag.id, rating });
-    setShowRatingControl(false);
-    addToast({
-      message: `Rated ${frag.name} — refining your matches`,
-      type: 'success',
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          useAppStore.setState((state) => ({
-            quizResponses: state.quizResponses.filter(r => r.fragrance_id !== frag.id)
-          }));
-        },
-      },
-    });
+  const handleRemoveRating = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    useAppStore.setState((state) => ({
+      quizResponses: state.quizResponses.filter(r => r.fragrance_id !== frag.id)
+    }));
+    addToast({ message: `Removed rating for ${frag.name}`, type: 'info' });
   };
 
   const familyLookup = frag.family || frag.top_accords?.[0] || frag.brand || 'all';
@@ -78,6 +51,10 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
+      onClick={handleOpen}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleOpen(); } }}
+      role="button"
+      tabIndex={0}
       style={{
         background: 'rgba(255, 255, 255, 0.02)',
         border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -86,13 +63,15 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
         backdropFilter: 'blur(20px)',
         position: 'relative',
         height: '100%',
+        cursor: 'pointer',
         transition: 'all 0.4s cubic-bezier(0.23, 1, 0.32, 1)'
       }}
       whileHover={{ 
-        y: -10, 
+        y: -8, 
         borderColor: 'rgba(255, 255, 255, 0.2)',
         backgroundColor: 'rgba(255, 255, 255, 0.04)'
       }}
+      whileFocus={{ borderColor: 'rgba(255, 255, 255, 0.25)' }}
     >
       {/* Upper Visual Area */}
       <div className="relative aspect-[4/5] overflow-hidden">
@@ -155,39 +134,32 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
              <span className="text-xs font-bold text-white/80">{frag.rating ? frag.rating.toFixed(1) : 'N/A'}</span>
            </div>
            
-           <div className="flex gap-2">
-               <button
-                onClick={handleRate}
-                className={`p-2 transition-colors ${
-                  isRated ? 'text-amber-400' : 'text-white/40 hover:text-white'
-                }`}
-              >
-                <Star size={16} fill={isRated ? 'currentColor' : 'none'} />
-              </button>
-           </div>
+           {isRated ? (
+             <button
+               onClick={handleRemoveRating}
+               className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-500/10 border border-amber-500/30 transition-colors hover:bg-amber-500/20"
+             >
+               <Star size={14} fill="currentColor" /> Rated
+             </button>
+           ) : (
+             <span className="text-[10px] uppercase tracking-widest text-white/30">
+               View details →
+             </span>
+           )}
         </div>
 
-        {showRatingControl && !isRated && (
-          <motion.div 
-            className="flex gap-2 mt-3"
-            initial={{ opacity: 0, y: -5 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            {[
-              { label: 'Dislike', value: 3 },
-              { label: 'Neutral', value: 5 },
-              { label: 'Love', value: 9 },
-            ].map(({ label, value }) => (
-              <button
-                key={value}
-                onClick={(e) => { e.stopPropagation(); handleSelectRating(value); }}
-                className="flex-1 text-[10px] font-bold uppercase tracking-wider px-2 py-2 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-              >
-                {label} ({value})
-              </button>
-            ))}
-          </motion.div>
+        {!isRated && (
+          <div className="mt-3">
+            <RatingControls
+              target={{
+                fragrance_id: frag.id,
+                name: frag.name,
+                brand: frag.brand,
+                top_notes: frag.top_notes,
+                accords: frag.top_accords,
+              }}
+            />
+          </div>
         )}
       </div>
     </motion.article>

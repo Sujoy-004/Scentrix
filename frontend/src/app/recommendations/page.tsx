@@ -9,8 +9,6 @@ import {
   ArrowRight,
   RotateCcw,
   ShieldCheck,
-  LogIn,
-  UserPlus,
 } from 'lucide-react';
 import { useRecommendations } from '@/lib/hooks';
 import { useAppStore } from '@/stores/app-store';
@@ -58,7 +56,7 @@ export default function RecommendationsPage() {
   const router = useRouter();
   const recsQuery = useRecommendations();
   const { data: recommendations, isLoading, error, state, stateLabel, isRefetching } = recsQuery as { data: FragranceRecommendation[] | undefined, isLoading: boolean, error: any, state: number | null, stateLabel: string | null, isRefetching: boolean };
-  const { isAuthenticated, quizResponses } = useAppStore();
+  const { quizResponses } = useAppStore();
   const addToast = useToastStore((s) => s.addToast);
   const [mounted, setMounted] = useState(false);
   const [visibleCount, setVisibleCount] = useState(10);
@@ -183,27 +181,25 @@ export default function RecommendationsPage() {
     >
       <div className="container mx-auto px-6">
 
-        {/* Guest Auth Invitation Banner */}
-        {!isAuthenticated && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="guest-auth-banner-elite"
-          >
-            <div className="flex items-center gap-4">
-              <div className="banner-icon-pillar">
-                <Sparkles size={16} className="text-primary" />
-              </div>
-              <div className="flex-1">
-                <h4 className="text-[0.7rem] uppercase tracking-widest font-bold text-white mb-0.5">Guest Discovery Session</h4>
-                <p className="text-[0.6rem] text-white/50 leading-tight">{ratingCount === 0 ? "Your session is temporary. Take the quiz to build your scent profile." : "Your neural profile is temporary. Take the quiz to refine your matches."}</p>
-              </div>
-              <div className="flex gap-2">
-                <button className="btn btn-primary px-8" onClick={() => router.push('/quiz')}>Take the Quiz</button>
-              </div>
+        {/* Anonymous Discovery Banner */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="guest-auth-banner-elite"
+        >
+          <div className="flex items-center gap-4">
+            <div className="banner-icon-pillar">
+              <Sparkles size={16} className="text-primary" />
             </div>
-          </motion.div>
-        )}
+            <div className="flex-1">
+              <h4 className="text-[0.7rem] uppercase tracking-widest font-bold text-white mb-0.5">Discovery Session</h4>
+              <p className="text-[0.6rem] text-white/50 leading-tight">{ratingCount === 0 ? "No sign-up needed. Take the quiz to build your scent profile." : "No sign-up needed. Rate a few more scents to refine your matches."}</p>
+            </div>
+            <div className="flex gap-2">
+              <button className="btn btn-primary px-8" onClick={() => router.push('/quiz')}>Take the Quiz</button>
+            </div>
+          </div>
+        </motion.div>
 
         <motion.header
           initial={{ opacity: 0, y: -20 }}

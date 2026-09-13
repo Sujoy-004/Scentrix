@@ -8,28 +8,9 @@ if (!BASE_URL) {
 
 const apiInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 60000, // 60s for deep neural synthesis
+  timeout: 60000,
   headers: { 'Content-Type': 'application/json' },
 });
-
-// Auto-inject JWT token for authenticated requests
-apiInstance.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  }
-  return config;
-});
-
-export const VALID_IDS = [
-  "frag_success",
-  "frag_chic-blossom",
-  "frag_sweet-sin",
-  "frag_tutti-twilly-d-hermes",
-  "frag_celebre-ice"
-];
 
 export const api = {
   get: apiInstance.get.bind(apiInstance),
@@ -50,30 +31,9 @@ export const api = {
     }
   },
 
-  // Fixed: posts to the new dedicated /recommendations/rate endpoint
-  submitRating: async (fragranceId: string, rating: number, meta?: { top_notes?: string[]; accords?: string[]; name?: string; brand?: string }) => {
-    try {
-      const { data } = await apiInstance.post('/recommendations/rate', {
-        fragrance_id: fragranceId,
-        rating,
-        ...meta,
-      });
-      return data;
-    } catch (e) {
-      // Non-blocking: guest flow must never crash due to a rating sync failure
-      console.warn('Rating sync failed (non-blocking):', e);
-      return null;
-    }
-  },
-  
-  batchSubmitRatings: async (ratings: { fragrance_id: string; rating: number }[]) => {
-    try {
-      const { data } = await apiInstance.post('/recommendations/batch-rate', { ratings });
-      return data;
-    } catch (e) {
-      console.error('Batch sync failed:', e);
-      throw e;
-    }
+  getFragranceDetail: async (fragranceId: string) => {
+    const { data } = await apiInstance.get(`/fragrances/${encodeURIComponent(fragranceId)}`);
+    return data;
   },
 
   getGuestRecommendations: async (ratings: { 
@@ -92,10 +52,6 @@ export const api = {
     return data;
   },
 
-  getPersonalizedRecommendations: async () => {
-    const { data } = await apiInstance.get('/recommendations/personalized');
-    return data;
-  },
   // Adaptive Quiz Protocol
   startQuizSession: async (payload: { seed_count: number; candidate_pool_size: number; filters: any }) => {
     const { data } = await apiInstance.post('/fragrances/quiz/session/start', payload);
@@ -119,18 +75,8 @@ export const api = {
     return data;
   },
 
-  finalizeQuizSession: async (sessionId: string) => {
-    const { data } = await apiInstance.post(`/fragrances/quiz/session/${sessionId}/finalize`);
-    return data;
-  },
-
   guestFinalizeQuizSession: async (sessionId: string) => {
     const { data } = await apiInstance.post(`/fragrances/quiz/session/${sessionId}/guest-finalize`);
-    return data;
-  },
-
-  getQuizSummary: async () => {
-    const { data } = await apiInstance.get('/recommendations/quiz-summary');
     return data;
   },
 };
@@ -150,4 +96,7 @@ export interface FragranceCatalogItem {
   rating?: number;
   popularity_score?: number;
   match_score?: number;
+  year?: number | string;
+  concentration?: string;
+  gender_label?: string;
 }

@@ -4,11 +4,11 @@ FastAPI-based REST API for fragrance discovery, preference collection via adapti
 
 ## What It Does
 
-- User authentication (local HS256 JWT, 15-minute access tokens)
 - Fragrance catalog search and detail from the JSON source-of-truth (SQLite stores only users + ratings + quiz state)
 - **3-state recommendation dispatcher** — ANONYMOUS → popularity, COLD → GraphSAGE user-vector KNN, WARM → feature-overlap scoring; popularity is the safety net in every state
 - Direct ratings and an adaptive quiz feed the same preference profile; submitting a quiz pins the user to COLD regardless of rating count
 - Offline-trained ML artifact serving — no runtime model, pure NumPy lookup
+- Legacy local JWT auth (HS256) remains mounted for API compatibility, but the product is anonymous — catalog, quiz, and recommendation routes never require a token
 
 ## Stack
 
@@ -16,7 +16,7 @@ FastAPI-based REST API for fragrance discovery, preference collection via adapti
 - **Database:** SQLite (sync SQLAlchemy) — users, ratings, quiz state
 - **Catalog:** static JSON source-of-truth (`data/scentrix_master_cleaned.json`, 4,559 fragrances) loaded into memory
 - **ML:** precomputed GraphSAGE embeddings shipped as artifacts in `app/data/`; no runtime model, no vector database
-- **Auth:** local JWT HS256 (python-jose), 15-minute expiry
+- **Auth:** legacy local JWT HS256 (python-jose), 15-minute expiry — kept mounted, unused by the demo app
 
 ## Local Development
 
@@ -81,11 +81,12 @@ backend/
 
 | Prefix | Endpoints | Description |
 |--------|-----------|-------------|
-| `/auth` | register, login, me | User auth (HS256 JWT, 15 min) |
+| `/auth` | register, login, me | Legacy user auth (HS256 JWT, 15 min) — not called by the app |
 | `/fragrances` | /catalog, /{fragrance_id} | Catalog search + detail (JSON SSOT) |
-| `/fragrances/quiz/session` | start, {id}/answer, {id}/evaluate, {id}/next-questions, {id}/finalize, {id}/guest-finalize | Adaptive quiz |
-| `/recommendations` | /rate, /batch-rate, /guest, /personalized | Ratings + 3-state serving |
-| `/users` | /profile, /preferences | User profile |
+| `/fragrances/quiz/session` | start, {id}/answer, {id}/evaluate, {id}/next-questions, {id}/finalize, {id}/guest-finalize | Adaptive quiz (guest flow uses guest-finalize) |
+| `/recommendations` | /guest, /rate, /batch-rate, /personalized | 3-state serving; rating endpoints are legacy |
+| `/users` | /profile, /preferences | Legacy user profile — not called by the app |
+| `/health` | GET | Public health check incl. embedding-cache status |
 
 See `/docs` when the backend is running for OpenAPI documentation.
 

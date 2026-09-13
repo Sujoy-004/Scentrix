@@ -6,7 +6,6 @@ test.describe('landing page buttons', () => {
       { name: 'navbar Discover', btn: 'Discover', path: '/recommendations' },
       { name: 'navbar Quiz', btn: 'Quiz', path: '/quiz' },
       { name: 'navbar Families', btn: 'Families', path: '/families' },
-      { name: 'navbar Log In', btn: 'Log In', path: '/auth/login' },
       { name: 'hero Start Discovery', btn: 'Start Discovery', path: '/quiz' },
       { name: 'hero Browse Library', btn: 'Browse Library', path: '/families' },
       { name: 'hero Browse Popular Picks', btn: 'Browse Popular Picks', path: '/recommendations' },

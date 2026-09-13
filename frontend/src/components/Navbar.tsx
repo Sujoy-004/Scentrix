@@ -2,15 +2,12 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { motion, AnimatePresence, useSpring, useMotionValue } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Menu, 
   X, 
-  LogOut, 
-  User, 
   Sparkles 
 } from 'lucide-react';
-import { useAppStore } from '@/stores/app-store';
 import { ScentrixLogo } from './ScentrixLogo';
 import './navbar.css';
 
@@ -20,7 +17,6 @@ const springConfig = { stiffness: 150, damping: 20, mass: 1 };
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, logout } = useAppStore();
   
   const [isClientSide, setIsClientSide] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -39,12 +35,6 @@ export default function Navbar() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  const handleLogout = () => {
-    logout();
-    router.push('/');
-    setIsOpen(false);
-  };
 
   const menuVariants = {
     closed: {
@@ -96,35 +86,15 @@ export default function Navbar() {
 
         {/* Global Nav Links - Desktop */}
         <div className="navbar-links-desktop">
-          {!isAuthenticated ? (
-            <>
-              <MagneticLink href="/recommendations" isActive={pathname === '/recommendations'} onClick={() => router.push('/recommendations')}>
-                Discover
-              </MagneticLink>
-              <MagneticLink href="/quiz" isActive={pathname === '/quiz'} onClick={() => router.push('/quiz')}>
-                Quiz
-              </MagneticLink>
-              <MagneticLink href="/families" isActive={pathname === '/families'} onClick={() => router.push('/families')}>
-                Families
-              </MagneticLink>
-              <MagneticLink href="/auth/login" isActive={pathname === '/auth/login'} onClick={() => router.push('/auth/login')}>
-                Log In
-              </MagneticLink>
-            </>
-          ) : (
-            <>
-              <MagneticLink href="/recommendations" isActive={pathname === '/recommendations'} onClick={() => router.push('/recommendations')}>
-                Discovery
-              </MagneticLink>
-              <MagneticLink href="/quiz" isActive={pathname === '/quiz'} onClick={() => router.push('/quiz')}>
-                Quiz
-              </MagneticLink>
-              <MagneticLink href="/families" isActive={pathname === '/families'} onClick={() => router.push('/families')}>
-                Families
-              </MagneticLink>
-              <ProfileDropdown handleLogout={handleLogout} />
-            </>
-          )}
+          <MagneticLink href="/recommendations" isActive={pathname === '/recommendations'} onClick={() => router.push('/recommendations')}>
+            Discover
+          </MagneticLink>
+          <MagneticLink href="/quiz" isActive={pathname === '/quiz'} onClick={() => router.push('/quiz')}>
+            Quiz
+          </MagneticLink>
+          <MagneticLink href="/families" isActive={pathname === '/families'} onClick={() => router.push('/families')}>
+            Families
+          </MagneticLink>
         </div>
 
 
@@ -151,24 +121,10 @@ export default function Navbar() {
             animate="open"
             exit="closed"
           >
-<div className="mobile-links-container">
-              {!isAuthenticated ? (
-                <>
-                  <MobileNavLink icon={<Sparkles size={18} />} label="Discover" onClick={() => { router.push('/recommendations'); setIsOpen(false); }} variants={itemVariants} />
-                  <MobileNavLink icon={<Sparkles size={18} />} label="Quiz" onClick={() => { router.push('/quiz'); setIsOpen(false); }} variants={itemVariants} />
-                  <MobileNavLink icon={<Sparkles size={18} />} label="Families" onClick={() => { router.push('/families'); setIsOpen(false); }} variants={itemVariants} />
-                  <MobileNavLink icon={<User size={18} />} label="Log In" onClick={() => { router.push('/auth/login'); setIsOpen(false); }} variants={itemVariants} />
-                </>
-              ) : (
-                <>
-                  <MobileNavLink icon={<Sparkles size={18} />} label="Discovery" onClick={() => { router.push('/recommendations'); setIsOpen(false); }} variants={itemVariants} />
-                  <MobileNavLink icon={<Sparkles size={18} />} label="Personalized Quiz" onClick={() => { router.push('/quiz'); setIsOpen(false); }} variants={itemVariants} />
-                  <MobileNavLink icon={<Sparkles size={18} />} label="Families" onClick={() => { router.push('/families'); setIsOpen(false); }} variants={itemVariants} />
-                  <button className="mobile-logout" onClick={handleLogout}>
-                    <LogOut size={18} /> Sign Out
-                  </button>
-                </>
-              )}
+            <div className="mobile-links-container">
+              <MobileNavLink icon={<Sparkles size={18} />} label="Discover" onClick={() => { router.push('/recommendations'); setIsOpen(false); }} variants={itemVariants} />
+              <MobileNavLink icon={<Sparkles size={18} />} label="Quiz" onClick={() => { router.push('/quiz'); setIsOpen(false); }} variants={itemVariants} />
+              <MobileNavLink icon={<Sparkles size={18} />} label="Families" onClick={() => { router.push('/families'); setIsOpen(false); }} variants={itemVariants} />
             </div>
           </motion.div>
         )}
@@ -194,35 +150,6 @@ function MagneticLink({ children, onClick, isActive }: { children: React.ReactNo
         />
       )}
     </motion.button>
-  );
-}
-
-function ProfileDropdown({ handleLogout }: { handleLogout: () => void }) {
-  const [show, setShow] = useState(false);
-
-  return (
-    <div className="profile-dropdown-wrap" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
-      <motion.button 
-        className="profile-trigger"
-        whileHover={{ scale: 1.1 }}
-      >
-        <User size={20} />
-      </motion.button>
-      
-      <AnimatePresence>
-        {show && (
-          <motion.div 
-            className="dropdown-menu glass"
-            initial={{ opacity: 0, y: 10, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 5, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-          >
-            <button className="logout-action" onClick={handleLogout}><LogOut size={14} /> Sign Out</button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
   );
 }
 

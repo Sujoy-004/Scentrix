@@ -92,10 +92,8 @@ interface AppState {
   }) => void;
   resetAdaptiveQuiz: () => void;
 
-  // User
-  userId: string | null;
+  // User preferences (device-local, no account)
   userPreferences: UserPreferences;
-  setUserId: (id: string) => void;
   updateUserPreferences: (prefs: Partial<UserPreferences>) => void;
 
   // Recommendations
@@ -112,24 +110,15 @@ interface AppState {
   // Filter
   selectedFamily: string | null;
   setSelectedFamily: (family: string | null) => void;
-
-  // Auth
-  isAuthenticated: boolean;
-  authToken: string | null;
-  setAuthToken: (token: string) => void;
-  logout: () => void;
 }
 
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
       // ── State defaults ────────────────────────────────────────────────
-      authToken: null,
-      isAuthenticated: false,
       quizId: null,
       quizResponses: [],
       currentQuizStep: 0,
-      userId: null,
       userPreferences: {
         gender_neutral: true,
         preferred_families: [],
@@ -223,8 +212,7 @@ export const useAppStore = create<AppState>()(
         })),
       resetAdaptiveQuiz: () => set({ adaptiveQuiz: DEFAULT_ADAPTIVE_QUIZ }),
 
-      // ── User actions ──────────────────────────────────────────────────
-      setUserId: (id) => set({ userId: id }),
+      // ── User preferences actions ──────────────────────────────────────
       updateUserPreferences: (prefs) =>
         set((state) => ({
           userPreferences: { ...state.userPreferences, ...prefs },
@@ -248,31 +236,6 @@ export const useAppStore = create<AppState>()(
 
       // ── Filter actions ────────────────────────────────────────────────
       setSelectedFamily: (family) => set({ selectedFamily: family }),
-
-      // ── Auth actions ──────────────────────────────────────────────────
-      setAuthToken: (token) => {
-        // Also set cookie so Next.js middleware can read it server-side
-        if (typeof document !== 'undefined') {
-          document.cookie = `auth_token=${token}; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}`;
-        }
-        set({ authToken: token, isAuthenticated: true });
-      },
-      logout: () => {
-        if (typeof document !== 'undefined') {
-          document.cookie = 'auth_token=; Max-Age=0; path=/; SameSite=Lax';
-        }
-        set({
-          authToken: null,
-          isAuthenticated: false,
-          userId: null,
-          quizId: null,
-          quizResponses: [],
-          recommendations: [],
-          quizConfidence: null,
-          wishlist: [],
-          adaptiveQuiz: DEFAULT_ADAPTIVE_QUIZ,
-        });
-      },
     }),
     {
       name: 'scentrix-app-state',
@@ -290,9 +253,6 @@ export const useAppStore = create<AppState>()(
       // Only persist the fields we actually need across refreshes.
       // Never persist `adaptiveQuiz.questionQueue` (too large) or `recommendations`.
       partialize: (state) => ({
-        authToken: state.authToken,
-        isAuthenticated: state.isAuthenticated,
-        userId: state.userId,
         quizId: state.quizId,
         quizConfidence: state.quizConfidence,
         quizResponses: state.quizResponses,

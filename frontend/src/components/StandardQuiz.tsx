@@ -6,7 +6,7 @@ import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-mo
 import { Sparkles, AlertCircle, ChevronRight } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import { useAdaptiveQuizSession } from '@/lib/hooks';
-import { api, VALID_IDS } from '@/lib/api';
+import { api } from '@/lib/api';
 import { getFragrancePalette } from '@/lib/quizTheme';
 import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
 import { buildLearningSummary } from '@/lib/reason-engine';
@@ -532,6 +532,11 @@ export default function StandardQuiz() {
                   className="elite-rating-range"
                   style={{ '--quiz-accent': palette.accent } as any}
                 />
+                <div className="flex justify-between text-[9px] uppercase tracking-widest text-white/35 mt-1">
+                  <span>1–4 Dislike</span>
+                  <span>5 Neutral</span>
+                  <span>6–10 Like</span>
+                </div>
               </div>
             </section>
 
