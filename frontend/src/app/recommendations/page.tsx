@@ -155,19 +155,9 @@ export default function RecommendationsPage() {
       subtitle: 'Finely tuned matches based on your neural preferences and taste geography.',
     },
     2: {
-      badge: 'Cold Start — Early Personalization',
-      title: 'Blended Matches',
-      subtitle: 'Blending your preferences with neural similarity to refine your profile.',
-    },
-    3: {
-      badge: 'Warm — Hybrid Learning',
+      badge: 'Warm — Personalization Active',
       title: 'Your Evolving Selection',
-      subtitle: 'Feature-based scoring with neural exploration to discover new favorites.',
-    },
-    4: {
-      badge: 'Mature — Diversity Optimized',
-      title: 'Curated for Depth',
-      subtitle: 'Diversity-optimized recommendations across the full olfactive spectrum.',
+      subtitle: 'Feature-based matches refined from your rated scents.',
     },
   };
 

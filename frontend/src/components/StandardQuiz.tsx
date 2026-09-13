@@ -226,7 +226,7 @@ export default function StandardQuiz() {
   const computeAccordConfidence = (): Record<string, number> => {
     const accordScores: Record<string, number[]> = {};
     for (const response of store.quizResponses) {
-      const weight = response.rating / 10;
+      const weight = (response.rating - 5) / 5;
       for (const accord of (response.accords || [])) {
         if (!accordScores[accord]) accordScores[accord] = [];
         accordScores[accord].push(weight);

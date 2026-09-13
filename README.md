@@ -13,8 +13,10 @@ The system figures out how much it knows about a user and picks a matching recom
 | State | Trigger | Strategy |
 |---|---|---|
 | **0 — Anonymous** | 0 ratings, no quiz taken | **Popularity** — the most-rated fragrances in the catalog |
-| **1 — Cold** | Quiz submitted OR 1–2 ratings | **GraphSAGE user-vector + KNN** — your ratings are weighted into a 64-dim preference vector, then the nearest neighbors are found by cosine similarity |
-| **2 — Warm** | 3+ ratings | **Feature-based Jaccard** — overlap scoring on notes, accords, family, occasion, and popularity |
+| **1 — Cold** | Quiz submitted (any rating count) OR 1–2 ratings with no quiz | **GraphSAGE user-vector + KNN** — each rating contributes a signed weight `(rating − 5) / 5` to a 64-dim preference vector; nearest neighbors are found by cosine similarity |
+| **2 — Warm** | 3+ ratings with no quiz | **Feature-based Jaccard** — overlap scoring on notes, accords, family, occasion, and popularity |
+
+State precedence: a submitted quiz always routes to the Cold (embedding) path — the quiz answers are the strongest cold-start signal we have — even if the user also has 3+ ratings. Warm only applies to organic (non-quiz) ratings.
 
 Every state has a single safety net: if a strategy fails for any reason, the dispatcher falls back to popularity so the API never returns empty.
 
@@ -49,7 +51,7 @@ Minimal by design — a FastAPI backend that owns all the logic, a Next.js front
 
 - **Backend** — FastAPI, sync SQLAlchemy, SQLite. Tables are created on startup; the quiz session store is a process-local dict (no Redis).
 - **Frontend** — Next.js (App Router), 5 pages, talks to the API via `NEXT_PUBLIC_API_URL`.
-- **ML artifacts** — a cleaned catalog JSON (4,559 fragrances) plus `[4559×64]` L2-normalized GraphSAGE embeddings shipped in `backend/app/data/`. No model is needed at serving time — only NumPy.
+- **ML artifacts** — a cleaned catalog JSON (4,559 fragrances) plus `[4559×64]` L2-normalized GraphSAGE embeddings, an ID index, and a `metadata.json` validation record shipped in `backend/app/data/`. No model is needed at serving time — only NumPy.
 - **No external infra** — no Docker, Postgres, Neo4j, Redis, Supabase, Pinecone, or message queues.
 
 ---
@@ -134,26 +136,63 @@ All responses use a `{status, data}` envelope; recommendation responses also inc
 
 ## The ML bit
 
-**What the embeddings are.** Fragrances that share notes and accords are linked into a Jaccard-similarity graph (same primary accord, edge if note-Jaccard > 0.2, top-k 10 neighbors). A 2-layer GraphSAGE is trained with a contrastive InfoNCE loss so each of the 4,559 catalog items gets a 64-dimensional, L2-normalized vector that encodes "who smells like me."
+**What the embeddings are.** Fragrances that share notes and accords are linked into a symmetric Jaccard-similarity graph: an edge exists between two fragrances with the same primary accord whose note-Jaccard is > 0.2 (top-k 10 neighbors), and the accord signal is scaled into the input features with weight 0.2. A 2-layer GraphSAGE (64-d, seed 42, edge_dropout 0.1) is trained with an **anchored InfoNCE** contrastive loss — per-edge neighbor positives, per-edge negatives, plus a small off-diagonal Gram uniformity term that prevents embedding collapse. `all-MiniLM-L6-v2` text features (384-d, L2-normalized) are concatenated with the graph features, so each of the 4,559 catalog items ends with a 64-dimensional, L2-normalized vector encoding "who smells like me."
 
-**How they're used at serving time.** No model inference, no PyTorch in the API. The embeddings are precomputed and shipped as a `.npy` file. When a cold user rates a few fragrances:
+**Ratings are directional, not scalar.** A rating is not used as a raw 1–10 number; it is *centered on the neutral point* so it preserves direction:
 
-1. Each rating becomes a weight (`rating / 10`), and the weighted average of the rated items' embeddings becomes a **user vector** (L2-normalized).
-2. Cosine similarity (a NumPy dot product) ranks all catalog items against that vector — a **KNN** search.
+| Rating | Weight `(rating − 5) / 5` | What it does |
+|---|---|---|
+| 10 | +1.0 | strongly liked — pulls the profile toward this item |
+| 8 | +0.6 | liked |
+| 5 | 0.0 | neutral — no directional signal |
+| 3 | −0.4 | disliked — pushes the profile away |
+| 1 | −1.0 | strongly disliked — pushes the profile away |
+
+A purely neutral set (all 5s) carries no directional signal: `compute_user_vector` refuses to fabricate a preference and the dispatcher falls back to popularity.
+
+**How they're used at serving time.** No model inference, no PyTorch in the API. The embeddings are precomputed and shipped as a `.npy` file. For a cold user:
+
+1. Each rating becomes its signed weight `(rating − 5) / 5` (clamped to [−1, 1]); the weighted average of the rated items' embeddings becomes a **user vector** (L2-normalized). Items the user already rated are excluded from the results.
+2. Cosine similarity (a NumPy dot product — identical to an inner product because every row is L2-normalized) ranks all catalog items against that vector — a **KNN** search.
 3. The top matches are hydrated with catalog metadata and returned.
 
 If the embedding cache can't load (e.g., NumPy missing), the dispatcher automatically falls back to popularity.
 
-**Regenerating the embeddings.** The training code lives in `backend/train.py` and is *not* part of the app requirements — it needs training-only dependencies (`torch`, `numpy`, `sentence-transformers`). It rebuilds the Jaccard graph, regenerates the 384-d text features, trains inline, validates (no NaN/Inf, exact `[4559×64]`, unit L2 norm), and overwrites the artifacts in `backend/app/data/`.
+### How we know it works — offline intrinsic proxy (NOT user-validated)
+
+This repository has **no real user-interaction history** (no user ratings, reviews, or observed behavior). To measure the embedding path without fabricating data, `backend/ml/eval/run_cold_start_eval.py` runs a **synthetic, content-based evaluation** (`backend/ml/eval/README-COLD-START.md`): for each `k ∈ {1,2,3,5}` it runs `N=300` seeded trials (seed 42), draws `k` items from a random same-family group the user is assumed to like, and ranks by our user vector vs. **popularity** and **random** baselines. A candidate counts as relevant iff a content oracle (same primary accord AND note-Jaccard > 0.20) says it overlaps the seeds. Metrics: P@5, P@10, Recall@10, NDCG@10, with bootstrap 95% CIs.
+
+**These numbers measure item-recall ability against a content oracle — not user satisfaction.** We make no claim that real users have validated these recommendations.
+
+Retrained snapshot `f9117664b8` (evaluation report: `backend/ml/eval/runs/`):
+
+| k (seed items) | P@5 | P@10 | Recall@10 | NDCG@10 | win-rate vs popularity (R@10) |
+|---|---|---|---|---|---|
+| 1 | 0.3467 | 0.2383 | 0.6404 | 0.6597 | 0.9233 |
+| 2 | 0.3553 | 0.2817 | 0.4058 | 0.4799 | 0.8167 |
+| 3 | 0.4140 | 0.3377 | 0.3876 | 0.5193 | 0.9100 |
+| 5 | 0.4860 | 0.3980 | 0.3217 | 0.5320 | 0.8133 |
+
+Bootstrap CIs and the pre-fix baseline snapshot `699cf6fa30` (e.g. k=1 NDCG@10 0.4021 vs. retrained 0.6597) are in `backend/ml/eval/runs/*.md`. Recall@10 stays low because its denominator is the whole relevant pool of the accord family (often hundreds of items); what matters is how P@k and R@k respond to `k` and that the model beats both baselines on identical trials.
+
+**Artifact validation** — `backend/app/data/metadata.json` records every check, all passing at export: exact `[4559×64]` float32 shape; 4,559 unique ids in catalog order; L2 norms exactly 1.0; no NaN/Inf; **0 rounded-duplicate rows** (the pre-fix artifact had 34); within-primary-accord median cosine 0.3846 vs cross-accord −0.0204 (structure, not collapse); 364 isolated nodes (7.98%, graph coverage); order-invariance |Δ| < 1e-3 passes; catalog SHA-256 `53ad1d50…af97f1` ties the artifact to its input data.
+
+**Regenerating the embeddings.** The training code lives in `backend/train.py` and needs training-only dependencies:
 
 ```bash
 cd backend
-pip install torch numpy sentence-transformers
-python train.py                     # defaults: 100 epochs, all-MiniLM-L6-v2
-python train.py --epochs 150 --skip-text   # reuse cached text embeddings
+pip install -e ".[ml]"               # torch, sentence-transformers, pandas, ranx, ...
+python train.py                      # defaults: 100 epochs, all-MiniLM-L6-v2, seed 42
+python train.py --skip-text          # reuse cached text_embeddings.npy
 ```
 
-CLI args: `--epochs` (default 100), `--text-model` (default `all-MiniLM-L6-v2`), `--skip-text` (use cached `text_embeddings.npy`). The first run downloads the MiniLM model (~90 MB).
+`train.py` validates its outputs, writes `app/data/metadata.json` (training settings, validation results, Python/NumPy/torch/sentence-transformers versions), regenerates the SHA-256 tracker, and atomically replaces the artifacts. To re-snapshot and re-run the offline evaluation against a new artifact:
+
+```powershell
+python backend/ml/eval/run_cold_start_eval.py --seed 42 --trials 300 --artifacts backend/ml/eval/data/<run-dir>
+```
+
+CLI args: `--epochs` (default 100), `--text-model` (default `all-MiniLM-L6-v2`), `--skip-text` (reuse cached `text_embeddings.npy`). The first run downloads the MiniLM model (~90 MB).
 
 ---
 
@@ -211,7 +250,9 @@ cd backend
 python -m pytest tests -q
 ```
 
-The suite covers the dispatcher state transitions, user-vector + KNN behavior, feature-based scoring, auth, catalog loading, and the quiz flow.
+The backend suite (`python -m pytest tests -q` — 36 tests) covers the dispatcher state transitions, user-vector + KNN behavior, feature-based scoring, auth, catalog loading, and the quiz flow.
+
+ML/training tests (`python -m pytest ml/tests -q` — 185 tests, needs `pip install -e ".[ml]"`) cover the training pipeline, embedding-validation gates, and the cold-start evaluator and its oracle. The evaluator is also isolated as pure functions so it runs without the app or a database.
 
 ---
 
@@ -219,6 +260,8 @@ The suite covers the dispatcher state transitions, user-vector + KNN behavior, f
 
 - **Why 3 states?** Warmth is a gradient — unknown → quiz-cold → known. The earlier 5-state design added β-blends and diversity injection that complicated the code without defensible user value at this scale, so it was cut.
 - **Why precomputed embeddings?** Cold-start recommendations don't change with every request — training once offline and serving a NumPy lookup makes the API fast, dependency-free (no PyTorch at runtime), and trivially reproducible via `train.py`.
+- **Ratings are directional.** The user vector is built from centered weights `(rating − 5) / 5`, not raw the 1–10 value — a 10/10 and a 1/10 are opposites (pull *toward* / push *away*), and a neutral 5 contributes nothing. This makes cold-state personalization direction-aware with as little as one signal.
+- **Evaluation honesty.** The only metrics we can produce without real users are offline, synthetic, content-oracle-based (see "How we know it works"). Those numbers compare retrieval capability against popularity/random baselines; they are **not** evidence of real-user satisfaction, and we say so in the docs.
 - **Why no Docker?** The whole system runs on two processes (`uvicorn` + `next dev`), launched by a single `start.ps1`. Docker orchestration for one backend and one frontend was overhead, not value.
 - **Own every line.** The codebase is intentionally small and fully understood — no framework boilerplate you can't explain.
 - **Honest about the ML.** Embeddings give you "similar to what you rated"; once a user has enough ratings, interpretable feature overlap takes over. The system is honest about what each state can and can't do.

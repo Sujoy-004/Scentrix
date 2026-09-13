@@ -7,6 +7,7 @@ FastAPI runs them in a threadpool.
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -48,6 +49,7 @@ class BatchRatingRequest(BaseModel):
     """Batch of ratings to upsert (guest → user conversion)."""
 
     ratings: list[FragranceRatingInput]
+    mark_quiz_completed: bool = False
 
 
 class GuestRecommendationBody(BaseModel):
@@ -115,6 +117,10 @@ def submit_batch_ratings(
     try:
         for r in request.ratings:
             _upsert_rating(db, user_id, r.fragrance_id, r.rating)
+        if request.mark_quiz_completed:
+            user = db.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
+            if user is not None and user.quiz_completed_at is None:
+                user.quiz_completed_at = datetime.now(UTC).replace(tzinfo=None)
         db.commit()
     except Exception as exc:
         db.rollback()
@@ -156,7 +162,7 @@ def get_personalized_recommendations(
     ratings = [
         FragranceRatingInput(
             fragrance_id=_normalize_id(str(r.fragrance_neo4j_id)),
-            rating=r.quiz_rating or 5.0,
+            rating=float(r.quiz_rating),
         )
         for r in saved
         if r.quiz_rating is not None

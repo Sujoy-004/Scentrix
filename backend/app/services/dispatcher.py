@@ -25,9 +25,17 @@ _STATE_LABELS = {ANONYMOUS: "anonymous", COLD: "cold", WARM: "warm"}
 
 
 def determine_state(rating_count: int, quiz_submitted: bool) -> int:
-    """Precedence: anonymous if 0 ratings and no quiz; WARM if >= 3; else COLD."""
+    """Precedence: anonymous if 0 ratings and no quiz.
+
+    A submitted discovery quiz always routes to the quiz-driven cold-start
+    (embedding) path — the quiz answers are the strongest cold-start signal
+    we have. Otherwise, WARM (feature-based) applies once the user has
+    ``WARM_THRESHOLD``+ organic ratings with no quiz.
+    """
     if rating_count == 0 and not quiz_submitted:
         return ANONYMOUS
+    if quiz_submitted:
+        return COLD
     if rating_count >= WARM_THRESHOLD:
         return WARM
     return COLD
@@ -113,6 +121,7 @@ class RecommendationDispatcher:
         state = determine_state(len(ratings), quiz_submitted)
         state_label = _STATE_LABELS[state]
         source = state_label
+        pairs = _rating_pairs(ratings)
 
         try:
             if state == ANONYMOUS:
@@ -122,12 +131,15 @@ class RecommendationDispatcher:
                 source = "popularity"
             elif state == COLD:
                 recommendations = self._cold_recommendations(
-                    ratings, catalog_map, candidate_count
+                    pairs, catalog_map, candidate_count
                 )
                 source = "embeddings"
             else:
                 recommendations = self._feature_based_service.score(
-                    ratings, catalog, top_k=candidate_count
+                    ratings,
+                    catalog,
+                    user_seed_ids=[fid for fid, _ in pairs],
+                    top_k=candidate_count,
                 )
                 source = "feature_based"
         except Exception as exc:
@@ -151,11 +163,10 @@ class RecommendationDispatcher:
 
     def _cold_recommendations(
         self,
-        ratings: list[Any],
+        pairs: list[tuple[str, float]],
         catalog_map: dict[str, dict[str, Any]],
         candidate_count: int,
     ) -> list[dict[str, Any]]:
-        pairs = _rating_pairs(ratings)
         user_vector = self._gs_service.compute_user_vector(pairs)
         exclude_ids = [fid for fid, _ in pairs]
         knn = self._gs_service.knn_search(user_vector, top_k=200, exclude_ids=exclude_ids)

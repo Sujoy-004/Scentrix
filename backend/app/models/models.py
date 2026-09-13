@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
@@ -76,6 +77,10 @@ class FragranceRating(Base):
     __tablename__ = "fragrance_ratings"
     __table_args__ = (
         UniqueConstraint("user_id", "fragrance_neo4j_id", name="uq_user_fragrance_rating"),
+        CheckConstraint(
+            "(quiz_rating IS NULL) OR (quiz_rating >= 1 AND quiz_rating <= 10)",
+            name="ck_fragrance_rating_range",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)

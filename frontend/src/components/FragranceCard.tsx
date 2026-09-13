@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Star, Sparkles } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
@@ -15,13 +15,15 @@ interface FragranceCardProps {
   showMatch?: boolean;
 }
 
+const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+
 export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCardProps) {
   const cardRef = useRef<HTMLElement>(null);
+  const [showRatingControl, setShowRatingControl] = useState(false);
   
   const { quizResponses, addQuizResponse } = useAppStore();
   const submitRating = useSubmitRating();
 
-  // Check if already rated either in local store (for guests) or server collection (for users)
   const isRated = quizResponses.some(r => r.fragrance_id === frag.id);
 
   const addToast = useToastStore((s) => s.addToast);
@@ -33,29 +35,36 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
         quizResponses: state.quizResponses.filter(r => r.fragrance_id !== frag.id)
       }));
       addToast({ message: `Removed rating for ${frag.name}`, type: 'info' });
+    } else if (showRatingControl) {
+      setShowRatingControl(false);
     } else {
-      addQuizResponse({
-        fragrance_id: frag.id,
-        rating: 8,
-        name: frag.name,
-        brand: frag.brand,
-        top_notes: frag.top_notes,
-        accords: frag.top_accords,
-      });
-      submitRating.mutate({ fragranceId: frag.id, rating: 8 });
-      addToast({
-        message: `Rated ${frag.name} — refining your matches`,
-        type: 'success',
-        action: {
-          label: 'Undo',
-          onClick: () => {
-            useAppStore.setState((state) => ({
-              quizResponses: state.quizResponses.filter(r => r.fragrance_id !== frag.id)
-            }));
-          },
-        },
-      });
+      setShowRatingControl(true);
     }
+  };
+
+  const handleSelectRating = (rating: number) => {
+    addQuizResponse({
+      fragrance_id: frag.id,
+      rating,
+      name: frag.name,
+      brand: frag.brand,
+      top_notes: frag.top_notes,
+      accords: frag.top_accords,
+    });
+    submitRating.mutate({ fragranceId: frag.id, rating });
+    setShowRatingControl(false);
+    addToast({
+      message: `Rated ${frag.name} — refining your matches`,
+      type: 'success',
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          useAppStore.setState((state) => ({
+            quizResponses: state.quizResponses.filter(r => r.fragrance_id !== frag.id)
+          }));
+        },
+      },
+    });
   };
 
   const familyLookup = frag.family || frag.top_accords?.[0] || frag.brand || 'all';
@@ -104,7 +113,7 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
            )}
 
            <div className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
-              <span className="text-[10px] font-medium text-white/50 uppercase tracking-tighter">{displayFamily}</span>
+              <span className="text-[10px] font-medium text-white/50 uppercase tracking-tighter">{titleCase(displayFamily)}</span>
            </div>
         </div>
       </div>
@@ -117,7 +126,7 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
         <div className="flex flex-wrap gap-2 mb-6">
           {(frag.top_notes?.length ? frag.top_notes : frag.top_accords)?.slice(0, 2).map((note: string) => (
             <span key={note} className="text-[9px] uppercase tracking-widest px-2 py-1 bg-white/5 border border-white/10 rounded-md text-white/60">
-              {note}
+              {titleCase(note)}
             </span>
           ))}
         </div>
@@ -157,6 +166,29 @@ export function FragranceCard({ frag, index = 0, showMatch = true }: FragranceCa
               </button>
            </div>
         </div>
+
+        {showRatingControl && !isRated && (
+          <motion.div 
+            className="flex gap-2 mt-3"
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            {[
+              { label: 'Dislike', value: 3 },
+              { label: 'Neutral', value: 5 },
+              { label: 'Love', value: 9 },
+            ].map(({ label, value }) => (
+              <button
+                key={value}
+                onClick={(e) => { e.stopPropagation(); handleSelectRating(value); }}
+                className="flex-1 text-[10px] font-bold uppercase tracking-wider px-2 py-2 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+              >
+                {label} ({value})
+              </button>
+            ))}
+          </motion.div>
+        )}
       </div>
     </motion.article>
   );

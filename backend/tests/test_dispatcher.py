@@ -34,9 +34,16 @@ def test_determine_state_quiz_flag_or_few_ratings_is_cold():
     assert determine_state(2, False) == COLD
 
 
-def test_determine_state_three_plus_ratings_is_warm_and_beats_quiz_flag():
+def test_determine_state_three_plus_ratings_without_quiz_is_warm():
     assert determine_state(3, False) == WARM
-    assert determine_state(10, True) == WARM
+    assert determine_state(10, False) == WARM
+
+
+def test_determine_state_quiz_flag_beats_count_threshold():
+    # A submitted discovery quiz always routes to the cold-start embedding
+    # path, even when the account has stored 3+ ratings.
+    assert determine_state(0, True) == COLD
+    assert determine_state(10, True) == COLD
 
 
 def test_dispatch_anonymous_returns_popularity():

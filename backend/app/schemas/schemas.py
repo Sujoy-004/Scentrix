@@ -327,7 +327,7 @@ class FragranceRecommendation(BaseModel):
 
 class FragranceRatingInput(BaseModel):
     fragrance_id: str
-    rating: float
+    rating: float = Field(..., ge=1, le=10, description="1-10 scale")
     top_notes: list[str] | None = None
     accords: list[str] | None = None
     description: str | None = None
@@ -337,7 +337,7 @@ class FragranceRatingInput(BaseModel):
 
 class GuestRatingInput(BaseModel):
     fragrance_id: str
-    rating: float
+    rating: float = Field(..., ge=1, le=10, description="1-10 scale")
     top_notes: list[str] = []
     accords: list[str] = []
 

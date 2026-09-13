@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Sparkles, Brain, Layers, Zap, Star } from 'lucide-react';
+import { Sparkles, Brain, Layers } from 'lucide-react';
 
 interface StateIndicatorProps {
   state: number | null;
@@ -15,7 +15,7 @@ const STATE_CONFIG: Record<number, {
   strategy: string;
   nextAction: string;
   progressTarget: number | null;
-  icon: 'sparkles' | 'brain' | 'layers' | 'zap' | 'star';
+  icon: 'sparkles' | 'brain' | 'layers';
 }> = {
   0: {
     label: 'Anonymous',
@@ -34,28 +34,12 @@ const STATE_CONFIG: Record<number, {
     icon: 'brain',
   },
   2: {
-    label: 'Cold',
-    description: 'Early personalization blending your preferences with neural similarity.',
-    strategy: '\u03b2-blend of GraphSAGE and feature-based scoring',
-    nextAction: 'Rate 5 fragrances to unlock pure feature-based mode.',
-    progressTarget: 5,
-    icon: 'layers',
-  },
-  3: {
     label: 'Warm',
-    description: 'Hybrid learning — feature-based scoring with neural exploration.',
-    strategy: 'Feature-based scoring with GraphSAGE exploration injection',
-    nextAction: 'Rate 20 fragrances to unlock mature diversity reranking.',
-    progressTarget: 20,
-    icon: 'zap',
-  },
-  4: {
-    label: 'Mature',
-    description: 'Mature personalization with diversity-optimized recommendations.',
-    strategy: 'Feature-based scoring with MMR diversity rerank',
+    description: 'Feature-based matches refined from your rated scents.',
+    strategy: 'Feature-based scoring with accord confidence weights',
     nextAction: 'Keep rating to further refine your profile.',
     progressTarget: null,
-    icon: 'star',
+    icon: 'layers',
   },
 };
 
@@ -63,12 +47,10 @@ const iconMap = {
   sparkles: Sparkles,
   brain: Brain,
   layers: Layers,
-  zap: Zap,
-  star: Star,
 };
 
 export default function StateIndicator({ state, stateLabel, ratingCount = 0 }: StateIndicatorProps) {
-  if (state === null || state === undefined || state < 0 || state > 4) {
+  if (state === null || state === undefined || state < 0 || state > 2) {
     return null;
   }
 

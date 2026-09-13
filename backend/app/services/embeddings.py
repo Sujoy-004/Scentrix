@@ -132,18 +132,33 @@ class GraphSAGEService:
 
     # -- User vector (primary) ----------------------------------------------
 
+    @staticmethod
+    def _rating_weight(rating: float) -> float:
+        """Centered, signed weight in [-1, 1].
+
+        10.0 -> +1.0 (strongly liked), 5.0 -> 0.0 (neutral, no signal),
+        1.0 -> -0.8 (strongly disliked). Ratings outside the 1-10 range are
+        clamped before centering.
+        """
+        try:
+            clamped = max(1.0, min(10.0, float(rating)))
+        except (TypeError, ValueError):
+            return 0.0
+        return max(-1.0, min(1.0, (clamped - 5.0) / 5.0))
+
     def compute_user_vector(
         self,
         item_ratings: list[tuple[str, float]],
     ) -> Any:
-        """Compute an L2-normalised rating-weighted user vector.
+        """Compute an L2-normalised, direction-aware user vector.
 
-        u = sum(rating_weight * item_embedding) / sum(rating_weight), where
-        rating_weight = rating / 10.0 (1-10 -> 0.1-1.0). The result is
-        L2-unit-normalised.
+        u = sum((rating - 5) / 5 * item_embedding), i.e. ratings above 5 pull
+        the profile *toward* the item, ratings below 5 pull it *away*, and a
+        neutral 5 contributes nothing. The result is L2-unit-normalised.
 
-        Raises ValueError if *item_ratings* is empty or none of the IDs
-        resolve in the embedding index.
+        Raises ValueError if *item_ratings* is empty, none of the IDs resolve
+        in the embedding index, or the ratings carry no directional signal
+        (all neutral).
         """
         self._require_initialized()
         np = _get_numpy()
@@ -152,7 +167,6 @@ class GraphSAGEService:
             raise ValueError("compute_user_vector: item_ratings must not be empty")
 
         weighted_sum = None
-        total_weight = 0.0
 
         for fid, rating in item_ratings:
             idx = self._id_to_idx.get(fid)
@@ -162,25 +176,26 @@ class GraphSAGEService:
                 )
                 continue
             emb = self._embeddings[idx]
-            weight = rating / 10.0  # normalise [1, 10] -> [0.1, 1.0]
+            weight = self._rating_weight(rating)
             if weighted_sum is None:
                 weighted_sum = weight * emb
             else:
                 weighted_sum += weight * emb
-            total_weight += weight
 
-        if weighted_sum is None or total_weight <= 0:
+        if weighted_sum is None:
             raise ValueError(
                 "compute_user_vector: none of the provided fragrance IDs exist "
                 "in the embedding index"
             )
 
-        u = weighted_sum / total_weight
-        norm = np.linalg.norm(u)
-        if norm > 0:
-            u = u / norm
+        norm = float(np.linalg.norm(weighted_sum))
+        if norm <= 0.0 or np.isnan(norm):
+            raise ValueError(
+                "compute_user_vector: ratings carry no directional signal "
+                "(all neutral) — refusing to fabricate a preference"
+            )
 
-        return u
+        return weighted_sum / norm
 
     # -- Cosine-similarity KNN ----------------------------------------------
 

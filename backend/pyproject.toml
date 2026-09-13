@@ -34,10 +34,19 @@ dev = [
     "pytest>=7.4.3",
     "pytest-asyncio>=0.21.1",
     "pytest-cov>=4.1.0",
-    "httpx2",
     "black>=23.12.0",
     "types-passlib",
     "types-python-jose",
+]
+# Retraining (train.py) and offline cold-start evaluation (ml/eval).
+# NOTE: install the CPU build of torch separately when no GPU is available, e.g.
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+ml = [
+    "torch>=2.0",
+    "sentence-transformers>=3.0",
+    "pandas>=2.0",
+    "ranx>=0.3.21",
+    "huggingface-hub>=0.20",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -46,6 +55,12 @@ packages = ["app"]
 [tool.hatch.envs.default]
 features = ["dev"]
 scripts.api = "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+[tool.hatch.envs.ml]
+features = ["dev", "ml"]
+scripts.api = "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+scripts.train = "python train.py"
+scripts.eval = "python ml/eval/run_cold_start_eval.py --seed 42 --trials 300 --artifacts backend/app/data"
 
 [tool.ruff]
 line-length = 100

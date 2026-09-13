@@ -1,3 +1,6 @@
+# Serving runtime requirements.
+# Retraining (backend/train.py) and offline evaluation (backend/ml/eval) need
+# the `ml` extra instead:   pip install -e ".[ml]"   (see pyproject.toml)
 fastapi>=0.104.1
 uvicorn[standard]>=0.24.0
 sqlalchemy>=2.0

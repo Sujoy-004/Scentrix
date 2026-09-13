@@ -620,7 +620,17 @@ def finalize_quiz_session(
 
     for res in responses:
         fid = _normalize_id(str(res.get("fragrance_id", "")))
-        rating = float(res.get("rating_1_to_10") or 0)
+        try:
+            rating = float(res.get("rating_1_to_10"))
+        except (TypeError, ValueError):
+            rating = None
+        if rating is None or not 1.0 <= rating <= 10.0:
+            logger.warning(
+                "quiz finalize: skipping invalid rating %r for %s",
+                res.get("rating_1_to_10"),
+                fid,
+            )
+            continue
         row = db.execute(
             select(FragranceRating).where(
                 FragranceRating.user_id == user_id,

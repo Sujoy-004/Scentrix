@@ -295,21 +295,19 @@ export const useAppStore = create<AppState>()(
         userId: state.userId,
         quizId: state.quizId,
         quizConfidence: state.quizConfidence,
+        quizResponses: state.quizResponses,
         userPreferences: state.userPreferences,
         wishlist: state.wishlist,
         adaptiveQuiz: state.adaptiveQuiz,
       }),
-      // Strip stale quizResponses on rehydration for guest sessions.
-      // partialize above prevents NEW writes of quizResponses, but old data
-      // from earlier sessions still lives in localStorage. The merge function
-      // intercepts the full persisted blob during rehydration and clears
-      // quizResponses when the user is not authenticated.
       merge: (persisted, initial) => {
         const p = persisted as Partial<AppState> | undefined;
         return {
           ...initial,
           ...(p || {}),
-          quizResponses: (p && p.isAuthenticated) ? (p.quizResponses ?? initial.quizResponses) : [],
+          quizResponses: p?.quizResponses
+            ? p.quizResponses.slice(-20)
+            : initial.quizResponses,
         };
       },
     }

@@ -10,7 +10,7 @@ import logging
 import math
 from typing import Any
 
-from app.services.catalog import get_catalog, get_catalog_map
+from app.services.catalog import get_catalog
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,15 @@ class FeatureBasedService:
         union = len(a.union(b))
         return len(a.intersection(b)) / union if union > 0 else 0.0
 
+    @staticmethod
+    def _deviation_weight(rating: Any) -> float:
+        """Centered, signed rating weight in [-1, 1] (5.0 -> 0, 10.0 -> +1)."""
+        try:
+            clamped = max(1.0, min(10.0, float(rating)))
+        except (TypeError, ValueError):
+            return 0.0
+        return max(-1.0, min(1.0, (clamped - 5.0) / 5.0))
+
     # ------------------------------------------------------------------
     # Profile building
     # ------------------------------------------------------------------
@@ -53,8 +62,8 @@ class FeatureBasedService:
         self, ratings: list[Any], catalog: list[dict[str, Any]]
     ) -> dict[str, Any]:
         catalog_map = {str(item["id"]): item for item in catalog}
-        target_notes: set[str] = set()
-        target_accords: set[str] = set()
+        note_scores: dict[str, float] = {}
+        accord_scores: dict[str, float] = {}
         target_families: set[str] = set()
         target_occasions: set[str] = set()
         FAMILIES = [
@@ -69,6 +78,11 @@ class FeatureBasedService:
                     r.get("fragrance_id", "") if isinstance(r, dict) else "",
                 )
             )
+            item_rating = getattr(
+                r, "rating",
+                r.get("rating", 0) if isinstance(r, dict) else 0,
+            )
+            weight = self._deviation_weight(item_rating)
             provided_notes = getattr(
                 r, "top_notes",
                 r.get("top_notes", []) if isinstance(r, dict) else [],
@@ -77,34 +91,56 @@ class FeatureBasedService:
                 r, "accords",
                 r.get("accords", []) if isinstance(r, dict) else [],
             )
-            if provided_notes:
-                target_notes.update(provided_notes)
-            if provided_accords:
-                target_accords.update(provided_accords)
+            for note in provided_notes:
+                key = str(note).strip().lower()
+                if key:
+                    note_scores[key] = note_scores.get(key, 0.0) + weight
+            for accord in provided_accords:
+                key = str(accord).strip().lower()
+                if key:
+                    accord_scores[key] = accord_scores.get(key, 0.0) + weight
 
             item = catalog_map.get(fid)
             if not item:
                 continue
 
-            target_notes.update(item.get("_notes_set", set()))
+            for note in item.get("_notes_set", set()):
+                note_scores[note] = note_scores.get(note, 0.0) + weight
             item_accords = item.get("_accords_set", set())
-            target_accords.update(item_accords)
+            for accord in item_accords:
+                accord_scores[accord] = accord_scores.get(accord, 0.0) + weight
 
-            desc = item.get("description", "").lower()
-            for family in FAMILIES:
-                if family in desc or family in item_accords:
-                    target_families.add(family)
+            if weight > 0:
+                desc = item.get("description", "").lower()
+                for family in FAMILIES:
+                    if family in desc or family in item_accords:
+                        target_families.add(family)
+                if any(a in FRESH_ACCORDS for a in item_accords):
+                    target_occasions.add("day")
+                if any(a in WARM_ACCORDS for a in item_accords):
+                    target_occasions.add("night")
 
-            if any(a in FRESH_ACCORDS for a in item_accords):
-                target_occasions.add("day")
-            if any(a in WARM_ACCORDS for a in item_accords):
-                target_occasions.add("night")
+        # Deterministic ordering (no set-iteration order dependence).
+        target_notes = sorted(
+            (k for k, s in note_scores.items() if s > 0),
+            key=lambda k: note_scores[k],
+            reverse=True,
+        )[:10]
+        target_accords = sorted(
+            (k for k, s in accord_scores.items() if s > 0),
+            key=lambda k: accord_scores[k],
+            reverse=True,
+        )[:10]
+        negative_notes = sorted(k for k, s in note_scores.items() if s < 0)
+        negative_accords = sorted(k for k, s in accord_scores.items() if s < 0)
 
         return {
-            "target_notes": list(target_notes)[:10],
-            "target_accords": list(target_accords)[:10],
+            "target_notes": target_notes,
+            "target_accords": target_accords,
             "target_families": target_families,
             "target_occasions": target_occasions,
+            "negative_notes": negative_notes,
+            "negative_accords": negative_accords,
         }
 
     # ------------------------------------------------------------------
@@ -173,6 +209,8 @@ class FeatureBasedService:
         target_accords = set(profile["target_accords"])
         target_families = profile["target_families"]
         target_occasions = profile["target_occasions"]
+        negative_notes = set(profile.get("negative_notes") or [])
+        negative_accords = set(profile.get("negative_accords") or [])
 
         scored: list[dict[str, Any]] = []
         for item in candidate_pool:
@@ -222,6 +260,13 @@ class FeatureBasedService:
                 + (0.15 * occ_match)
                 + (0.10 * popularity)
             )
+
+            # g) Negative-signal penalty — shy away from disliked notes/accords
+            neg_penalty = (
+                0.03 * len(item_notes.intersection(negative_notes))
+                + 0.03 * len(item_accords.intersection(negative_accords))
+            )
+            base_score -= min(neg_penalty, 0.15)
 
             scored.append({"id": item_id, "base_score": base_score, "item": item})
 
