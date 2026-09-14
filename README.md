@@ -54,7 +54,7 @@ Minimal by design — a FastAPI backend that owns all the logic, a Next.js front
 - **ML artifacts** — a cleaned catalog JSON (4,559 fragrances) plus `[4559×64]` L2-normalized GraphSAGE embeddings, an ID index, and a `metadata.json` validation record shipped in `backend/app/data/`. No model is needed at serving time — only NumPy.
 - **No external infra** — no Docker, Postgres, Neo4j, Redis, Supabase, Pinecone, or message queues.
 
-> **Auth is legacy.** The backend still mounts `/auth/*`, `/users/*`, and the Bearer-protected rating endpoints from earlier iterations, but the app you see at `localhost:3000` is fully anonymous. Catalog, quiz, and recommendations never require a token, so the frontend sends none.
+> **Auth is retired.** Login was removed from the product, so the `/auth/*` router no longer exists and the app starts without any JWT configuration. The app you see at `localhost:3000` is fully anonymous — catalog, quiz, and recommendations never require a token, so the frontend sends none. (Legacy Bearer-protected helpers on `/users/*` and the rating endpoints remain mounted but are never called.)
 
 ---
 
@@ -104,20 +104,17 @@ Open http://localhost:3000. The product is anonymous-only — no account, login,
 
 ### Environment
 
-- **Backend** reads `backend/.env`. Required values: `DATABASE_URL=sqlite:///./scentrix.db` and a `JWT_SECRET_KEY` (any long random string for dev). `backend/.env` is already present with working defaults.
-- **Frontend** reads `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). Copy `frontend/.env.example` to `frontend/.env.local` if you need to override it.
+- **Backend** runs with no env file. `DATABASE_URL` defaults to a local SQLite file (`sqlite:///./scentrix.db`). Authentication is retired from the product (no login), so no `JWT_SECRET_KEY` is required to start.
+- **Frontend** reads `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). Copy `frontend/.env.example` to `frontend/.env.local` only if you need to override it.
 
 ---
 
 ## API endpoints
 
-All responses use a `{status, data}` envelope; recommendation responses also include `state`, `state_label`, and `source`. The demo flow is entirely anonymous — auth/profile rows below are legacy and the app never calls them.
+All responses use a `{status, data}` envelope; recommendation responses also include `state`, `state_label`, and `source`. The demo flow is entirely anonymous — the retired `/auth` endpoints were removed and the app never calls the Bearer-protected helpers below.
 
 | Method | Path | Purpose | Auth |
 |---|---|---|---|
-| POST | `/auth/register` | Create an account (returns JWT) | legacy |
-| POST | `/auth/login` | Log in (returns JWT) | legacy |
-| GET | `/auth/me` | Current user profile | legacy |
 | GET | `/fragrances/catalog` | Paginated catalog with search, brand/family/accord filters, sort | — |
 | GET | `/fragrances/{id}` | Single fragrance detail | — |
 | POST | `/fragrances/quiz/session/start` | Start a quiz session (seeds spanning olfactory families) | optional |
@@ -209,10 +206,9 @@ backend/
 │   ├── database.py           # sync SQLAlchemy engine + session (SQLite)
 │   ├── models/models.py      # 2 tables: users, fragrance_ratings
 │   ├── auth/
-│   │   ├── auth.py           # bcrypt hashing + JWT create/verify
+│   │   ├── auth.py           # legacy bcrypt + JWT (retired; read lazily, never required)
 │   │   └── dependencies.py   # Bearer-token dependency (optional variant for quiz)
 │   ├── routers/
-│   │   ├── auth.py           # /auth/register, /auth/login, /auth/me
 │   │   ├── catalog.py        # /fragrances/catalog, /fragrances/{id}
 │   │   ├── quiz.py           # /fragrances/quiz/session/* (in-memory store)
 │   │   ├── recommendations.py# /recommendations/* routed via dispatcher
@@ -253,7 +249,7 @@ cd backend
 python -m pytest tests -q
 ```
 
-The backend suite (`python -m pytest tests -q` — 38 tests) covers the dispatcher state transitions, user-vector + KNN behavior, feature-based scoring, auth, catalog loading, the quiz flow, and the public `/health` check.
+The backend suite (`python -m pytest tests -q` — 35 tests) covers the dispatcher state transitions, user-vector + KNN behavior, feature-based scoring, catalog loading, the quiz flow, and the public `/health` check.
 
 ML/training tests (`python -m pytest ml/tests -q` — 185 tests, needs `pip install -e ".[ml]"`) cover the training pipeline, embedding-validation gates, and the cold-start evaluator and its oracle. The evaluator is also isolated as pure functions so it runs without the app or a database.
 

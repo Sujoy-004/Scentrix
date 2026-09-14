@@ -32,7 +32,6 @@ CATALOG_PATH = DATA_DIR / "scentrix_master_cleaned.json"
 EMBEDDINGS_PATH = DATA_DIR / "node_embeddings_jaccard.npy"
 IDS_PATH = DATA_DIR / "node_ids_jaccard.json"
 METADATA_PATH = DATA_DIR / "metadata.json"
-TEXT_EMBEDDINGS_PATH = DATA_DIR / "text_embeddings.npy"
 
 EMBEDDING_DIM = train_pipeline.EMBEDDING_DIM
 EXPECTED_NODES = train_pipeline.EXPECTED_CATALOG_SIZE
@@ -97,7 +96,12 @@ def test_within_vs_cross_primary_separation_and_no_collapse():
 
 def test_order_invariance_self_check():
     catalog, _, _, _ = _load_artifacts()
-    text_embeddings = np.load(TEXT_EMBEDDINGS_PATH).astype(np.float32)
+    # Deterministic synthetic text features: order invariance is an
+    # architectural property of the model, not of the real text embeddings, so
+    # the test must not depend on the large regenerable training cache
+    # (text_embeddings.npy). The catalog nodes and Jaccard graph are real.
+    rng = np.random.default_rng(0)
+    text_embeddings = rng.standard_normal((len(catalog), 384)).astype(np.float32)
     node_features, node_ids = train_pipeline.build_features(catalog, text_embeddings)
     edge_index, _, _ = train_pipeline.build_jaccard_graph(catalog, node_ids)
     assert node_features.shape[0] == len(node_ids)

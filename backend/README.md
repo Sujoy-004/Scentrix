@@ -81,7 +81,6 @@ backend/
 
 | Prefix | Endpoints | Description |
 |--------|-----------|-------------|
-| `/auth` | register, login, me | Legacy user auth (HS256 JWT, 15 min) — not called by the app |
 | `/fragrances` | /catalog, /{fragrance_id} | Catalog search + detail (JSON SSOT) |
 | `/fragrances/quiz/session` | start, {id}/answer, {id}/evaluate, {id}/next-questions, {id}/finalize, {id}/guest-finalize | Adaptive quiz (guest flow uses guest-finalize) |
 | `/recommendations` | /guest, /rate, /batch-rate, /personalized | 3-state serving; rating endpoints are legacy |
@@ -112,10 +111,9 @@ Serving never loads torch; the embeddings are read as NumPy — "the artifacts a
 
 ## Configuration
 
-Key environment variables (see `.env.example`):
+Key environment variables (all optional; the app starts with defaults):
 
 - `DATABASE_URL` — SQLite by default (`sqlite:///./scentrix.db`)
-- `JWT_SECRET_KEY` — HS256 signing secret
-- `JWT_ALGORITHM` — default `HS256`
-- `ACCESS_TOKEN_EXPIRE_MINUTES` — default `15`
 - `ALLOWED_ORIGINS` — comma-separated CORS origins
+- `JWT_SECRET_KEY` — legacy only: authentication was removed from the
+  product flow, the app does not require this to start

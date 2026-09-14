@@ -17,10 +17,6 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./scentrix.db"
 
-    jwt_secret_key: str
-    jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 15
-
     allowed_origins: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",

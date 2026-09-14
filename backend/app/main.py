@@ -1,8 +1,9 @@
 """FastAPI application entry point for Scentrix (minimal, fully-ownable).
 
-Mounts only the surviving routers (auth, catalog, quiz, recommendations,
-users) plus system endpoints. No Sentry, no rate limiting, no
-correlation-ID middleware, no async catalog loading, no gs warmup task.
+Mounts only the surviving routers (catalog, quiz, recommendations, users)
+plus system endpoints. No Sentry, no rate limiting, no correlation-ID
+middleware, no async catalog loading, no gs warmup task. No JWT configuration
+is required: authentication was removed from the product flow (no login).
 """
 
 import logging
@@ -14,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import init_db
-from app.routers import auth, catalog, quiz, recommendations, users
+from app.routers import catalog, quiz, recommendations, users
 from app.services.embeddings import gs_service
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router)
 app.include_router(catalog.router)
 app.include_router(quiz.router)
 app.include_router(recommendations.router)

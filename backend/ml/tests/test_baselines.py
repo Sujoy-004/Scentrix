@@ -1,13 +1,16 @@
 """Tests for baseline ranking models: PopularityBaseline (accord-count) and RandomBaseline (uniform shuffle)."""
 import json
 import random
+from pathlib import Path
 
 import pytest
 
 from ml.eval.models.popularity import PopularityBaseline
 from ml.eval.models.random_baseline import RandomBaseline
 
-DATA_PATH = "ml/data/scentrix_master_cleaned.json"
+DATA_PATH = str(
+    Path(__file__).resolve().parents[2] / "app" / "data" / "scentrix_master_cleaned.json"
+)
 
 
 # ---------------------------------------------------------------------------
