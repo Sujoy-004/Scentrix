@@ -1,4 +1,14 @@
-"""Configuration for cold-start evaluation pipeline."""
+"""Configuration for cold-start evaluation pipeline.
+
+NOTE — Canonical tracked paths for the presented evaluation:
+    Catalog  : backend/app/data/scentrix_master_cleaned.json  (tracked)
+    Artifacts: backend/ml/eval/data/baseline/                  (tracked)
+    Run output: backend/ml/eval/runs/                          (tracked published)
+The relative defaults below (data_path, catalog_path, output_dir) assume the
+process CWD is ``backend/``.  The self-contained runner
+``run_cold_start_eval.py`` resolves paths from REPO_ROOT and does not depend
+on these defaults.
+"""
 
 import logging
 from pathlib import Path

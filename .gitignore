@@ -56,6 +56,9 @@ DESIGN.md
 # interview study guide (private, not committed)
 study_guide/
 
+# regeneratable cold-start evaluation runs (default runner output)
+backend/ml/eval/runs/sessions/
+
 # session report (regeneratable per query, not tracked)
 report.md
 

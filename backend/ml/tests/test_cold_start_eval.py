@@ -5,6 +5,8 @@ runner module (stdlib + numpy).
 """
 
 import json
+import re
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -13,6 +15,7 @@ import pytest
 # only imports stdlib + numpy.
 from ml.eval.run_cold_start_eval import (
     MAX_CANDIDATES,
+    _redirect_default_runs_dir,
     build_relevant,
     metrics_for_ranking,
     rank_popularity,
@@ -178,3 +181,82 @@ def test_runner_determinism_same_seed():
             for metric in ("P@5", "P@10", "R@10", "NDCG@10"):
                 mean = r_a["metrics"][model][str(k)][metric]["mean"]
                 assert 0.0 <= mean <= 1.0, (model, k, metric, mean)
+
+
+# --------------------------------------------------------------------------- #
+# 5. User vector is mean of seeds; ranked order follows dot-product scores
+# --------------------------------------------------------------------------- #
+def test_rank_scentrix_vector_is_mean_of_seeds_and_order_follows_dot_product():
+    rng = np.random.default_rng(77)
+    m = rng.standard_normal((12, 8))
+    m = m / np.linalg.norm(m, axis=1, keepdims=True)
+    ids = [f"n{i}" for i in range(12)]
+    fid2idx = {fid: i for i, fid in enumerate(ids)}
+
+    seeds = ["n2", "n5"]
+    vec_expected = m[[fid2idx[s] for s in seeds]].mean(axis=0)
+    vec_actual = m[[fid2idx[s] for s in seeds]].mean(axis=0)
+    np.testing.assert_array_equal(vec_actual, vec_expected)
+
+    pool = ["n0", "n3", "n6", "n7", "n8", "n10"]
+    ranked, scores = rank_scentrix(pool, m, fid2idx, seeds)
+
+    sims = {fid: float(m[fid2idx[fid]] @ vec_expected) for fid in pool}
+    expected_order = sorted(pool, key=lambda fid: (-sims[fid], fid))
+    assert ranked == expected_order
+
+    for i in range(len(ranked) - 1):
+        assert scores[ranked[i]] >= scores[ranked[i + 1]]
+
+
+# --------------------------------------------------------------------------- #
+# 6. All k values in {1,2,3,5} run and every metric is sane
+# --------------------------------------------------------------------------- #
+def test_all_k_values_run_and_report_sane_metrics():
+    catalog, ids, matrix, fid2idx, counts = _synth_catalog_and_embeddings()
+    relevant, families, family_members = build_relevant(catalog)
+    res = run_eval_impl(
+        catalog_ids=ids,
+        relevant=relevant,
+        families=families,
+        family_members=family_members,
+        fid2idx=fid2idx,
+        matrix=matrix,
+        counts=counts,
+        seed=123,
+        trials=12,
+        k_values=(1, 2, 3, 5),
+    )
+
+    assert res["diagnostics"]["trials_completed"] == {
+        "1": 12, "2": 12, "3": 12, "5": 12,
+    }
+
+    for k in ("1", "2", "3", "5"):
+        wr = res["win_rate_vs_popularity_recall10"][k]
+        assert 0.0 <= wr <= 1.0, (k, wr)
+        for model in ("s-centrix", "popularity", "random"):
+            for metric in ("P@5", "P@10", "R@10", "NDCG@10"):
+                mean = res["metrics"][model][k][metric]["mean"]
+                assert 0.0 <= mean <= 1.0, (model, k, metric, mean)
+
+
+# --------------------------------------------------------------------------- #
+# 7. Default runs-dir redirect protects the tracked published reports
+# --------------------------------------------------------------------------- #
+def test_default_runs_dir_redirects_to_gitignored_sessions(tmp_path):
+    runs_dir = tmp_path / "runs"
+
+    out = _redirect_default_runs_dir(runs_dir, runs_dir=runs_dir)
+    assert out.parent == runs_dir / "sessions"
+    assert re.fullmatch(r"\d{8}-\d{6}", out.name) is not None
+
+    # a relative alias of the default (resolve()-equal) is redirected too
+    alias = runs_dir / "x" / ".."
+    out_alias = _redirect_default_runs_dir(alias, runs_dir=runs_dir)
+    assert out_alias.parent == runs_dir / "sessions"
+
+    # explicit named folders for publishing are returned unchanged
+    pub = runs_dir / "final"
+    assert _redirect_default_runs_dir(pub, runs_dir=runs_dir) == pub
+    assert _redirect_default_runs_dir("/tmp/elsewhere", runs_dir=runs_dir) == Path("/tmp/elsewhere")

@@ -47,6 +47,7 @@ import json
 import math
 import sys
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -70,6 +71,20 @@ DEFAULT_RUNS_DIR = REPO_ROOT / "backend" / "ml" / "eval" / "runs"
 # --------------------------------------------------------------------------- #
 # Small pure helpers
 # --------------------------------------------------------------------------- #
+def _redirect_default_runs_dir(requested: Path, runs_dir: Path = DEFAULT_RUNS_DIR) -> Path:
+    """Return ``runs_dir/sessions/<timestamp>`` when ``requested`` is the default runs dir.
+
+    ``requested`` is resolved before comparison so a relative alias of the
+    default (e.g. ``--runs-dir backend/ml/eval/runs``) is redirected as well.
+    Without this, a plain re-run could silently overwrite the tracked
+    published reports in ``runs/``.
+    """
+    src = Path(requested)
+    if src.resolve() == Path(runs_dir).resolve():
+        return src.resolve() / "sessions" / datetime.now().strftime("%Y%m%d-%H%M%S")
+    return src
+
+
 def _lower_note_list(value) -> set[str]:
     out: set[str] = set()
     if isinstance(value, (list, tuple)):
@@ -492,24 +507,38 @@ def main(argv=None):
         help="Dir with node_embeddings_jaccard.npy + node_ids_jaccard.json",
     )
     parser.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
-    parser.add_argument("--runs-dir", type=Path, default=DEFAULT_RUNS_DIR)
+    parser.add_argument(
+        "--runs-dir",
+        type=Path,
+        default=DEFAULT_RUNS_DIR,
+        help=(
+            "Output directory for cold_start_eval.json + cold_start_eval_baseline.md. "
+            "When the default runs/ dir is used, results land in a gitignored "
+            "runs/sessions/<timestamp>/ subfolder so a plain re-run never rewrites "
+            "the tracked published reports in runs/ (pass --runs-dir explicitly, "
+            "e.g. .../runs/final, to publish into a named folder)."
+        ),
+    )
     args = parser.parse_args(argv)
+
+    runs_dir = _redirect_default_runs_dir(args.runs_dir)
 
     results = run_eval(
         catalog_path=args.catalog,
         artifacts_dir=args.artifacts,
         seed=args.seed,
         trials=args.trials,
-        runs_dir=args.runs_dir,
+        runs_dir=runs_dir,
     )
 
-    args.runs_dir.mkdir(parents=True, exist_ok=True)
-    json_path = args.runs_dir / "cold_start_eval.json"
-    md_path = args.runs_dir / "cold_start_eval_baseline.md"
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    json_path = runs_dir / "cold_start_eval.json"
+    md_path = runs_dir / "cold_start_eval_baseline.md"
     json_path.write_text(json.dumps(results, indent=2, sort_keys=True), encoding="utf-8")
     report = render_report(results)
     md_path.write_text(report + "\n", encoding="utf-8")
     print(report)
+    print(f"\nResults written to: {runs_dir}")
     return 0
 
 
