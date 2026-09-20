@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <title>Scentrix</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Cormorant Garamond"; src: local("Cormorant Garamond"); font-weight: 300 700; }
+      @font-face { font-family: "Cormorant Garamond"; src: local("Cormorant Garamond"); font-style: italic; font-weight: 300 700; }
+      @font-face { font-family: "Cascadia Mono"; src: local("Cascadia Mono"); font-weight: 400 700; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px; height: 1080px; overflow: hidden;
+        background: #0f0805;
+        font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+        color: #f5e9d6;
+        font-weight: 500;
+      }
+      .scene {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        overflow: hidden;
+      }
+      .scene.clip { position: absolute; }
+      .mono { font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; font-weight: 500; }
+
+      /* ---------- shared glow ---------- */
+      .glow {
+        position: absolute; border-radius: 50%;
+        filter: blur(120px); pointer-events: none;
+      }
+
+      /* ---------- Scene 1 ---------- */
+      #scene-1 { background: radial-gradient(circle at 50% 55%, #2a1608 0%, #0f0805 65%); }
+      #s1-glow {
+        width: 900px; height: 700px; left: 510px; top: 220px;
+        background: radial-gradient(circle, rgba(230,164,74,0.55), rgba(230,164,74,0) 70%);
+      }
+      .s1-inner {
+        position: absolute; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 34px;
+      }
+      .s1-eyebrow {
+        font-size: 24px; letter-spacing: 0.55em; text-transform: uppercase;
+        color: #c9862f; font-weight: 400;
+        padding-left: 0.55em;
+      }
+      .s1-title {
+        font-size: 118px; font-style: italic; font-weight: 400;
+        letter-spacing: -0.02em; color: #f8efdf;
+      }
+      .s1-cursor {
+        display: inline-block; width: 3px; height: 96px; margin-left: 8px;
+        background: #e6a44a; vertical-align: -6px;
+      }
+
+      /* ---------- Scene 2 ---------- */
+      #scene-2 { background: radial-gradient(circle at 50% 50%, #341a09 0%, #0f0805 70%); }
+      #s2-glow {
+        width: 1100px; height: 760px; left: 410px; top: 160px;
+        background: radial-gradient(circle, rgba(230,164,74,0.5), rgba(230,164,74,0) 72%);
+      }
+      .s2-sweep {
+        position: absolute; top: 0; left: -40%; width: 180%; height: 100%;
+        background: linear-gradient(105deg,
+          rgba(230,164,74,0) 0%,
+          rgba(230,164,74,0.05) 30%,
+          rgba(230,164,74,0.12) 50%,
+          rgba(230,164,74,0.05) 70%,
+          rgba(230,164,74,0) 100%);
+        transform: rotate(6deg); pointer-events: none;
+      }
+      .s2-inner {
+        position: absolute; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 44px;
+      }
+      .s2-headline {
+        font-size: 156px; font-style: italic; font-weight: 400;
+        letter-spacing: -0.03em; color: #fbf3e3;
+        text-shadow: 0 12px 48px rgba(0,0,0,0.55);
+      }
+      .s2-chip {
+        font-size: 27px; letter-spacing: 0.32em; color: #e6a44a;
+        border: 1px solid rgba(230,164,74,0.45); border-radius: 999px;
+        padding: 16px 40px; background: rgba(230,164,74,0.06);
+        padding-left: calc(40px + 0.32em);
+      }
+
+      /* ---------- Scene 3 / 5 (quiz cards) ---------- */
+      #scene-3 { background: radial-gradient(circle at 50% 30%, #2b1708 0%, #0f0805 72%); }
+      #scene-5 { background: radial-gradient(circle at 50% 30%, #2b1708 0%, #0f0805 72%); }
+      #s3-glow, #s5-glow {
+        width: 1300px; height: 900px; left: 310px; top: 90px;
+        background: radial-gradient(circle, rgba(201,134,47,0.34), rgba(201,134,47,0) 70%);
+      }
+      .quiz-topbar {
+        position: absolute; top: 88px; left: 140px; right: 140px;
+        display: flex; align-items: center; justify-content: space-between;
+      }
+      .quiz-brand { font-size: 20px; letter-spacing: 0.42em; color: #c9b79a; text-transform: uppercase; }
+      .quiz-progress {
+        width: 320px; height: 6px; border-radius: 999px;
+        background: rgba(245,233,214,0.14); overflow: hidden;
+      }
+      .quiz-progress-fill {
+        width: 0%; height: 100%; background: linear-gradient(90deg, #a85f1c, #e6a44a);
+      }
+      .quiz-card {
+        position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+        width: 980px; padding: 60px 72px 56px;
+        background: rgba(28,16,8,0.82);
+        border: 1px solid rgba(230,164,74,0.22);
+        border-radius: 28px;
+        box-shadow: 0 40px 120px rgba(0,0,0,0.5);
+        overflow: hidden;
+      }
+      .quiz-glint {
+        position: absolute; top: -40%; left: -30%; width: 40%; height: 180%;
+        background: linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(230,164,74,0.18) 50%, rgba(255,255,255,0) 100%);
+        transform: rotate(12deg);
+      }
+      .quiz-house { font-size: 20px; letter-spacing: 0.46em; color: #c9862f; text-transform: uppercase; font-weight: 500; }
+      .quiz-name { font-size: 56px; font-style: italic; color: #fbf3e3; letter-spacing: -0.02em; margin-top: 10px; font-weight: 500; }
+      .quiz-notes { display: flex; gap: 12px; margin-top: 22px; }
+      .quiz-note {
+        display: inline-flex; padding: 8px 18px; border-radius: 999px;
+        font-size: 18px; letter-spacing: 0.04em;
+        border: 1px solid rgba(230,164,74,0.35);
+        background: rgba(230,164,74,0.1); color: #f4bb92;
+      }
+      .quiz-prompt { font-size: 25px; color: #e8d9c0; margin-top: 30px; letter-spacing: 0.02em; }
+      .quiz-row {
+        display: flex; align-items: baseline; justify-content: space-between;
+        margin-top: 34px;
+      }
+      .quiz-row-label { font-size: 23px; letter-spacing: 0.32em; color: #c9b79a; text-transform: uppercase; }
+      .quiz-value { font-size: 64px; font-weight: 600; color: #e6a44a; font-variant-numeric: tabular-nums; }
+      .quiz-slider {
+        position: relative; height: 14px; border-radius: 999px; margin-top: 24px;
+        background: rgba(245,233,214,0.12); overflow: hidden;
+      }
+      .quiz-slider-fill {
+        width: 0%; height: 100%; background: linear-gradient(90deg, #a85f1c, #e6a44a);
+        box-shadow: 0 0 24px rgba(230,164,74,0.6);
+      }
+      .quiz-confirm {
+        display: inline-block; margin-top: 40px;
+        font-size: 22px; letter-spacing: 0.3em; text-transform: uppercase;
+        color: #1a0e05; background: #e6a44a;
+        padding: 20px 48px; border-radius: 999px;
+        box-shadow: 0 0 0 rgba(230,164,74,0.0);
+      }
+
+      /* ---------- Scene 4 (neural loader) ---------- */
+      #scene-4 { background: radial-gradient(circle at 50% 38%, #250f02 0%, #0f0805 78%); }
+      #s4-glow {
+        width: 1400px; height: 900px; left: 260px; top: 60px;
+        background: radial-gradient(circle, rgba(230,164,74,0.32), rgba(230,164,74,0) 70%);
+      }
+      .s4-stage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+      .s4-ring {
+        position: absolute; border-radius: 50%; pointer-events: none;
+        border: 1px solid rgba(230,164,74,0.16);
+      }
+      #s4-ring-1 { width: 900px; height: 900px; top: 90px; left: 510px; }
+      #s4-ring-2 { width: 1180px; height: 1180px; top: 40px; left: 370px; border-color: rgba(230,164,74,0.08); }
+      .s4-panel {
+        width: 820px; padding: 52px 64px 40px;
+        background: rgba(26,14,6,0.72); border: 1px solid rgba(230,164,74,0.2);
+        border-radius: 28px; text-align: center;
+        box-shadow: 0 40px 120px rgba(0,0,0,0.45);
+      }
+      .s4-eyebrow { font-size: 16px; letter-spacing: 0.46em; color: #c9862f; text-transform: uppercase; }
+      .s4-lore {
+        font-size: 34px; font-style: italic; color: #fbf3e3;
+        margin-top: 26px; letter-spacing: -0.01em; font-weight: 400;
+      }
+      .s4-rail {
+        position: relative; height: 6px; border-radius: 999px; margin-top: 42px;
+        background: rgba(245,233,214,0.12); overflow: hidden;
+      }
+      .s4-rail-fill {
+        width: 0%; height: 100%; background: linear-gradient(90deg, #a85f1c, #e6a44a);
+        box-shadow: 0 0 18px rgba(230,164,74,0.5);
+      }
+      .s4-foot {
+        display: flex; justify-content: space-between; margin-top: 22px;
+        font-size: 14px; letter-spacing: 0.22em; color: #9e8e84; text-transform: uppercase;
+      }
+
+      /* ---------- Scene 6 (constellation) ---------- */
+      #scene-6 { background: radial-gradient(circle at 50% 38%, #331a09 0%, #0f0805 74%); }
+      #s6-glow {
+        width: 1500px; height: 920px; left: 210px; top: 60px;
+        background: radial-gradient(circle, rgba(230,164,74,0.42), rgba(230,164,74,0) 74%);
+      }
+      .s6-badge {
+        position: absolute; top: 66px; left: 0; right: 0; text-align: center;
+        font-size: 20px; letter-spacing: 0.52em; color: #c9862f; text-transform: uppercase;
+        font-weight: 500;
+      }
+      .s6-title {
+        position: absolute; top: 112px; left: 0; right: 0; text-align: center;
+        font-size: 74px; font-style: italic; color: #fbf3e3; letter-spacing: -0.02em;
+      }
+      .s6-cards {
+        position: absolute; top: 300px; left: 0; right: 0;
+        display: flex; justify-content: center; gap: 34px;
+      }
+      .s6-card {
+        width: 448px; padding: 34px 32px 30px;
+        background: rgba(28,16,8,0.82);
+        border: 1px solid rgba(230,164,74,0.2);
+        border-radius: 24px; text-align: left;
+      }
+      .s6-card-top { display: flex; align-items: center; justify-content: space-between; }
+      .s6-card-name { font-size: 29px; font-style: italic; color: #fbf3e3; font-weight: 500; }
+      .s6-card-pct { font-size: 24px; font-weight: 700; color: #e6a44a; font-variant-numeric: tabular-nums; }
+      .s6-card-family { font-size: 15px; letter-spacing: 0.24em; color: #c9862f; text-transform: uppercase; margin-top: 8px; font-weight: 500; }
+      .s6-card-notes { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+      .s6-note {
+        display: inline-flex; padding: 5px 13px; border-radius: 999px;
+        font-size: 15px; letter-spacing: 0.04em;
+        border: 1px solid rgba(230,164,74,0.35);
+        background: rgba(230,164,74,0.1); color: #f4bb92;
+      }
+      .s6-card-reason { font-size: 20px; color: #c9b79a; margin-top: 16px; line-height: 1.4; }
+      .s6-cta {
+        position: absolute; bottom: 120px; left: 0; right: 0; text-align: center;
+      }
+      .s6-cta-pill {
+        display: inline-block;
+        font-size: 20px; letter-spacing: 0.3em; text-transform: uppercase;
+        color: #e6a44a; border: 1px solid rgba(230,164,74,0.5);
+        padding: 18px 44px; border-radius: 999px;
+        padding-left: calc(44px + 0.3em);
+      }
+
+      /* ---------- Scene 7 (landing proof) ---------- */
+      #scene-7 { background: radial-gradient(circle at 50% 42%, #341a09 0%, #0f0805 76%); }
+      #s7-glow {
+        width: 1300px; height: 840px; left: 310px; top: 100px;
+        background: radial-gradient(circle, rgba(230,164,74,0.34), rgba(230,164,74,0) 72%);
+      }
+      .s7-inner {
+        position: absolute; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 40px;
+      }
+      .s7-eyebrow { font-size: 21px; letter-spacing: 0.42em; color: #cc8c39; text-transform: uppercase; font-weight: 400; padding-left: 0.42em; }
+      .s7-headline {
+        font-size: 62px; font-style: italic; font-weight: 400;
+        letter-spacing: -0.015em; color: #fbf3e3; text-align: center;
+        max-width: 1400px; line-height: 1.15;
+      }
+      .s7-stats { display: flex; gap: 88px; margin-top: 8px; }
+      .s7-stat { text-align: center; }
+      .s7-stat-value { font-size: 88px; font-weight: 600; color: #e6a44a; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+      .s7-stat-label {
+        font-size: 18px; letter-spacing: 0.3em; color: #c9b79a;
+        text-transform: uppercase; margin-top: 6px; padding-left: 0.3em;
+      }
+      .s7-ctas { display: flex; gap: 28px; margin-top: 12px; }
+      .s7-cta-pill {
+        font-size: 19px; letter-spacing: 0.26em; text-transform: uppercase;
+        color: #e6a44a; border: 1px solid rgba(230,164,74,0.5);
+        padding: 17px 42px; border-radius: 999px;
+        padding-left: calc(42px + 0.26em);
+      }
+
+      /* ---------- Scene 8 (outro wordmark) ---------- */
+      #scene-8 { background: radial-gradient(circle at 50% 46%, #2b1708 0%, #0f0805 72%); }
+      #s8-glow {
+        width: 1200px; height: 820px; left: 360px; top: 130px;
+        background: radial-gradient(circle, rgba(230,164,74,0.42), rgba(230,164,74,0) 70%);
+      }
+      .s8-inner {
+        position: absolute; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 26px;
+      }
+      .s8-wordmark {
+        font-size: 132px; font-style: italic; color: #f8efdf; letter-spacing: -0.02em; font-weight: 500;
+      }
+      .s8-tagline {
+        font-size: 30px; color: #c9b79a; letter-spacing: 0.16em; margin-top: 4px; font-style: italic;
+      }
+      .s8-cta-pill {
+        margin-top: 26px; display: inline-block;
+        font-size: 20px; letter-spacing: 0.3em; text-transform: uppercase;
+        color: #1a0e05; background: #e6a44a;
+        padding: 19px 48px; border-radius: 999px;
+      }
+
+      audio { display: none; }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-if77" id="root" data-composition-id="main" data-start="0" data-duration="60" data-width="1920" data-height="1080">
+      <!-- Scene 1: Brand + typed hook -->
+      <div data-hf-id="hf-4692" id="scene-1" class="scene clip" data-start="0" data-duration="3.55" data-track-index="1">
+        <div data-hf-id="hf-fssp" id="s1-glow" class="glow"></div>
+        <div data-hf-id="hf-g7uj" class="s1-inner">
+          <div data-hf-id="hf-twtx" id="s1-eyebrow" class="s1-eyebrow mono">Neural Sommelier Protocol</div>
+          <div data-hf-id="hf-5oit" class="s1-title">
+            <span data-hf-id="hf-xajh" id="s1-typed"></span><span data-hf-id="hf-82m5" id="s1-cursor" class="s1-cursor"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scene 2: Neural Instinct reveal -->
+      <div data-hf-id="hf-p6ux" id="scene-2" class="scene clip" data-start="2.9" data-duration="4.7" data-track-index="2">
+        <div data-hf-id="hf-c6p0" id="s2-glow" class="glow"></div>
+        <div data-hf-id="hf-qqur" id="s2-sweep" class="s2-sweep" data-layout-allow-overflow=""></div>
+        <div data-hf-id="hf-j0ms" class="s2-inner">
+          <div data-hf-id="hf-to1r" id="s2-headline" class="s2-headline">Neural Instinct.</div>
+          <div data-hf-id="hf-66td" id="s2-chip" class="s2-chip mono">91.5% Match Accuracy</div>
+        </div>
+      </div>
+
+      <!-- Scene 3: Rating #1 (Shalimar) -->
+      <div data-hf-id="hf-t0wt" id="scene-3" class="scene clip" data-start="7.05" data-duration="8.45" data-track-index="3">
+        <div data-hf-id="hf-2wxn" id="s3-glow" class="glow"></div>
+        <div data-hf-id="hf-5ke8" id="s3-topbar" class="quiz-topbar">
+          <div data-hf-id="hf-1rlh" class="quiz-brand mono">Discovery 1 / 8</div>
+          <div data-hf-id="hf-dqe6" class="quiz-progress"><div data-hf-id="hf-wdcq" id="s3-progress-fill" class="quiz-progress-fill"></div></div>
+        </div>
+        <div data-hf-id="hf-hfhw" id="s3-card" class="quiz-card">
+          <div data-hf-id="hf-rzxf" id="s3-glint" class="quiz-glint" data-layout-allow-overflow=""></div>
+          <div data-hf-id="hf-ba3t" class="quiz-house mono">Guerlain</div>
+          <div data-hf-id="hf-925i" class="quiz-name">Shalimar Parfum</div>
+          <div data-hf-id="hf-8ogi" class="quiz-notes">
+            <span data-hf-id="hf-f8qb" class="quiz-note">Bergamot</span>
+            <span data-hf-id="hf-cpku" class="quiz-note">Floral</span>
+          </div>
+          <div data-hf-id="hf-8m1l" class="quiz-prompt">How does this profile resonate?</div>
+          <div data-hf-id="hf-i6xh" class="quiz-row">
+            <div data-hf-id="hf-fisu" class="quiz-row-label mono">Your Resonance</div>
+            <div data-hf-id="hf-af2m" id="s3-value" class="quiz-value mono">5.0 / 10</div>
+          </div>
+          <div data-hf-id="hf-goog" class="quiz-slider"><div data-hf-id="hf-mjte" id="s3-slider-fill" class="quiz-slider-fill"></div></div>
+          <div data-hf-id="hf-q6ov" id="s3-confirm" class="quiz-confirm mono">Confirm Dimension</div>
+        </div>
+      </div>
+
+      <!-- Scene 4: Neural Pipeline loader -->
+      <div data-hf-id="hf-bn7a" id="scene-4" class="scene clip" data-start="15.0" data-duration="8.5" data-track-index="4">
+        <div data-hf-id="hf-fgfi" id="s4-glow" class="glow"></div>
+        <div data-hf-id="hf-xt52" id="s4-ring-1" class="s4-ring"></div>
+        <div data-hf-id="hf-4r8f" id="s4-ring-2" class="s4-ring"></div>
+        <div data-hf-id="hf-7z6p" class="s4-stage">
+          <div data-hf-id="hf-afud" id="s4-panel" class="s4-panel">
+            <div data-hf-id="hf-9wjx" class="s4-eyebrow mono">Neural Pipeline</div>
+            <div data-hf-id="hf-17dj" id="s4-lore" class="s4-lore">Synthesizing 2.1M Graph Relationships...</div>
+            <div data-hf-id="hf-h7br" class="s4-rail"><div data-hf-id="hf-lzrs" id="s4-rail-fill" class="s4-rail-fill"></div></div>
+            <div data-hf-id="hf-10jt" class="s4-foot mono">
+              <span data-hf-id="hf-m3rd">Syncing 24k Archive</span>
+              <span data-hf-id="hf-pktf" class="mono">V.PRIME_ELITE</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scene 5: Rating #2 (Valentino Uomo Intense) -->
+      <div data-hf-id="hf-ns82" id="scene-5" class="scene clip" data-start="23.0" data-duration="8.5" data-track-index="5">
+        <div data-hf-id="hf-uuxd" id="s5-glow" class="glow"></div>
+        <div data-hf-id="hf-7j9x" id="s5-topbar" class="quiz-topbar">
+          <div data-hf-id="hf-vssr" class="quiz-brand mono">Discovery 2 / 8</div>
+          <div data-hf-id="hf-qdbo" class="quiz-progress"><div data-hf-id="hf-edu1" id="s5-progress-fill" class="quiz-progress-fill"></div></div>
+        </div>
+        <div data-hf-id="hf-7z6p" id="s5-card" class="quiz-card">
+          <div data-hf-id="hf-9wjx" id="s5-glint" class="quiz-glint" data-layout-allow-overflow=""></div>
+          <div data-hf-id="hf-17dj" class="quiz-house mono">Valentino</div>
+          <div data-hf-id="hf-h7br" class="quiz-name">Valentino Uomo Intense</div>
+          <div data-hf-id="hf-lzrs" class="quiz-notes">
+            <span data-hf-id="hf-10jt" class="quiz-note">Mandarin Orange</span>
+            <span data-hf-id="hf-m3rd" class="quiz-note">Nutmeg</span>
+          </div>
+          <div data-hf-id="hf-pktf" class="quiz-prompt">How does this profile resonate?</div>
+          <div data-hf-id="hf-9wjx" class="quiz-row">
+            <div data-hf-id="hf-17dj" class="quiz-row-label mono">Your Resonance</div>
+            <div data-hf-id="hf-h7br" id="s5-value" class="quiz-value mono">5.0 / 10</div>
+          </div>
+          <div data-hf-id="hf-lzrs" class="quiz-slider"><div data-hf-id="hf-10jt" id="s5-slider-fill" class="quiz-slider-fill"></div></div>
+          <div data-hf-id="hf-m3rd" id="s5-confirm" class="quiz-confirm mono">Confirm Dimension</div>
+        </div>
+      </div>
+
+      <!-- Scene 6: Constellation matches -->
+      <div data-hf-id="hf-1r5d" id="scene-6" class="scene clip" data-start="31.0" data-duration="9.5" data-track-index="6">
+        <div data-hf-id="hf-2m9d" id="s6-glow" class="glow"></div>
+        <div data-hf-id="hf-3x8e" id="s6-badge" class="s6-badge mono">Protocol Results Complete</div>
+        <div data-hf-id="hf-4c0f" id="s6-title" class="s6-title">Your Aromatic Constellation</div>
+        <div data-hf-id="hf-5d1a" class="s6-cards">
+          <div data-hf-id="hf-6e2b" id="s6-card-1" class="s6-card">
+            <div data-hf-id="hf-7f3c" class="s6-card-top">
+              <div data-hf-id="hf-8g4d" class="s6-card-name">Shalimar Parfum</div>
+              <div data-hf-id="hf-9h5e" class="s6-card-pct mono">98%</div>
+            </div>
+            <div data-hf-id="hf-0i6f" class="s6-card-family mono">Oriental · Amber</div>
+            <div data-hf-id="hf-1j7a" class="s6-card-notes">
+              <span data-hf-id="hf-2k8b" class="s6-note">Warm Amber</span>
+              <span data-hf-id="hf-3l9c" class="s6-note">Vanilla</span>
+            </div>
+            <div data-hf-id="hf-4m0d" class="s6-card-reason">Your top match — the same warm amber soul.</div>
+          </div>
+          <div data-hf-id="hf-5n1e" id="s6-card-2" class="s6-card">
+            <div data-hf-id="hf-6o2f" class="s6-card-top">
+              <div data-hf-id="hf-7p3a" class="s6-card-name">Valentino Uomo Intense</div>
+              <div data-hf-id="hf-8q4b" class="s6-card-pct mono">94%</div>
+            </div>
+            <div data-hf-id="hf-9r5c" class="s6-card-family mono">Amber · Woody</div>
+            <div data-hf-id="hf-0s6d" class="s6-card-notes">
+              <span data-hf-id="hf-1t7e" class="s6-note">Mandarin</span>
+              <span data-hf-id="hf-2u8f" class="s6-note">Nutmeg</span>
+            </div>
+            <div data-hf-id="hf-3v9a" class="s6-card-reason">Warm spice with a soft leather edge.</div>
+          </div>
+          <div data-hf-id="hf-4w0b" id="s6-card-3" class="s6-card">
+            <div data-hf-id="hf-5x1c" class="s6-card-top">
+              <div data-hf-id="hf-6y2d" class="s6-card-name">Opium Pour Homme</div>
+              <div data-hf-id="hf-7z3e" class="s6-card-pct mono">91%</div>
+            </div>
+            <div data-hf-id="hf-8a4f" class="s6-card-family mono">Spicy · Green</div>
+            <div data-hf-id="hf-9b5a" class="s6-card-notes">
+              <span data-hf-id="hf-0c6b" class="s6-note">Star Anise</span>
+              <span data-hf-id="hf-1d7c" class="s6-note">Black Currant</span>
+            </div>
+            <div data-hf-id="hf-2e8d" class="s6-card-reason">Warm spice + green freshness, like the notes you rated.</div>
+          </div>
+        </div>
+        <div data-hf-id="hf-3f9e" id="s6-cta" class="s6-cta">
+          <div data-hf-id="hf-4a0f" class="s6-cta-pill mono">Start Discovery →</div>
+        </div>
+      </div>
+
+      <!-- Scene 7: Landing proof -->
+      <div data-hf-id="hf-5b1a" id="scene-7" class="scene clip" data-start="40.0" data-duration="8.5" data-track-index="7">
+        <div data-hf-id="hf-6c2b" id="s7-glow" class="glow"></div>
+        <div data-hf-id="hf-7d3c" class="s7-inner">
+          <div data-hf-id="hf-8e4d" id="s7-eyebrow" class="s7-eyebrow mono">Neural Sommelier Protocol v2.0-REWIRED</div>
+          <div data-hf-id="hf-9f5e" id="s7-headline" class="s7-headline">Discover the scent DNA that defines your dimension.</div>
+          <div data-hf-id="hf-0a6f" class="s7-stats">
+            <div data-hf-id="hf-1b7a" id="s7-stat-1" class="s7-stat">
+              <div data-hf-id="hf-2c8b" class="s7-stat-value mono">5,130+</div>
+              <div data-hf-id="hf-3d9c" class="s7-stat-label mono">Elite Scents</div>
+            </div>
+            <div data-hf-id="hf-4e0d" id="s7-stat-2" class="s7-stat">
+              <div data-hf-id="hf-5f1e" class="s7-stat-value mono">91.5%</div>
+              <div data-hf-id="hf-6a2f" class="s7-stat-label mono">Match Accuracy</div>
+            </div>
+            <div data-hf-id="hf-7b3a" id="s7-stat-3" class="s7-stat">
+              <div data-hf-id="hf-8c4b" class="s7-stat-value mono">50K+</div>
+              <div data-hf-id="hf-9d5c" class="s7-stat-label mono">Critics &amp; Collectors</div>
+            </div>
+          </div>
+          <div data-hf-id="hf-0e6d" id="s7-ctas" class="s7-ctas">
+            <div data-hf-id="hf-1f7e" id="s7-cta-1" class="s7-cta-pill mono">Browse Library</div>
+            <div data-hf-id="hf-2a8f" id="s7-cta-2" class="s7-cta-pill mono">Browse Popular Picks</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scene 8: Outro wordmark -->
+      <div data-hf-id="hf-3b9a" id="scene-8" class="scene clip" data-start="48.0" data-duration="12" data-track-index="8">
+        <div data-hf-id="hf-4c0b" id="s8-glow" class="glow"></div>
+        <div data-hf-id="hf-5d1c" class="s8-inner">
+          <div data-hf-id="hf-6e2d" id="s8-wordmark" class="s8-wordmark">Scentrix</div>
+          <div data-hf-id="hf-7f3e" id="s8-tagline" class="s8-tagline">Your neural sommelier.</div>
+          <div data-hf-id="hf-8a4f" id="s8-cta" class="s8-cta-pill mono">Start Discovery →</div>
+        </div>
+      </div>
+
+      <audio data-hf-id="hf-m7q2" id="music" src="assets/music/happy-beats-business-moves-vol-1-by-ende-dot-app.mp3" data-start="0" data-duration="60" data-track-index="10" data-volume="0.32" preload="auto"></audio>
+
+      <!-- SFX — key ticks for the typed hook -->
+      <audio data-hf-id="hf-a1a" id="sfx-1" data-start="0.85" data-duration="0.25" data-track-index="11" data-volume="0.28" src="assets/sfx/keyboard/keypress-001.wav" preload="auto"></audio>
+      <audio data-hf-id="hf-a2a" id="sfx-2" data-start="1.12" data-duration="0.25" data-track-index="12" data-volume="0.26" src="assets/sfx/keyboard/keypress-002.wav" preload="auto"></audio>
+      <audio data-hf-id="hf-a3a" id="sfx-3" data-start="1.39" data-duration="0.25" data-track-index="13" data-volume="0.26" src="assets/sfx/keyboard/keypress-003.wav" preload="auto"></audio>
+      <audio data-hf-id="hf-a4a" id="sfx-4" data-start="1.66" data-duration="0.25" data-track-index="14" data-volume="0.26" src="assets/sfx/keyboard/keypress-004.wav" preload="auto"></audio>
+      <audio data-hf-id="hf-a5a" id="sfx-5" data-start="1.93" data-duration="0.25" data-track-index="15" data-volume="0.26" src="assets/sfx/keyboard/keypress-001.wav" preload="auto"></audio>
+      <audio data-hf-id="hf-a6a" id="sfx-6" data-start="2.20" data-duration="0.25" data-track-index="16" data-volume="0.26" src="assets/sfx/keyboard/keypress-002.wav" preload="auto"></audio>
+
+      <!-- SFX — soft whoosh on the reveal slam (beat-locked 3.52) -->
+      <audio data-hf-id="hf-a7a" id="sfx-7" data-start="3.52" data-duration="0.18" data-track-index="17" data-volume="0.32" src="assets/sfx/impact/impactSoft_medium_001.ogg" preload="auto"></audio>
+
+      <!-- SFX — card #1 arrival (8.52), count tick (10.02), confirm chime (11.02) -->
+      <audio data-hf-id="hf-a8a" id="sfx-8" data-start="8.52" data-duration="0.60" data-track-index="18" data-volume="0.3" src="assets/sfx/casino/card-slide-1.ogg" preload="auto"></audio>
+      <audio data-hf-id="hf-a9a" id="sfx-9" data-start="10.02" data-duration="0.06" data-track-index="19" data-volume="0.22" src="assets/sfx/ui/rollover2.ogg" preload="auto"></audio>
+      <audio data-hf-id="hf-b10" id="sfx-10" data-start="11.02" data-duration="0.65" data-track-index="20" data-volume="0.24" src="assets/sfx/impact/impactBell_heavy_003.ogg" preload="auto"></audio>
+
+      <!-- SFX — loader lore swaps on beat grid (16.02 / 18.02 / 20.02 / 22.02), quiet ticks -->
+      <audio data-hf-id="hf-b11" id="sfx-11" data-start="16.02" data-duration="0.06" data-track-index="21" data-volume="0.15" src="assets/sfx/ui/rollover2.ogg" preload="auto"></audio>
+      <audio data-hf-id="hf-b12" id="sfx-12" data-start="18.02" data-duration="0.06" data-track-index="22" data-volume="0.15" src="assets/sfx/ui/rollover2.ogg" preload="auto"></audio>
+      <audio data-hf-id="hf-b13" id="sfx-13" data-start="20.02" data-duration="0.06" data-track-index="23" data-volume="0.15" src="assets/sfx/ui/rollover2.ogg" preload="auto"></audio>
+      <audio data-hf-id="hf-b14" id="sfx-14" data-start="22.02" data-duration="0.06" data-track-index="24" data-volume="0.15" src="assets/sfx/ui/rollover2.ogg" preload="auto"></audio>
+
+      <!-- SFX — card #2 arrival (24.52), count tick (26.52), confirm chime (27.52) -->
+      <audio data-hf-id="hf-b15" id="sfx-15" data-start="24.52" data-duration="0.60" data-track-index="25" data-volume="0.3" src="assets/sfx/casino/card-slide-1.ogg" preload="auto"></audio>
+      <audio data-hf-id="hf-b16" id="sfx-16" data-start="26.52" data-duration="0.06" data-track-index="26" data-volume="0.22" src="assets/sfx/ui/rollover2.ogg" preload="auto"></audio>
+      <audio data-hf-id="hf-b17" id="sfx-17" data-start="27.52" data-duration="0.65" data-track-index="27" data-volume="0.24" src="assets/sfx/impact/impactBell_heavy_003.ogg" preload="auto"></audio>
+
+      <!-- SFX — constellation header (32.02), match cards (34.02 / 35.52 / 37.02), CTA (38.52) -->
+      <audio data-hf-id="hf-b18" id="sfx-18" data-start="32.02" data-duration="0.18" data-track-index="28" data-volume="0.3" src="assets/sfx/impact/impactSoft_medium_001.ogg" preload="auto"></audio>
+      <audio data-hf-id="hf-b19" id="sfx-19" data-start="34.02" data-duration="0.60" data-track-index="29" data-volume="0.28" src="assets/sfx/casino/card-slide-1.ogg" preload="auto"></audio>
+      <audio data-hf-id="hf-b20" id="sfx-20" data-start="35.52" data-duration="0.60" data-track-index="30" data-volume="0.28" src="assets/sfx/casino/card-slide-1.ogg" preload="auto"></audio>
+      <audio data-hf-id="hf-b21" id="sfx-21" data-start="37.02" data-duration="0.60" data-track-index="31" data-volume="0.28" src="assets/sfx/casino/card-slide-1.ogg" preload="auto"></audio>
+      <audio data-hf-id="hf-b22" id="sfx-22" data-start="38.52" data-duration="0.01" data-track-index="32" data-volume="0.2" src="assets/sfx/interface/click_003.ogg" preload="auto"></audio>
+
+      <!-- SFX — landing proof stat ticks (42.5 / 43.5 / 44.5) -->
+      <audio data-hf-id="hf-b23" id="sfx-23" data-start="42.5" data-duration="0.06" data-track-index="33" data-volume="0.15" src="assets/sfx/ui/rollover2.ogg" preload="auto"></audio>
+      <audio data-hf-id="hf-b24" id="sfx-24" data-start="43.5" data-duration="0.06" data-track-index="34" data-volume="0.15" src="assets/sfx/ui/rollover2.ogg" preload="auto"></audio>
+      <audio data-hf-id="hf-b25" id="sfx-25" data-start="44.5" data-duration="0.06" data-track-index="35" data-volume="0.15" src="assets/sfx/ui/rollover2.ogg" preload="auto"></audio>
+
+      <!-- SFX — dry low-impact hit for the closing wordmark (49.02) -->
+      <audio data-hf-id="hf-b26" id="sfx-26" data-start="49.02" data-duration="0.15" data-track-index="36" data-volume="0.34" src="assets/sfx/impact/impactSoft_medium_004.ogg" preload="auto"></audio>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      gsap.defaults({ overwrite: "auto" });
+      const ease = { out: "expo.out", soft: "power2.out", xf: "power2.inOut", exit: "power2.in" };
+
+      // ===== Scene 1 (0.0 - 3.55) =====
+      tl.fromTo("#s1-glow", { scale: 0.72, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.9, ease: ease.out }, 0.15);
+      tl.fromTo("#s1-eyebrow", { opacity: 0, y: -14 },
+        { opacity: 1, y: 0, duration: 0.6, ease: ease.out }, 0.4);
+      const typed = "Molecular Artistry.";
+      for (let i = 1; i <= typed.length; i++) {
+        tl.set("#s1-typed", { innerText: typed.slice(0, i) }, 0.7 + i * 0.085);
+      }
+      tl.set("#s1-cursor", { autoAlpha: 1 }, 0.7);
+      for (let i = 0; i < 7; i++) {
+        tl.to("#s1-cursor", { autoAlpha: 0, duration: 0.18, ease: ease.xf }, 1.1 + i * 0.36);
+        tl.to("#s1-cursor", { autoAlpha: 1, duration: 0.18, ease: ease.xf }, 1.28 + i * 0.36);
+      }
+
+      // ===== Transition 1: Scene 1 -> 2 (2.9 - 3.5) =====
+      tl.to("#scene-1", { opacity: 0, duration: 0.6, ease: ease.xf }, 2.9);
+      tl.fromTo("#scene-2", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: ease.xf }, 2.9);
+
+      // ===== Scene 2 (2.9 - 7.6) — // beat-locked: headline lands on 3.52 strongCue
+      tl.fromTo("#s2-headline",
+        { opacity: 0, scale: 0.93, y: 22 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.85, ease: ease.out }, 3.52);
+      tl.fromTo("#s2-chip",
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.6, ease: ease.out }, 5.03); // beat-grid: stat chip on 5.03
+      tl.fromTo("#s2-sweep",
+        { x: -900, autoAlpha: 0 },
+        { x: 900, autoAlpha: 1, duration: 0.6, ease: ease.soft }, 3.6);
+      [3.52, 4.02, 4.52, 5.02, 5.52, 6.02, 6.52, 7.02].forEach(function (t) {
+        tl.to("#s2-glow", { scale: 1.07, duration: 0.22, ease: ease.xf }, t);
+        tl.to("#s2-glow", { scale: 1, duration: 0.28, ease: ease.xf }, t + 0.22);
+      });
+
+      // ===== Transition 2: Scene 2 -> 3 (7.05 - 7.65) =====
+      tl.to("#scene-2", { opacity: 0, duration: 0.6, ease: ease.xf }, 7.05);
+      tl.fromTo("#scene-3", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: ease.xf }, 7.05);
+
+      // ===== Scene 3 (7.05 - 15.5) — // beat-locked: quiz header on 8.02 strongCue
+      tl.fromTo("#s3-topbar", { opacity: 0, y: -12 },
+        { opacity: 1, y: 0, duration: 0.5, ease: ease.soft }, 8.02);
+      tl.fromTo("#s3-progress-fill", { width: "0%" },
+        { width: "12%", duration: 0.8, ease: ease.soft }, 8.02);
+      tl.fromTo("#s3-card", { opacity: 0, y: 46, scale: 0.97 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.75, ease: ease.out }, 8.52); // beat-grid: card body
+      tl.fromTo("#s3-slider-fill", { width: "0%" },
+        { width: "74%", duration: 0.6, ease: ease.soft }, 10.02); // beat-grid: rating sweep
+      const counter1 = { v: 5.0 };
+      tl.to(counter1, {
+        v: 7.4, duration: 0.6, ease: ease.soft,
+        onUpdate: function () { document.getElementById("s3-value").textContent = counter1.v.toFixed(1) + " / 10"; },
+      }, 10.02);
+      tl.fromTo("#s3-confirm",
+        { scale: 1, boxShadow: "0 0 0 rgba(230,164,74,0)" },
+        { scale: 1.06, boxShadow: "0 0 44px rgba(230,164,74,0.75)",
+          duration: 0.28, yoyo: true, repeat: 1, ease: ease.xf }, 11.02); // beat-grid: confirm warms
+      tl.fromTo("#s3-glint", { x: -900, autoAlpha: 0 },
+        { x: 900, autoAlpha: 1, duration: 1.1, ease: ease.soft }, 11.3);
+
+      // ===== Transition 3: Scene 3 -> 4 (15.0 - 15.6) =====
+      tl.to("#scene-3", { opacity: 0, duration: 0.6, ease: ease.xf }, 15.0);
+      tl.fromTo("#scene-4", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: ease.xf }, 15.0);
+
+      // ===== Scene 4 (15.0 - 23.5) — neural pipeline loader
+      tl.fromTo("#s4-panel", { opacity: 0, y: 40 },
+        { opacity: 1, y: 0, duration: 0.7, ease: ease.out }, 15.4);
+      tl.fromTo("#s4-ring-1", { opacity: 0, scale: 0.86 },
+        { opacity: 1, scale: 1, duration: 1.2, ease: ease.soft }, 15.4);
+      tl.fromTo("#s4-ring-2", { opacity: 0, scale: 0.86 },
+        { opacity: 1, scale: 1, duration: 1.2, ease: ease.soft }, 15.6);
+      tl.to("#s4-ring-1", { rotation: 360, duration: 8.5, ease: "linear" }, 15.4);
+      tl.to("#s4-ring-2", { rotation: -360, duration: 8.5, ease: "linear" }, 15.4);
+      tl.fromTo("#s4-rail-fill", { width: "0%" },
+        { width: "90%", duration: 7.0, ease: ease.soft }, 15.3);
+      function loreSwap(text, t) {
+        tl.to("#s4-lore", { autoAlpha: 0, y: -6, duration: 0.12, ease: ease.exit }, t);
+        tl.set("#s4-lore", { innerText: text, y: 6 }, t + 0.12);
+        tl.to("#s4-lore", { autoAlpha: 1, y: 0, duration: 0.18, ease: ease.soft }, t + 0.14);
+      }
+      // // beat-grid: loader lore lines on the 0.5s beat grid
+      loreSwap("Synthesizing 2.1M Graph Relationships...", 16.02);
+      loreSwap("Decoding Animalic Musks...", 18.02);
+      loreSwap("Waking the Digital Sommelier...", 20.02);
+      [16.02, 18.02, 20.02, 22.02].forEach(function (t, i) {
+        tl.to("#s4-glow", { scale: 1.06, duration: 0.22, ease: ease.xf }, t);
+        tl.to("#s4-glow", { scale: 1, duration: 0.28, ease: ease.xf }, t + 0.22);
+      });
+
+      // ===== Transition 4: Scene 4 -> 5 (23.0 - 23.6) =====
+      tl.to("#scene-4", { opacity: 0, duration: 0.6, ease: ease.xf }, 23.0);
+      tl.fromTo("#scene-5", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: ease.xf }, 23.0);
+
+      // ===== Scene 5 (23.0 - 31.5) — // beat-grid: topbar #2 on 24.02
+      tl.fromTo("#s5-topbar", { opacity: 0, y: -12 },
+        { opacity: 1, y: 0, duration: 0.5, ease: ease.soft }, 24.02);
+      tl.fromTo("#s5-progress-fill", { width: "0%" },
+        { width: "25%", duration: 0.8, ease: ease.soft }, 24.02);
+      tl.fromTo("#s5-card", { opacity: 0, y: 46, scale: 0.97 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.75, ease: ease.out }, 24.52); // beat-grid: card body #2
+      tl.fromTo("#s5-slider-fill", { width: "0%" },
+        { width: "81%", duration: 0.6, ease: ease.soft }, 26.52);
+      const counter2 = { v: 5.0 };
+      tl.to(counter2, {
+        v: 8.1, duration: 0.6, ease: ease.soft,
+        onUpdate: function () { document.getElementById("s5-value").textContent = counter2.v.toFixed(1) + " / 10"; },
+      }, 26.52);
+      tl.fromTo("#s5-confirm",
+        { scale: 1, boxShadow: "0 0 0 rgba(230,164,74,0)" },
+        { scale: 1.06, boxShadow: "0 0 44px rgba(230,164,74,0.75)",
+          duration: 0.28, yoyo: true, repeat: 1, ease: ease.xf }, 27.52); // beat-grid: confirm #2 warms
+      tl.fromTo("#s5-glint", { x: -900, autoAlpha: 0 },
+        { x: 900, autoAlpha: 1, duration: 1.1, ease: ease.soft }, 28.0);
+
+      // ===== Transition 5: Scene 5 -> 6 (31.0 - 31.6) =====
+      tl.to("#scene-5", { opacity: 0, duration: 0.6, ease: ease.xf }, 31.0);
+      tl.fromTo("#scene-6", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: ease.xf }, 31.0);
+
+      // ===== Scene 6 (31.0 - 40.5) — match cascade
+      tl.fromTo("#s6-badge", { opacity: 0, y: -14 },
+        { opacity: 1, y: 0, duration: 0.55, ease: ease.out }, 32.02); // beat-grid: results header
+      tl.fromTo("#s6-title", { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.7, ease: ease.out }, 32.3);
+      [[1, 34.02], [2, 35.52], [3, 37.02]].forEach(function (p) {
+        // // beat-grid: match cards on the 0.5s beat grid
+        tl.fromTo("#s6-card-" + p[0], { opacity: 0, y: 26, scale: 0.97 },
+          { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: ease.out }, p[1]);
+      });
+      tl.fromTo("#s6-cta", { opacity: 0, y: 14 },
+        { opacity: 1, y: 0, duration: 0.55, ease: ease.out }, 38.52); // beat-grid: CTA
+      [32.02, 33.02, 34.02, 35.52, 36.52, 37.02, 38.52, 39.52].forEach(function (t) {
+        tl.to("#s6-glow", { scale: 1.06, duration: 0.22, ease: ease.xf }, t);
+        tl.to("#s6-glow", { scale: 1, duration: 0.28, ease: ease.xf }, t + 0.22);
+      });
+
+      // ===== Transition 6: Scene 6 -> 7 (40.0 - 40.6) =====
+      tl.to("#scene-6", { opacity: 0, duration: 0.6, ease: ease.xf }, 40.0);
+      tl.fromTo("#scene-7", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: ease.xf }, 40.0);
+
+      // ===== Scene 7 (40.0 - 48.5) — landing proof
+      tl.fromTo("#s7-eyebrow", { opacity: 0, y: -14 },
+        { opacity: 1, y: 0, duration: 0.6, ease: ease.out }, 40.5);
+      tl.fromTo("#s7-headline", { opacity: 0, y: 22 },
+        { opacity: 1, y: 0, duration: 0.8, ease: ease.out }, 41.0);
+      [[1, 42.5], [2, 43.5], [3, 44.5]].forEach(function (p) {
+        tl.fromTo("#s7-stat-" + p[0], { opacity: 0, y: 20 },
+          { opacity: 1, y: 0, duration: 0.6, ease: ease.out }, p[1]); // beat-grid: stats
+      });
+      tl.fromTo("#s7-cta-1", { opacity: 0, y: 16 },
+        { opacity: 1, y: 0, duration: 0.5, ease: ease.out }, 46.5);
+      tl.fromTo("#s7-cta-2", { opacity: 0, y: 16 },
+        { opacity: 1, y: 0, duration: 0.5, ease: ease.out }, 47.0);
+      [41.0, 42.5, 43.5, 44.5, 46.5, 47.5].forEach(function (t) {
+        tl.to("#s7-glow", { scale: 1.06, duration: 0.22, ease: ease.xf }, t);
+        tl.to("#s7-glow", { scale: 1, duration: 0.28, ease: ease.xf }, t + 0.22);
+      });
+
+      // ===== Transition 7: Scene 7 -> 8 (48.0 - 48.6) =====
+      tl.to("#scene-7", { opacity: 0, duration: 0.6, ease: ease.xf }, 48.0);
+      tl.fromTo("#scene-8", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: ease.xf }, 48.0);
+
+      // ===== Scene 8 (48.0 - 60.0) — outro wordmark
+      tl.fromTo("#s8-wordmark", { opacity: 0, scale: 0.94, y: 24 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.8, ease: ease.out }, 49.02); // beat-grid: wordmark
+      tl.fromTo("#s8-tagline", { opacity: 0, y: 14 },
+        { opacity: 1, y: 0, duration: 0.55, ease: ease.out }, 50.02);
+      tl.fromTo("#s8-cta", { opacity: 0, y: 14 },
+        { opacity: 1, y: 0, duration: 0.55, ease: ease.out }, 51.52); // beat-grid: CTA
+      [49.02, 50.02, 51.52, 53.02, 54.52, 56.02, 57.52].forEach(function (t) {
+        tl.to("#s8-glow", { scale: 1.06, duration: 0.22, ease: ease.xf }, t);
+        tl.to("#s8-glow", { scale: 1, duration: 0.28, ease: ease.xf }, t + 0.22);
+      });
+      // Music bed fades out under the settled wordmark.
+      tl.to("#music", { volume: 0, duration: 1.0, ease: ease.exit }, 59.0);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
