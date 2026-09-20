@@ -1,0 +1,83 @@
+{
+  "artifact_name": "node_embeddings_jaccard.npy",
+  "description": "L2-normalized GraphSAGE-Jaccard embeddings for Phase 7 centroid retrieval",
+  "training": {
+    "method": "inline (checkpoint unrecoverable \u2014 trained from scratch by this script)",
+    "loss": "anchored InfoNCE: per-edge positive (neighbor bob) with per-edge negatives sampled without replacement from the global node pool + small off-diagonal Gram uniformity term (anti-collapse)",
+    "num_epochs": 100,
+    "learning_rate": 0.01,
+    "seed": 42,
+    "graph_threshold": 0.2,
+    "graph_k": 10,
+    "tau": 0.5,
+    "edge_dropout": 0.1,
+    "num_negatives": 64,
+    "uniform_reg_lambda": 1.0,
+    "train_loss_curve_min": 0.10940301418304443
+  },
+  "feature_construction": {
+    "accord_scale": 0.2,
+    "text_block": "L2-normalized before concatenation",
+    "feature_source": "full",
+    "feature_dim": 64
+  },
+  "source_catalog": "C:\\Users\\KIIT0001\\Documents\\antigravity skills\\Scentrix\\backend\\app\\data\\scentrix_master_cleaned.json",
+  "catalog_sha256": "53ad1d50b2f93f4e614b5b10508af45acc19a4e8bad799859fd7551b94af97f1",
+  "text_model": "all-MiniLM-L6-v2",
+  "export_timestamp": "2026-09-20T03:06:58.545778+00:00",
+  "node_count": 4559,
+  "embedding_dimension": 64,
+  "graph_threshold": 0.2,
+  "graph_k": 10,
+  "normalization": "L2 (F.normalize, p=2, dim=1)",
+  "normalization_location": "post-forward-pass, before save (replicating graphsage_wrapper.py L196)",
+  "device": "cpu",
+  "git_commit_hash": "069337d8524669a8e2090586fc82e5f0e9fcf881",
+  "reproducibility": {
+    "seed": 42,
+    "numpy_version": "1.26.4",
+    "torch_version": "2.14.0+cpu",
+    "python_version": "3.11.8",
+    "sentence_transformers_version": "6.0.1"
+  },
+  "validation": {
+    "shape": [
+      4559,
+      64
+    ],
+    "expected_shape": [
+      4559,
+      64
+    ],
+    "shape_ok": true,
+    "dtype": "float32",
+    "node_count": 4559,
+    "unique_node_count": 4559,
+    "no_duplicates": true,
+    "catalog_size_ok": true,
+    "nan_count": 0,
+    "inf_count": 0,
+    "no_nan": true,
+    "no_inf": true,
+    "l2_norm_min": 1.0,
+    "l2_norm_max": 1.0,
+    "l2_norm_mean": 1.0,
+    "rows_near_unit_norm": 4559,
+    "all_normalized": true,
+    "rounded_duplicate_rows": 0,
+    "no_rounded_duplicates": true,
+    "within_primary_similarity_median": 0.38290277123451233,
+    "cross_primary_similarity_median": -0.012036825995892286,
+    "within_primary_pairs_sampled": 2000,
+    "cross_primary_pairs_sampled": 2000,
+    "semantic_separation_ok": true,
+    "within_not_collapsed": true,
+    "isolated_node_count": 364,
+    "isolated_node_fraction": 0.07984207062952402,
+    "isolated_fraction_ok": true,
+    "all_checks_passed": true,
+    "order_invariance_max_abs_diff": 0.0,
+    "order_invariance_subsample_size": 500,
+    "order_invariance_passed": true
+  }
+}

@@ -234,7 +234,7 @@ def load_or_generate_text_embeddings(catalog, model_name=TEXT_MODEL_DEFAULT,
 
 
 # ── Step 2: Feature construction (FIX A: comparable accord + text signals) ──
-def build_features(catalog, text_embeddings, accord_scale=ACCORD_SCALE):
+def build_features(catalog, text_embeddings, accord_scale=ACCORD_SCALE, feature_source="full"):
     """Concatenate scaled primary-accord one-hot + L2-normalized text block.
 
     Old behaviour concatenated a full-magnitude (1.0) accord one-hot directly
@@ -246,6 +246,12 @@ def build_features(catalog, text_embeddings, accord_scale=ACCORD_SCALE):
     accord one-hot is scaled by ACCORD_SCALE (~0.2) and placed BEFORE it. The
     resulting feature norm is ~sqrt(1 + 0.2^2); the accord signal separates
     families while the text signal retains real within-accord structure.
+
+    ``feature_source`` selects the input-signal ablation:
+      full  = accord block + text block (the shipped artifact),
+      text  = text block only  (tests the purely semantic signal),
+      graph = accord block only (tests the purely structural signal).
+    In the graph-only case ``text_embeddings`` may be None (it is unused).
     """
     primary_accords_set, records = set(), []
     for item in catalog:
@@ -257,21 +263,34 @@ def build_features(catalog, text_embeddings, accord_scale=ACCORD_SCALE):
     accord_to_idx = {a: i for i, a in enumerate(all_accords)}
     logger.info("Accord vocabulary: %d unique primary accords", len(all_accords))
 
-    text = text_embeddings.astype(np.float32)
-    text_norms = np.linalg.norm(text, axis=1, keepdims=True)
-    text_norm = text / np.maximum(text_norms, 1e-8)
-    logger.info("Text block norms before normalize: min=%.4f max=%.4f mean=%.4f",
-                float(text_norms.min()), float(text_norms.max()), float(text_norms.mean()))
+    if text_embeddings is not None:
+        text = text_embeddings.astype(np.float32)
+        text_norms = np.linalg.norm(text, axis=1, keepdims=True)
+        text_norm = text / np.maximum(text_norms, 1e-8)
+        logger.info("Text block norms before normalize: min=%.4f max=%.4f mean=%.4f",
+                    float(text_norms.min()), float(text_norms.max()), float(text_norms.mean()))
+    else:
+        logger.info("feature_source=%s: text block unused", feature_source)
+        text_norm = None
 
     # Embeddings are regenerated in catalog order, so positional pairing replaces
     # the original embedding_index.json lookup.
     node_features_list, node_ids = [], []
-    for row, emb_norm in zip(records, text_norm, strict=True):
+    zipped = zip(records, text_norm, strict=False) if text_norm is not None else (
+        (r, None) for r in records
+    )
+    for row, emb_norm in zipped:
         accord_vec = np.zeros(len(all_accords), dtype=np.float32)
         accord = row["primary_accord"]
         if accord in accord_to_idx:
             accord_vec[accord_to_idx[accord]] = 1.0
-        node_features_list.append(np.concatenate([accord_vec * accord_scale, emb_norm]))
+        accord_block = accord_vec * accord_scale
+        if feature_source == "graph":
+            node_features_list.append(accord_block)
+        elif feature_source == "text":
+            node_features_list.append(emb_norm)
+        else:
+            node_features_list.append(np.concatenate([accord_block, emb_norm]))
         node_ids.append(row["fragrance_id"])
 
     features = np.array(node_features_list, dtype=np.float32)
@@ -687,7 +706,7 @@ def finalize_validation_results(results):
 
 # ── Step 8: Validation (FIX D — structural + semantic quality gates) ──
 def validate(embeddings, node_ids, expected_node_count=EXPECTED_CATALOG_SIZE,
-             catalog=None, edge_index=None):
+             catalog=None, edge_index=None, relaxed=False):
     """Validate embeddings; raises RuntimeError on any gate failure.
 
     Structural checks (existing): shape, dtype, no duplicates in node ids,
@@ -697,6 +716,9 @@ def validate(embeddings, node_ids, expected_node_count=EXPECTED_CATALOG_SIZE,
       - within-primary median cosine > cross-primary median, and
         within-primary median < 0.98 (structured, not collapsed);
       - isolated-node fraction < 0.25.
+
+    ``relaxed=True`` (ablation runs) logs gate failures instead of raising —
+    graph-only/text-only input ablations legitimately violate the collapse gates.
     """
     results = {}
 
@@ -756,22 +778,30 @@ def validate(embeddings, node_ids, expected_node_count=EXPECTED_CATALOG_SIZE,
             results[k] = bool(v)
 
     if not results["all_checks_passed"]:
-        raise RuntimeError("Validation FAILED — artifact not saved: " + json.dumps(results))
+        if relaxed:
+            logger.warning("Validation gates failed (relaxed mode): %s", json.dumps(results))
+        else:
+            raise RuntimeError("Validation FAILED — artifact not saved: " + json.dumps(results))
     return results
 
 
 # ── Step 9: Save artifacts (atomic os.replace to avoid torn reads) ──
 def save_artifacts(embeddings, node_ids, validation, device, source_catalog=CATALOG_PATH,
                    num_epochs=100, catalog_sha256=None, text_model=None,
-                   train_loss_curve_min=None):
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    logger.info("Output directory: %s", DATA_DIR.resolve())
+                   train_loss_curve_min=None, output_dir=None, feature_source="full"):
+    output_dir = Path(output_dir) if output_dir is not None else DATA_DIR
+    output_dir.mkdir(parents=True, exist_ok=True)
+    logger.info("Output directory: %s", output_dir.resolve())
 
-    _atomic_npy_save(OUTPUT_EMBEDDINGS_PATH, embeddings)
-    logger.info("Saved: %s (%.2f MB)", OUTPUT_EMBEDDINGS_PATH.name, embeddings.nbytes / 1024 / 1024)
+    emb_path = output_dir / OUTPUT_EMBEDDINGS_PATH.name
+    ids_path = output_dir / OUTPUT_IDS_PATH.name
+    meta_path = output_dir / OUTPUT_METADATA_PATH.name
 
-    _atomic_json_write(OUTPUT_IDS_PATH, node_ids)
-    logger.info("Saved: %s (%d ids)", OUTPUT_IDS_PATH.name, len(node_ids))
+    _atomic_npy_save(emb_path, embeddings)
+    logger.info("Saved: %s (%.2f MB)", emb_path.name, embeddings.nbytes / 1024 / 1024)
+
+    _atomic_json_write(ids_path, node_ids)
+    logger.info("Saved: %s (%d ids)", ids_path.name, len(node_ids))
 
     git_hash = "unknown"
     try:
@@ -807,6 +837,7 @@ def save_artifacts(embeddings, node_ids, validation, device, source_catalog=CATA
         "feature_construction": {
             "accord_scale": ACCORD_SCALE,
             "text_block": "L2-normalized before concatenation",
+            "feature_source": feature_source,
             "feature_dim": int(embeddings.shape[1]),
         },
         "source_catalog": str(source_catalog),
@@ -831,8 +862,8 @@ def save_artifacts(embeddings, node_ids, validation, device, source_catalog=CATA
         "validation": validation,
     }
 
-    _atomic_json_write(OUTPUT_METADATA_PATH, metadata)
-    logger.info("Saved: %s", OUTPUT_METADATA_PATH.name)
+    _atomic_json_write(meta_path, metadata)
+    logger.info("Saved: %s", meta_path.name)
     return metadata
 
 
@@ -844,6 +875,15 @@ def main():
                         help=f"SentenceTransformer model (default: {TEXT_MODEL_DEFAULT})")
     parser.add_argument("--skip-text", action="store_true",
                         help="Skip text embedding regeneration if text_embeddings.npy exists")
+    parser.add_argument("--feature-source", default="full", choices=("full", "text", "graph"),
+                        help="Input-signal ablation: full (accord+text), text only, or graph (accord only). "
+                        "graph needs no text embeddings (skips the MiniLM download).")
+    parser.add_argument("--output", type=Path, default=None,
+                        help="Optional output dir for node_embeddings_jaccard.npy + node_ids_jaccard.json. "
+                        "Defaults to backend/app/data (overwrites the shipped artifacts).")
+    parser.add_argument("--ablation", action="store_true",
+                        help="Ablation mode: graph/text-only variants legitimately violate the semantic "
+                        "collapse gates, so validation failure is logged, not fatal.")
     args = parser.parse_args()
 
     logger.info("=" * 60)
@@ -867,12 +907,16 @@ def main():
     logger.info("Catalog content sha256: %s", catalog_sha256)
 
     # Step 1: text embeddings (cached by content hash to skip the model download on re-runs)
-    text_embeddings = load_or_generate_text_embeddings(
-        catalog, model_name=args.text_model, output_path=TEXT_EMBEDDINGS_PATH, skip_text=args.skip_text)
-    logger.info("Text embeddings: shape=%s dtype=%s", text_embeddings.shape, text_embeddings.dtype)
+    if args.feature_source == "graph":
+        text_embeddings = None
+        logger.info("feature_source=graph: text embeddings not needed (no MiniLM download)")
+    else:
+        text_embeddings = load_or_generate_text_embeddings(
+            catalog, model_name=args.text_model, output_path=TEXT_EMBEDDINGS_PATH, skip_text=args.skip_text)
+        logger.info("Text embeddings: shape=%s dtype=%s", text_embeddings.shape, text_embeddings.dtype)
 
     # Step 2: features (node order = catalog order)
-    node_features, node_ids = build_features(catalog, text_embeddings)
+    node_features, node_ids = build_features(catalog, text_embeddings, feature_source=args.feature_source)
     logger.info("Model input dimension: %d", node_features.shape[1])
 
     # Step 3: Jaccard graph (both directions — undirected message passing)
@@ -889,37 +933,44 @@ def main():
     order_invariance = check_order_invariance(model, node_features, edge_index, device)
 
     validation = validate(embeddings, node_ids, expected_node_count=len(catalog),
-                          catalog=catalog, edge_index=edge_index)
+                          catalog=catalog, edge_index=edge_index, relaxed=args.ablation)
     validation.update(order_invariance)
     validation = finalize_validation_results(validation)
     if not validation["all_checks_passed"]:
-        raise RuntimeError("Validation FAILED after order-invariance self-check: " + json.dumps(validation))
+        if args.ablation:
+            logger.warning("Validation FAILED but --ablation set (expected for signal ablations): %s",
+                           json.dumps(validation))
+        else:
+            raise RuntimeError("Validation FAILED after order-invariance self-check: " + json.dumps(validation))
 
     logger.info("Validation results:")
     for key, val in validation.items():
         logger.info("  %s: %s", key, val)
 
     # Step 8: save (atomic)
+    output_dir = args.output if args.output is not None else DATA_DIR
     save_artifacts(embeddings, node_ids, validation, device,
                    source_catalog=CATALOG_PATH, num_epochs=args.epochs,
                    catalog_sha256=catalog_sha256, text_model=args.text_model,
-                   train_loss_curve_min=min(loss_curve) if loss_curve else None)
+                   train_loss_curve_min=min(loss_curve) if loss_curve else None,
+                   output_dir=output_dir, feature_source=args.feature_source)
 
     # Step 9: reload the saved artifacts and re-run validate + semantic gates on the FILE.
     logger.info("Re-loading saved artifacts for post-save validation...")
-    reloaded_embeddings = np.load(OUTPUT_EMBEDDINGS_PATH)
-    with open(OUTPUT_IDS_PATH, encoding="utf-8") as f:
+    reloaded_embeddings = np.load(output_dir / OUTPUT_EMBEDDINGS_PATH.name)
+    with open(output_dir / OUTPUT_IDS_PATH.name, encoding="utf-8") as f:
         reloaded_node_ids = json.load(f)
     post_validation = validate(reloaded_embeddings, reloaded_node_ids,
-                               expected_node_count=len(catalog), catalog=catalog, edge_index=edge_index)
+                               expected_node_count=len(catalog), catalog=catalog, edge_index=edge_index,
+                               relaxed=args.ablation)
     logger.info("Post-save validation on reloaded artifact: all_checks_passed=%s",
                 post_validation["all_checks_passed"])
 
     logger.info("=" * 60)
     logger.info("Export complete")
-    logger.info("  node_embeddings_jaccard.npy:  %s", OUTPUT_EMBEDDINGS_PATH)
-    logger.info("  node_ids_jaccard.json:        %s", OUTPUT_IDS_PATH)
-    logger.info("  metadata.json:                %s", OUTPUT_METADATA_PATH)
+    logger.info("  node_embeddings_jaccard.npy:  %s", output_dir / OUTPUT_EMBEDDINGS_PATH.name)
+    logger.info("  node_ids_jaccard.json:        %s", output_dir / OUTPUT_IDS_PATH.name)
+    logger.info("  metadata.json:                %s", output_dir / OUTPUT_METADATA_PATH.name)
     logger.info("  all_checks_passed:            %s", validation["all_checks_passed"])
     logger.info("  catalog_sha256:               %s", catalog_sha256)
     logger.info("  text_model:                   %s", args.text_model)
