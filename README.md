@@ -256,13 +256,3 @@ The backend suite (`python -m pytest tests -q` — 35 tests) covers the dispatch
 ML/training tests (`python -m pytest ml/tests -q` — 185 tests, needs `pip install -e ".[ml]"`) cover the training pipeline, embedding-validation gates, and the cold-start evaluator and its oracle. The evaluator is also isolated as pure functions so it runs without the app or a database.
 
 ---
-
-## Notes / interview angles
-
-- **Why 3 states?** Warmth is a gradient — unknown → quiz-cold → known. The earlier 5-state design added β-blends and diversity injection that complicated the code without defensible user value at this scale, so it was cut.
-- **Why precomputed embeddings?** Cold-start recommendations don't change with every request — training once offline and serving a NumPy lookup makes the API fast, dependency-free (no PyTorch at runtime), and trivially reproducible via `train.py`.
-- **Ratings are directional.** The user vector is built from centered weights `(rating − 5) / 5`, not raw the 1–10 value — a 10/10 and a 1/10 are opposites (pull *toward* / push *away*), and a neutral 5 contributes nothing. This makes cold-state personalization direction-aware with as little as one signal.
-- **Evaluation honesty.** The only metrics we can produce without real users are offline, synthetic, content-oracle-based (see "How we know it works"). Those numbers compare retrieval capability against popularity/random baselines; they are **not** evidence of real-user satisfaction, and we say so in the docs.
-- **Why no Docker?** The whole system runs on two processes (`uvicorn` + `next dev`), launched by a single `start.ps1`. Docker orchestration for one backend and one frontend was overhead, not value.
-- **Own every line.** The codebase is intentionally small and fully understood — no framework boilerplate you can't explain.
-- **Honest about the ML.** Embeddings give you "similar to what you rated"; once a user has enough ratings, interpretable feature overlap takes over. The system is honest about what each state can and can't do.
