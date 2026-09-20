@@ -96,6 +96,9 @@ interface AppState {
   userPreferences: UserPreferences;
   updateUserPreferences: (prefs: Partial<UserPreferences>) => void;
 
+  // Device-local profile management
+  resetDeviceProfile: () => void;
+
   // Recommendations
   recommendations: any[];
   setRecommendations: (recs: any[]) => void;
@@ -217,6 +220,25 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           userPreferences: { ...state.userPreferences, ...prefs },
         })),
+
+      // ── Device-local profile reset ─────────────────────────────────────
+      resetDeviceProfile: () =>
+        set({
+          quizId: null,
+          quizResponses: [],
+          currentQuizStep: 0,
+          userPreferences: {
+            gender_neutral: true,
+            preferred_families: [],
+            intensity_level: 'medium',
+            longevity_preference: 'long',
+          },
+          recommendations: [],
+          quizConfidence: null,
+          wishlist: [],
+          selectedFamily: null,
+          adaptiveQuiz: DEFAULT_ADAPTIVE_QUIZ,
+        }),
 
       // ── Recommendation actions ────────────────────────────────────────
       setRecommendations: (recs) => set({ recommendations: recs }),

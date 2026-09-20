@@ -57,6 +57,7 @@ export default function RecommendationsPage() {
   const recsQuery = useRecommendations();
   const { data: recommendations, isLoading, error, state, stateLabel, isRefetching } = recsQuery as { data: FragranceRecommendation[] | undefined, isLoading: boolean, error: any, state: number | null, stateLabel: string | null, isRefetching: boolean };
   const { quizResponses } = useAppStore();
+  const resetDeviceProfile = useAppStore((s) => s.resetDeviceProfile);
   const addToast = useToastStore((s) => s.addToast);
   const [mounted, setMounted] = useState(false);
   const [visibleCount, setVisibleCount] = useState(10);
@@ -197,6 +198,20 @@ export default function RecommendationsPage() {
             </div>
             <div className="flex gap-2">
               <button className="btn btn-primary px-8" onClick={() => router.push('/quiz')}>Take the Quiz</button>
+              {ratingCount > 0 && (
+                <button
+                  className="text-[0.6rem] uppercase tracking-widest font-bold text-white/30 hover:text-white/60 transition-colors px-2"
+                  onClick={() => {
+                    if (window.confirm('Clear your scent profile and start over?')) {
+                      resetDeviceProfile();
+                      addToast({ type: 'success', message: 'Profile cleared — starting fresh.' });
+                    }
+                  }}
+                  title="Reset your ratings, preferences and wishlist on this device"
+                >
+                  Clear profile
+                </button>
+              )}
             </div>
           </div>
         </motion.div>
