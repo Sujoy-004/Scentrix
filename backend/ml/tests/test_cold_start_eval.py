@@ -16,6 +16,7 @@ import pytest
 from ml.eval.run_cold_start_eval import (
     MAX_CANDIDATES,
     _redirect_default_runs_dir,
+    build_content_features,
     build_relevant,
     metrics_for_ranking,
     rank_popularity,
@@ -154,6 +155,7 @@ def test_seed_ids_always_excluded():
 def test_runner_determinism_same_seed():
     catalog, ids, matrix, fid2idx, counts = _synth_catalog_and_embeddings()
     relevant, families, family_members = build_relevant(catalog)
+    content_ids, cid2idx, content_matrix = build_content_features(catalog)
 
     kwargs = {
         "catalog_ids": ids,
@@ -163,6 +165,9 @@ def test_runner_determinism_same_seed():
         "fid2idx": fid2idx,
         "matrix": matrix,
         "counts": counts,
+        "content_ids": content_ids,
+        "cid2idx": cid2idx,
+        "content_matrix": content_matrix,
         "seed": 123,
         "trials": 25,
         "k_values": (1, 2),
@@ -215,6 +220,7 @@ def test_rank_scentrix_vector_is_mean_of_seeds_and_order_follows_dot_product():
 def test_all_k_values_run_and_report_sane_metrics():
     catalog, ids, matrix, fid2idx, counts = _synth_catalog_and_embeddings()
     relevant, families, family_members = build_relevant(catalog)
+    content_ids, cid2idx, content_matrix = build_content_features(catalog)
     res = run_eval_impl(
         catalog_ids=ids,
         relevant=relevant,
@@ -223,6 +229,9 @@ def test_all_k_values_run_and_report_sane_metrics():
         fid2idx=fid2idx,
         matrix=matrix,
         counts=counts,
+        content_ids=content_ids,
+        cid2idx=cid2idx,
+        content_matrix=content_matrix,
         seed=123,
         trials=12,
         k_values=(1, 2, 3, 5),

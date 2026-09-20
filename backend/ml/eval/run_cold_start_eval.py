@@ -28,10 +28,14 @@ Protocol (per k in {1,2,3,5}):
         seed set.
 
 Models (on identical trials + oracle):
-    s-centrix : user vector = mean of k seed embeddings; rank by cosine
-                (np.dot(matrix, vec)) descending; seeds excluded.
-    popularity: rank remaining by rating_count descending (stable id tie-break).
-    random    : numpy RNG permutation of remaining items.
+    s-centrix      : user vector = mean of k seed embeddings; rank by cosine
+                     (np.dot(matrix, vec)) descending; seeds excluded.
+    popularity     : rank remaining by rating_count descending (stable id tie-break).
+    random         : numpy RNG permutation of remaining items.
+    content-itemknn: pure-content ablation — mean seed profile over multi-hot
+                     notes + weighted primary accord, cosine rank. No learned
+                     embedding. Answers "do the learned embeddings beat direct
+                     content matching on the content oracle?"
 
 Metrics per model per k (averaged over trials):
     P@5, P@10, Recall@10, NDCG@10 (binary gains; IDCG over top-10 relevant cap).
@@ -57,10 +61,12 @@ MAX_CANDIDATES = 10
 KS = (1, 2, 3, 5)
 SCORE_KS = (5, 10)
 FINAL_METRICS = ("P@5", "P@10", "R@10", "NDCG@10")
-MODEL_ORDER = ("s-centrix", "popularity", "random")
+MODEL_ORDER = ("s-centrix", "popularity", "random", "content-itemknn")
 BOOTSTRAP_RESAMPLES = 1000
 BOOTSTRAP_ALPHA = 0.05
 NOTE_JACCARD_THRESHOLD = 0.20
+# Weight placed on the primary-accord term in the pure-content baseline vector.
+CONTENT_ACCORD_WEIGHT = 2.0
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CATALOG = REPO_ROOT / "backend" / "app" / "data" / "scentrix_master_cleaned.json"
@@ -226,6 +232,49 @@ def _load_json(path: Path) -> list[dict]:
         return json.load(fh)
 
 
+def build_content_features(catalog: list[dict]):
+    """Pure content profile per item: multi-hot notes + weighted primary accord.
+
+    This is the "dumb content recommender" ablation. No learned embeddings,
+    no training — just cosine similarity between a mean-of-seeds content
+    profile and each candidate's content profile. If a catalog-derived cosine
+    baseline matches or beats the GraphSAGE user vector on the content oracle,
+    that is a strong hint the learned embeddings mainly rediscover content
+    similarity, and their marginal value must be proven on real behavioral
+    data instead (the honest story we report).
+
+    Feature vector: one dimension per note term (across top/middle/base) with
+    weight 1.0 if present, plus the primary-accord term with
+    ``CONTENT_ACCORD_WEIGHT``. Rows are L2-normalized for cosine.
+    """
+    vocab: set[str] = set()
+    rows: dict[str, dict[str, float]] = {}
+    for item in catalog:
+        fid = str(item.get("id", ""))
+        if not fid:
+            continue
+        terms: dict[str, float] = {}
+        for n in note_set(item):
+            terms[n] = 1.0
+        pa = primary_accord(item)
+        if pa:
+            terms[pa] = CONTENT_ACCORD_WEIGHT
+        rows[fid] = terms
+        vocab.update(terms)
+
+    vlist = sorted(vocab)
+    vidx = {v: i for i, v in enumerate(vlist)}
+    matrix = np.zeros((len(rows), len(vlist)), dtype=np.float64)
+    ids: list[str] = []
+    for i, (fid, terms) in enumerate(rows.items()):
+        for v, w in terms.items():
+            matrix[i, vidx[v]] = w
+        ids.append(fid)
+    norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+    matrix /= np.maximum(norms, 1e-8)
+    return ids, {fid: i for i, fid in enumerate(ids)}, matrix
+
+
 def load_artifacts(artifacts_dir: Path):
     """Load snapshot node ids + embedding matrix."""
     ids_path = artifacts_dir / "node_ids_jaccard.json"
@@ -278,6 +327,17 @@ def rank_popularity(pool: list[str], counts: dict[str, float]) -> list[str]:
     return rank_by_score(pool, counts)
 
 
+def rank_content(pool: list[str], content_ids: list[str], cid2idx: dict, content_matrix, seed_ids: list[str]):
+    """Mean-seed content profile cosine rank (pure content ItemKNN baseline)."""
+    vec = content_matrix[[cid2idx[s] for s in seed_ids]].mean(axis=0)
+    norm = float(np.linalg.norm(vec))
+    if norm <= 0.0:
+        return rank_random(pool, np.random.default_rng(0))
+    sims = content_matrix @ (vec / norm)
+    scores = {fid: float(sims[cid2idx[fid]]) for fid in pool}
+    return rank_by_score(pool, scores), scores
+
+
 def rank_random(pool: list[str], rng: np.random.Generator) -> list[str]:
     perm = rng.permutation(len(pool))
     return [pool[i] for i in perm.tolist()][:MAX_CANDIDATES]
@@ -294,6 +354,9 @@ def run_eval_impl(
     fid2idx: dict,
     matrix: np.ndarray,
     counts: dict[str, float],
+    content_ids: list[str],
+    cid2idx: dict,
+    content_matrix: np.ndarray,
     seed: int,
     trials: int,
     k_values=KS,
@@ -307,6 +370,7 @@ def run_eval_impl(
         model: {k: {m: [] for m in FINAL_METRICS} for k in k_list} for model in MODEL_ORDER
     }
     win_by_k = {k: [] for k in k_list}
+    win_content_by_k = {k: [] for k in k_list}
     family_usage = {k: defaultdict(int) for k in k_list}
 
     for k in k_list:
@@ -342,10 +406,14 @@ def run_eval_impl(
             sc_ranked, sc_scores = rank_scentrix(pool, matrix, fid2idx, seed_ids)
             pop_ranked = rank_popularity(pool, counts)
             rnd_ranked = rank_random(pool, rng)
+            content_ranked, _content_scores = rank_content(
+                pool, content_ids, cid2idx, content_matrix, seed_ids
+            )
             ranked_by_model = {
                 "s-centrix": sc_ranked,
                 "popularity": pop_ranked,
                 "random": rnd_ranked,
+                "content-itemknn": content_ranked,
             }
 
             available = len(pool)
@@ -366,20 +434,30 @@ def run_eval_impl(
             res_sc = metrics_for_ranking(sc_ranked, hit_ids, r_total)
             res_pop = metrics_for_ranking(pop_ranked, hit_ids, r_total)
             res_rnd = metrics_for_ranking(rnd_ranked, hit_ids, r_total)
+            res_content = metrics_for_ranking(content_ranked, hit_ids, r_total)
             for model, res in (
                 ("s-centrix", res_sc),
                 ("popularity", res_pop),
                 ("random", res_rnd),
+                ("content-itemknn", res_content),
             ):
                 for m in FINAL_METRICS:
                     metrics_internal[model][k][m].append(res[m])
             win_by_k[k].append(1.0 if res_sc["R@10"] > res_pop["R@10"] else 0.0)
+            win_content_by_k[k].append(
+                1.0 if res_sc["R@10"] > res_content["R@10"] else 0.0
+            )
 
     # ------------------------------------------------------------------------- #
     # Aggregate + bootstrap CIs
     # ------------------------------------------------------------------------- #
     bc_rng = np.random.default_rng(seed + 1)
-    results: dict = {"metrics": {}, "win_rate_vs_popularity_recall10": {}, "diagnostics": {}}
+    results: dict = {
+        "metrics": {},
+        "win_rate_vs_popularity_recall10": {},
+        "win_rate_vs_content_recall10": {},
+        "diagnostics": {},
+    }
     for model in MODEL_ORDER:
         per_model = {}
         for k in k_list:
@@ -399,6 +477,9 @@ def run_eval_impl(
         arr = win_by_k[k]
         assert len(arr) == trials, f"win-rate sample count mismatch for k={k}"
         results["win_rate_vs_popularity_recall10"][str(k)] = float(np.mean(arr))
+        arr_c = win_content_by_k[k]
+        assert len(arr_c) == trials, f"content win-rate sample count mismatch for k={k}"
+        results["win_rate_vs_content_recall10"][str(k)] = float(np.mean(arr_c))
 
     results["diagnostics"]["trials_completed"] = {str(k): trials for k in k_list}
     results["diagnostics"]["family_usage_counts"] = {
@@ -422,6 +503,7 @@ def run_eval(
     ids, fid2idx, matrix = load_artifacts(artifacts_dir)
     relevant, families, family_members = build_relevant(catalog)
     counts = rating_counts(catalog)
+    content_ids, cid2idx, content_matrix = build_content_features(catalog)
 
     node_index = set(ids)
     catalog_ids = [item["id"] for item in catalog if item["id"] in node_index]
@@ -434,6 +516,9 @@ def run_eval(
         fid2idx=fid2idx,
         matrix=matrix,
         counts=counts,
+        content_ids=content_ids,
+        cid2idx=cid2idx,
+        content_matrix=content_matrix,
         seed=seed,
         trials=trials,
         k_values=k_values,
@@ -490,6 +575,17 @@ def render_report(results: dict) -> str:
     lines.append(
         "Win-rate vs popularity (R@10): "
         + " ".join(f"k={k}={wr[str(k)]:.4f}" for k in proto["k_values"])
+    )
+    wc = results["win_rate_vs_content_recall10"]
+    lines.append(
+        "Win-rate vs content-itemknn (R@10): "
+        + " ".join(f"k={k}={wc[str(k)]:.4f}" for k in proto["k_values"])
+    )
+    lines.append(
+        "Note: content-itemknn is a pure content baseline (multi-hot notes + weighted "
+        "primary accord, cosine). It shares features with the oracle, so a win-rate near "
+        "0.5 for s-centrix would mean the learned embeddings add little over direct "
+        "content matching on this intrinsic proxy."
     )
     return "\n".join(lines)
 
