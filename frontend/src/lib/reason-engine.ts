@@ -42,17 +42,22 @@ function describeProfile(quizResponses: QuizResponse[]): string {
 }
 
 export function computeReason(
-  frag: { id: string; top_notes?: string[]; top_accords?: string[]; match_score?: number; reason?: string; name?: string },
+  frag: { id: string; top_notes?: string[]; top_accords?: string[]; match_score?: number; reason?: string; explanation?: string | null; name?: string },
   quizResponses: QuizResponse[],
 ): string | null {
-  if (!quizResponses || quizResponses.length === 0) {
-    return frag.reason || null;
-  }
-
-  // Priority 1: Direct match — user rated this exact fragrance
+  // Priority 0: Direct match — user rated this exact fragrance
   const directMatch = quizResponses.find((r) => r.fragrance_id === frag.id);
   if (directMatch) {
     return `You rated this ${directMatch.rating}/10`;
+  }
+
+  // Priority 1: Server-side explanation (whole-profile knowledge) wins.
+  if (frag.explanation) {
+    return frag.explanation;
+  }
+
+  if (!quizResponses || quizResponses.length === 0) {
+    return frag.reason || null;
   }
 
   const fragNotes = normalizeNotes(frag.top_notes);

@@ -320,6 +320,7 @@ class FragranceRecommendation(BaseModel):
     brand: str = ""
     match_score: float = 0.0
     reason: str = ""
+    explanation: str | None = None
     source: str = "unknown"
     top_accords: list[str] = []
     top_notes: list[str] = []

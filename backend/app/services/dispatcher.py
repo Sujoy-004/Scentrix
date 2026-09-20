@@ -56,18 +56,56 @@ def _rating_pairs(ratings: list[Any]) -> list[tuple[str, float]]:
     return pairs
 
 
+def _title_list(names: list[str]) -> str:
+    return ", ".join(str(n).replace("_", " ").title() for n in names[:2])
+
+
 def _hydrate_knn(
     knn_items: list[dict[str, float]],
     catalog_map: dict[str, dict[str, Any]],
     reason: str = "Discovered for you",
+    pairs: list[tuple[str, float]] | None = None,
 ) -> list[dict[str, Any]]:
-    """Convert bare {id, score} KNN results into the 7-field response shape."""
+    """Convert bare {id, score} KNN results into the 7-field response shape.
+
+    When *pairs* is given, per-item ``explanation`` is grounded in the
+    highest-rated seed fragrance that shares accords/notes with the candidate.
+    """
+    positive_seeds = [
+        (fid, rating)
+        for fid, rating in (pairs or [])
+        if rating > 5.0
+    ]
     results: list[dict[str, Any]] = []
     for item in knn_items:
         cat = catalog_map.get(str(item["id"]))
         if cat is None:
             continue
         score = float(item.get("score", 0.0))
+        explanation = None
+        if positive_seeds:
+            item_accords = set(cat.get("accords", []))
+            item_notes = set(cat.get("top_notes", []))
+            for fid, rating in sorted(positive_seeds, key=lambda p: -p[1]):
+                seed = catalog_map.get(fid)
+                if seed is None:
+                    continue
+                shared_accords = item_accords & set(seed.get("accords", []))
+                if shared_accords:
+                    explanation = (
+                        f"Shares {_title_list(sorted(shared_accords))} with "
+                        f"{seed.get('name', fid)}, which you rated {rating:.0f}/10."
+                    )
+                    break
+                shared_notes = item_notes & set(seed.get("top_notes", []))
+                if shared_notes:
+                    explanation = (
+                        f"Shares {_title_list(sorted(shared_notes))} with "
+                        f"{seed.get('name', fid)}, which you rated {rating:.0f}/10."
+                    )
+                    break
+            if explanation is None:
+                explanation = "Closest match in embedding space to your highest-rated scents."
         results.append(
             {
                 "id": str(item["id"]),
@@ -75,6 +113,7 @@ def _hydrate_knn(
                 "brand": cat.get("brand", ""),
                 "match_score": round(min(100.0, max(0.0, (score + 1.0) / 2.0 * 100.0)), 1),
                 "reason": reason,
+                "explanation": explanation,
                 "top_accords": cat.get("accords", [])[:3],
                 "top_notes": cat.get("top_notes", [])[:3],
             }
@@ -170,7 +209,7 @@ class RecommendationDispatcher:
         user_vector = self._gs_service.compute_user_vector(pairs)
         exclude_ids = [fid for fid, _ in pairs]
         knn = self._gs_service.knn_search(user_vector, top_k=200, exclude_ids=exclude_ids)
-        return _hydrate_knn(knn, catalog_map)[:candidate_count]
+        return _hydrate_knn(knn, catalog_map, pairs=pairs)[:candidate_count]
 
 
 # Module-level singleton.

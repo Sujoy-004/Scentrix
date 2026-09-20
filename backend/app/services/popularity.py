@@ -42,6 +42,7 @@ class PopularityService:
                 "brand": item["brand"],
                 "match_score": 50.0,
                 "reason": "Popular Choice",
+                "explanation": "The most-loved scents in the catalog right now.",
                 "top_accords": item.get("accords", [])[:3],
                 "top_notes": item.get("top_notes", [])[:3],
             }

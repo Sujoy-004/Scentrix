@@ -317,12 +317,39 @@ class FeatureBasedService:
                     "brand": item["brand"],
                     "match_score": round(score * 100, 1),
                     "reason": reason,
+                    "explanation": self._explain_item(item, target_accords, target_notes,
+                                                      negative_accords, negative_notes),
                     "top_accords": item.get("accords", [])[:3],
                     "top_notes": item.get("top_notes", [])[:3],
                 }
             )
 
         return results
+
+    @staticmethod
+    def _titles(names: list[str]) -> str:
+        return ", ".join(str(n).replace("_", " ").title() for n in names[:3])
+
+    @classmethod
+    def _explain_item(cls, item, target_accords, target_notes, negative_accords, negative_notes):
+        """Human-readable 'why' from the profile overlap actually scored."""
+        item_accords: set[str] = item.get("_accords_set", set())
+        item_notes: set[str] = item.get("_notes_set", set())
+        considered_accords = target_accords if isinstance(target_accords, set) else set(target_accords)
+        considered_notes = target_notes if isinstance(target_notes, set) else set(target_notes)
+        hit_accords = sorted(considered_accords & item_accords)
+        hit_notes = sorted(considered_notes & item_notes)
+        parts: list[str] = []
+        if hit_accords:
+            parts.append(f"matches your top accords ({cls._titles(hit_accords)})")
+        if hit_notes:
+            parts.append(f"overlaps the notes you like ({cls._titles(hit_notes)})")
+        neg_hits = sorted(set(negative_accords or []) & item_accords)
+        neg_hits += [n for n in sorted(set(negative_notes or []) & item_notes) if n not in neg_hits]
+        if neg_hits:
+            parts.append(f"paces itself around {cls._titles(neg_hits)}, which you rated low")
+        return (parts[0].capitalize() + ("; " + parts[1] if len(parts) > 1 else "")
+                + ("." if parts else "A strong rule-based overlap with your scent profile."))
 
     # ------------------------------------------------------------------
     # Cold-start popularity fallback (identical to hybrid_search lines 363-377)
@@ -337,6 +364,7 @@ class FeatureBasedService:
                 "brand": item["brand"],
                 "match_score": 50.0,
                 "reason": "Popular Choice",
+                "explanation": "The most-loved scents in the catalog right now.",
                 "top_accords": item.get("accords", [])[:3],
                 "top_notes": item.get("top_notes", [])[:3],
             }
