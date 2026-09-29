@@ -61,7 +61,7 @@
   border: 1px solid rgba(244, 187, 146, 0.2);
   border-radius: var(--radius-full);
   font-family: var(--font-body);
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -108,7 +108,8 @@
 
 .hero-title-sub {
   font-style: italic;
-  font-size: 1.05em;
+  /* was font-size: 1.05em — a stray em-multiplier off a clamp() parent, which
+     produced a second fluid size (97.4px) that exists nowhere in the scale. */
   background: linear-gradient(135deg, #f4bb92, #e4c285);
   -webkit-background-clip: text;
   background-clip: text;
@@ -196,7 +197,7 @@
 }
 
 .scroll-text {
-  font-size: 0.62rem;
+  font-size: var(--fs-xs);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--color-muted);
@@ -211,8 +212,8 @@
 
 .hero-subtitle {
   font-family: var(--font-body);
-  font-size: 1.1rem;
-  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--fs-md);
+  color: var(--text-primary);
   max-width: 650px;
   line-height: 1.6;
   margin: 0 auto 3rem auto;
@@ -244,11 +245,19 @@
   z-index: 10;
 }
 
+/* The hero video runs behind these, so the figure needs an opaque plate.
+   A text-shadow alone can't separate 32px glyphs from bottle detail.
+   No backdrop-filter: the build drops the unprefixed property, so it never
+   applied here. The solid plate does the whole job. */
 .indicator {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  padding: 1.5rem 2rem;
+  border-radius: var(--radius-lg);
+  background: rgba(8, 7, 7, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   transition: all var(--transition-base);
 }
 
@@ -258,7 +267,7 @@
 
 .indicator-value {
   font-family: var(--font-display);
-  font-size: 2.2rem;
+  font-size: var(--fs-2xl);
   font-weight: 400;
   font-style: italic;
   color: #fff;
@@ -266,14 +275,18 @@
   text-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
 }
 
+/* Sentence case: these run up to 20 chars ("Critics & Collectors").
+   All-caps + wide tracking is only legible on labels of ~4 chars or fewer. */
 .indicator-label {
   font-family: var(--font-body);
-  font-size: 0.65rem;
-  color: #f4bb92;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  opacity: 0.8;
+  font-size: var(--fs-xs);
+  color: var(--color-primary);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  opacity: 0.9;
 }
 
 .stat-item-icon {
@@ -317,7 +330,7 @@
 }
 
 .feature-icon {
-  font-size: 2.2rem;
+  font-size: var(--fs-2xl);
   display: block;
   filter: drop-shadow(0 0 16px rgba(244, 187, 146, 0.3));
 }
@@ -333,7 +346,7 @@
 
 .feature-description {
   font-family: var(--font-body);
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   color: var(--color-on-surface-var);
   line-height: var(--line-height-relaxed);
   margin: 0;
@@ -397,7 +410,7 @@
 
 .frag-card-brand {
   font-family: var(--font-body);
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -521,7 +534,7 @@
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   font-family: var(--font-body);
   box-shadow: 0 4px 16px rgba(244, 187, 146, 0.3);
   z-index: 10;
@@ -538,7 +551,7 @@
 
 .step-heading {
   font-family: var(--font-display);
-  font-size: 1.2rem;
+  font-size: var(--fs-lg);
   font-style: italic;
   color: var(--color-on-surface);
   margin: 0 0 var(--space-3) 0;
@@ -546,7 +559,7 @@
 }
 
 .step-description {
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   color: var(--color-on-surface-var);
   line-height: var(--line-height-relaxed);
   margin: 0;
@@ -1126,7 +1139,7 @@
   border-radius: var(--radius-full);
   border: 1px solid rgba(244,187,146,0.2);
   font-family: var(--font-body);
-  font-size: 0.68rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--color-secondary);
@@ -1150,7 +1163,7 @@
 
 .cloud-brand {
   font-family: var(--font-body);
-  font-size: 0.65rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -1160,7 +1173,7 @@
 
 .cloud-name {
   font-family: var(--font-display);
-  font-size: 1.2rem;
+  font-size: var(--fs-lg);
   font-style: italic;
   font-weight: 400;
   color: var(--color-on-surface);
@@ -1196,7 +1209,7 @@
 
 .cloud-reviews {
   font-family: var(--font-body);
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   color: var(--color-muted);
 }
 
@@ -1206,7 +1219,7 @@
   border: 1px solid;
   border-radius: var(--radius-full);
   font-family: var(--font-body);
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.04em;
   cursor: pointer;
@@ -1237,7 +1250,7 @@
 
 .fragrance-content .fragrance-brand {
   font-family: var(--font-body);
-  font-size: 0.68rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -1286,7 +1299,7 @@
 
 .match-label {
   font-family: var(--font-body);
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1295,7 +1308,7 @@
 
 .match-score {
   font-family: var(--font-display);
-  font-size: 1.1rem;
+  font-size: var(--fs-md);
   color: var(--color-primary);
   font-weight: 400;
 }
@@ -1359,7 +1372,7 @@
 }
 
 .final-cta-subtitle {
-  font-size: 1.1rem;
+  font-size: var(--fs-md);
   color: var(--color-on-surface-var);
   max-width: 500px;
   margin: 0 auto var(--space-10) auto;
@@ -1430,7 +1443,7 @@
   border: none;
   border-radius: var(--radius-full);
   font-family: var(--font-body);
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1484,7 +1497,7 @@
   background: rgba(244, 187, 146, 0.1);
   border: 1px solid rgba(244, 187, 146, 0.2);
   border-radius: 50%;
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   color: var(--color-primary);
   flex-shrink: 0;
 }
@@ -1771,7 +1784,7 @@
 
 .stat-label {
   font-family: var(--font-label);
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   text-transform: uppercase;
   letter-spacing: 0.2em;
   color: var(--color-on-surface-var);
@@ -1832,7 +1845,7 @@
 .testimonial-text {
   font-family: var(--font-serif);
   font-style: italic;
-  font-size: 1.2rem;
+  font-size: var(--fs-lg);
   line-height: 1.7;
   color: var(--color-on-surface);
   margin-bottom: var(--space-8);

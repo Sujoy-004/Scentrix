@@ -34,7 +34,7 @@
   top: 1.5rem;
   right: 2rem;
   font-family: var(--font-display);
-  font-size: 4rem;
+  font-size: var(--fs-4xl);
   font-weight: 300;
   font-style: italic;
   color: rgba(244, 187, 146, 0.25); /* More visible number */
@@ -62,7 +62,7 @@
   position: relative;
   z-index: 1;
   font-family: var(--font-display);
-  font-size: 1.75rem;
+  font-size: var(--fs-2xl);
   font-style: italic;
   font-weight: 400;
   color: #fff;
@@ -73,9 +73,9 @@
   position: relative;
   z-index: 1;
   font-family: var(--font-body);
-  font-size: 0.95rem;
+  font-size: var(--fs-sm);
   line-height: 1.7;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
   max-width: 90%;
 }
 
