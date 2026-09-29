@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { getFamilyAsset } from '@/lib/family-mapping';
 import { FAMILIES } from '@/lib/families';
@@ -54,41 +55,45 @@ export function FragranceFamilies() {
               key={family.slug}
               variants={cardVariants}
               className="elite-family-card"
-              onClick={() => router.push(`/families/${family.slug}`)}
             >
-              <div className="family-image-container">
-                {(() => {
-                  const asset = getFamilyAsset(family.slug);
-                  if (asset.error) {
+              {/* A real <Link>, not a div with onClick: gives it an href (cmd-click,
+                  middle-click, crawlable), keyboard focus, Enter, and an accessible
+                  name from the heading. The div was role-less and tabindex-less. */}
+              <Link href={`/families/${family.slug}`} className="elite-family-card__link">
+                <div className="family-image-container">
+                  {(() => {
+                    const asset = getFamilyAsset(family.slug);
+                    if (asset.error) {
+                      return (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                          <span className="text-[var(--fs-xs)] text-[#f4bb92]/50 italic">{asset.error}</span>
+                        </div>
+                      );
+                    }
                     return (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                        <span className="text-[10px] text-[#f4bb92]/50 italic">{asset.error}</span>
-                      </div>
+                      <img 
+                        src={asset.src!} 
+                        alt="" 
+                        className="family-image"
+                        loading="lazy"
+                      />
                     );
-                  }
-                  return (
-                    <img 
-                      src={asset.src!} 
-                      alt={family.name} 
-                      className="family-image"
-                      loading="lazy"
-                    />
-                  );
-                })()}
-                <div className="family-overlay" />
-              </div>
-              
-              <div className="family-content">
-                <h3 className="family-name">
-                  {family.name}
-                </h3>
-                <p className="family-desc">
-                  {family.tagline}
-                </p>
-                <div className="explore-trigger">
-                  <span className="explore-text">Explore Collection</span>
+                  })()}
+                  <div className="family-overlay" />
                 </div>
-              </div>
+                
+                <div className="family-content">
+                  <h3 className="family-name">
+                    {family.name}
+                  </h3>
+                  <p className="family-desc">
+                    {family.tagline}
+                  </p>
+                  <div className="explore-trigger">
+                    <span className="explore-text">Explore Collection</span>
+                  </div>
+                </div>
+              </Link>
             </motion.div>
           ))}
         </motion.div>
@@ -102,7 +107,7 @@ export function FragranceFamilies() {
           <motion.button
             whileHover={{ scale: 1.05, y: -4 }}
             whileTap={{ scale: 0.95 }}
-            className="btn btn-outline border-primary/30 text-primary px-12 py-5 text-xs tracking-[0.3em] font-bold"
+            className="btn btn-primary px-12 py-5 text-sm tracking-[0.15em]"
             onClick={() => router.push('/families')}
           >
             Explore More
