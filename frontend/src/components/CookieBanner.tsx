@@ -1,16 +1,37 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, type CSSProperties } from 'react';
 
 const COOKIE_KEY = 'scentrix_cookie_consent';
 
 type ConsentState = 'accepted' | 'declined' | 'customized' | null;
+
+/* All three choices share one visual treatment. They used to be a filled
+   amber gradient ("Accept All") beside a faint grey text button ("Decline"),
+   which steered people to the default. Equal weight, equal cost. */
+const CHOICE_BTN: CSSProperties = {
+  flex: 1,
+  minWidth: '140px',
+  padding: '10px 20px',
+  background: 'transparent',
+  color: '#f4bb92',
+  border: '1px solid rgba(244,187,146,0.5)',
+  borderRadius: '9999px',
+  fontFamily: 'var(--font-body), serif',
+  fontSize: '0.78rem',
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  cursor: 'pointer',
+  transition: 'background 0.2s, border-color 0.2s',
+};
 
 export default function CookieBanner() {
   const [visible, setVisible] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [analytics, setAnalytics] = useState(true);
   const [marketing, setMarketing] = useState(false);
+  const bannerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Only show if no decision has been stored
@@ -34,13 +55,23 @@ export default function CookieBanner() {
     setVisible(false);
   };
 
+  // Move focus to the banner when it appears, so keyboard and AT users are
+  // taken to it instead of having it silently appear below the fold.
+  useEffect(() => {
+    if (visible) bannerRef.current?.focus();
+  }, [visible]);
+
   if (!visible) return null;
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Cookie consent banner"
+      /* Not aria-modal. The page behind stays scrollable and interactive, so
+         claiming modality told AT that everything else was inert when it isn't.
+         That made the page unusable for screen-reader users. */
+      role="region"
+      aria-label="Cookie consent"
+      tabIndex={-1}
+      ref={bannerRef}
       id="cookie-consent-banner"
       style={{
         position: 'fixed',
@@ -178,25 +209,9 @@ export default function CookieBanner() {
         <button
           id="cookie-accept-all"
           onClick={() => save('accepted', { analytics: true, marketing: true })}
-          style={{
-            flex: 1,
-            minWidth: '140px',
-            padding: '10px 20px',
-            background: 'linear-gradient(135deg,#f4bb92,#8b5e3c)',
-            color: '#4a280a',
-            border: 'none',
-            borderRadius: '9999px',
-            fontFamily: 'var(--font-body), serif',
-            fontSize: '0.78rem',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            boxShadow: '0 4px 16px rgba(244,187,146,0.2)',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-1px)')}
-          onMouseLeave={e => (e.currentTarget.style.transform = '')}
+          style={CHOICE_BTN}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(244,187,146,0.1)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
           Accept All
         </button>
@@ -205,22 +220,7 @@ export default function CookieBanner() {
           <button
             id="cookie-save-prefs"
             onClick={() => save('customized', { analytics, marketing })}
-            style={{
-              flex: 1,
-              minWidth: '140px',
-              padding: '10px 20px',
-              background: 'transparent',
-              color: '#f4bb92',
-              border: '1px solid rgba(244,187,146,0.35)',
-              borderRadius: '9999px',
-              fontFamily: 'var(--font-body), serif',
-              fontSize: '0.78rem',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
+            style={CHOICE_BTN}
           >
             Save Preferences
           </button>
@@ -228,22 +228,7 @@ export default function CookieBanner() {
           <button
             id="cookie-customize"
             onClick={() => setShowDetails(true)}
-            style={{
-              flex: 1,
-              minWidth: '140px',
-              padding: '10px 20px',
-              background: 'transparent',
-              color: '#d5c3b8',
-              border: '1px solid rgba(244,187,146,0.12)',
-              borderRadius: '9999px',
-              fontFamily: 'var(--font-body), serif',
-              fontSize: '0.78rem',
-              fontWeight: 500,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
+            style={CHOICE_BTN}
           >
             Customize
           </button>
@@ -252,18 +237,7 @@ export default function CookieBanner() {
         <button
           id="cookie-decline"
           onClick={() => save('declined', { analytics: false, marketing: false })}
-          style={{
-            padding: '10px 16px',
-            background: 'transparent',
-            color: '#9e8e84',
-            border: '1px solid rgba(158,142,132,0.15)',
-            borderRadius: '9999px',
-            fontFamily: 'var(--font-body), serif',
-            fontSize: '0.78rem',
-            fontWeight: 500,
-            cursor: 'pointer',
-            transition: 'color 0.15s',
-          }}
+          style={CHOICE_BTN}
         >
           Decline
         </button>
