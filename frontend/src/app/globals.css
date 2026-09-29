@@ -28,12 +28,18 @@
 
   /* ── Text Colors ── */
   --color-on-surface:       #ffffff;  /* Ultra White */
-  --color-on-surface-var:   #f5f5f5;  /* Off-white Contrast */
+  --color-on-surface-var:   #f6ede6;  /* Off-white — the ONE off-white */
   --color-on-primary:       #4a280a;  /* Text on amber */
   --color-on-secondary:     #412d00;  /* Text on gold */
   --color-muted:            #9e8e84;  /* Muted text */
   --color-outline:          #51443c;  /* Ghost borders (15% opacity only) */
   --color-surface-tint:     #f4bb92;
+
+  /* Text tiers — the ONLY three white-alpha steps allowed.
+     Replaces the free-for-all rgba(255,255,255,0.2|0.3|0.4|0.5|0.6|0.7). */
+  --text-primary:           rgba(255, 255, 255, 0.92); /* body + headings */
+  --text-secondary:         rgba(255, 255, 255, 0.62); /* secondary copy */
+  --text-muted:             rgba(255, 255, 255, 0.38); /* labels over imagery */
 
   /* ── Note Pill Colors ── */
   --note-top-bg:            rgba(244, 187, 146, 0.15);
@@ -50,6 +56,24 @@
   --font-display:           var(--font-cormorant), Georgia, serif;
   --font-body:              var(--font-cormorant), Georgia, serif;
   --font-label:             var(--font-cormorant), Georgia, serif;
+
+  /* ── Type Scale — the ONLY font sizes allowed in the UI.
+     Need a new size? Add a step here first, then reference the token.
+
+     Namespaced --fs-*, NOT --text-*: Tailwind v4 owns the --text-xs/sm/lg/…
+     namespace for its own font-size utilities. Declaring them here loses the
+     cascade to Tailwind's defaults, so the values below silently did nothing
+     (--text-2xl resolved to Tailwind's 24px, not 32px). Keep this namespace. ── */
+  --fs-xs:    0.75rem;                  /* 12px — labels/badges. Nothing smaller. */
+  --fs-sm:    0.875rem;                 /* 14px — small body */
+  --fs-base:  1rem;                     /* 16px — body */
+  --fs-md:    1.125rem;                 /* 18px — lead */
+  --fs-lg:    1.25rem;                  /* 20px — card titles */
+  --fs-xl:    1.5rem;                   /* 24px */
+  --fs-2xl:   2rem;                     /* 32px — section titles */
+  --fs-3xl:   3rem;                     /* 48px — stat figures */
+  --fs-4xl:   3.5rem;                   /* 56px */
+  --fs-5xl:   clamp(3.5rem, 6vw, 6rem); /* display */
 
   /* ── Spacing Scale ── */
   --space-1:  0.25rem;
