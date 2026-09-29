@@ -44,23 +44,23 @@ export function RatingControls({ target, scaleHint = true }: { target: RatingTar
   return (
     <div className="rating-controls" onClick={(e) => e.stopPropagation()}>
       {scaleHint && (
-        <p className="text-[9px] uppercase tracking-widest text-white/35 mb-2">
-          1–10 scale · 1–4 Dislike · 5 Neutral · 6–10 Like
+        <p className="rec-text-dim rec-fs-xs mb-2">
+          Rate 1–10 · 1–4 dislike, 5 neutral, 6–10 like
         </p>
       )}
-      <div className="flex gap-2">
+      <div
+        className="flex gap-2"
+        role="group"
+        aria-label={`Rate ${target.name || 'this fragrance'} from 1 to 10`}
+      >
         {RATING_OPTIONS.map(({ label, value, range }) => (
           <button
             key={value}
             onClick={(e) => handleSelectRating(e, value)}
-            className={`flex-1 text-[10px] font-bold uppercase tracking-wider px-2 py-2 rounded-lg border transition-colors ${
-              currentRating === value
-                ? 'bg-amber-500/20 border-amber-500/40 text-amber-200'
-                : 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10'
-            }`}
+            className="rating-option"
             aria-pressed={currentRating === value}
           >
-            {label} ({range})
+            {label} <span className="rec-text-dim">({range})</span>
           </button>
         ))}
       </div>

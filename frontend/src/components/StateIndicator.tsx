@@ -5,7 +5,6 @@ import { Sparkles, Brain, Layers } from 'lucide-react';
 
 interface StateIndicatorProps {
   state: number | null;
-  stateLabel: string | null;
   ratingCount?: number;
 }
 
@@ -18,26 +17,26 @@ const STATE_CONFIG: Record<number, {
   icon: 'sparkles' | 'brain' | 'layers';
 }> = {
   0: {
-    label: 'Anonymous',
-    description: 'Browsing popular scents chosen by our community.',
-    strategy: 'Popularity-based ranking',
-    nextAction: 'Complete the Discovery Protocol to initialize your neural profile.',
+    label: 'Just browsing',
+    description: 'These are the scents our community loves right now.',
+    strategy: 'Ordered by overall popularity.',
+    nextAction: 'Take the quiz to see picks matched to your own taste.',
     progressTarget: null,
     icon: 'sparkles',
   },
   1: {
-    label: 'Quiz User',
-    description: 'Your neural profile is initialized based on your quiz responses.',
-    strategy: 'GraphSAGE neural graph — centroid-based KNN search',
-    nextAction: 'Rate a fragrance recommendation to begin hybrid personalization.',
+    label: 'Profile ready',
+    description: 'Your scent profile is built from your quiz answers.',
+    strategy: 'Matched to the notes and families you chose.',
+    nextAction: 'Rate a fragrance to sharpen your recommendations.',
     progressTarget: 1,
     icon: 'brain',
   },
   2: {
-    label: 'Warm',
-    description: 'Feature-based matches refined from your rated scents.',
-    strategy: 'Feature-based scoring with accord confidence weights',
-    nextAction: 'Keep rating to further refine your profile.',
+    label: 'Learning your taste',
+    description: 'These picks now learn from every scent you rate.',
+    strategy: 'Weighted by the notes and families you enjoy most.',
+    nextAction: 'Keep rating to keep refining your matches.',
     progressTarget: null,
     icon: 'layers',
   },
@@ -49,7 +48,7 @@ const iconMap = {
   layers: Layers,
 };
 
-export default function StateIndicator({ state, stateLabel, ratingCount = 0 }: StateIndicatorProps) {
+export default function StateIndicator({ state, ratingCount = 0 }: StateIndicatorProps) {
   if (state === null || state === undefined || state < 0 || state > 2) {
     return null;
   }
@@ -68,29 +67,31 @@ export default function StateIndicator({ state, stateLabel, ratingCount = 0 }: S
       transition={{ duration: 0.3 }}
     >
       <div className="state-indicator-header">
-        <div className="state-indicator-badge">
-          <IconComponent size={12} />
-          <span>STATE {state} &middot; {config.label}</span>
-        </div>
-        {stateLabel && (
-          <span className="state-indicator-code">{stateLabel}</span>
-        )}
+        <p className="state-indicator-badge">
+          <IconComponent size={14} aria-hidden="true" />
+          <span>{config.label}</span>
+        </p>
       </div>
 
       <p className="state-indicator-desc">{config.description}</p>
       <p className="state-indicator-strategy">{config.strategy}</p>
 
-      <p className="state-indicator-action">
-        &rarr; {config.nextAction}
-      </p>
+      <p className="state-indicator-action">{config.nextAction}</p>
 
       {progress !== null && (
         <div className="state-progress">
           <div className="state-progress-label">
-            <span>Progress to next state</span>
-            <span>{Math.min(ratingCount, config.progressTarget!)} / {config.progressTarget} ratings</span>
+            <span>Next step</span>
+            <span>{Math.min(ratingCount, config.progressTarget!)} of {config.progressTarget} rating</span>
           </div>
-          <div className="state-progress-bar">
+          <div
+            className="state-progress-bar"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={config.progressTarget!}
+            aria-valuenow={Math.min(ratingCount, config.progressTarget!)}
+            aria-label="Ratings toward personalized recommendations"
+          >
             <motion.div
               className="state-progress-fill"
               initial={{ width: 0 }}
