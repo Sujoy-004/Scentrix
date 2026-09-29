@@ -55,7 +55,7 @@ const cardVariants = {
 export default function RecommendationsPage() {
   const router = useRouter();
   const recsQuery = useRecommendations();
-  const { data: recommendations, isLoading, error, state, stateLabel, isRefetching } = recsQuery as { data: FragranceRecommendation[] | undefined, isLoading: boolean, error: any, state: number | null, stateLabel: string | null, isRefetching: boolean };
+  const { data: recommendations, isLoading, error, state, isRefetching } = recsQuery as { data: FragranceRecommendation[] | undefined, isLoading: boolean, error: any, state: number | null, isRefetching: boolean };
   const { quizResponses } = useAppStore();
   const resetDeviceProfile = useAppStore((s) => s.resetDeviceProfile);
   const addToast = useToastStore((s) => s.addToast);
@@ -98,19 +98,19 @@ export default function RecommendationsPage() {
           style={{ padding: '3.5rem', textAlign: 'center', maxWidth: '34rem', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(244,187,146,0.1)', borderRadius: '2rem' }}
         >
           <div style={{ width: '4rem', height: '4rem', border: '1px solid rgba(244,187,146,0.2)', borderRadius: '50%', margin: '0 auto 2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <RotateCcw style={{ color: '#f4bb92', opacity: 0.6 }} size={32} />
+            <RotateCcw style={{ color: 'var(--color-primary)', opacity: 0.6 }} size={32} aria-hidden="true" />
           </div>
 
-          <h2 style={{ fontSize: '1.75rem', fontFamily: 'var(--font-display)', fontStyle: 'italic', color: '#fff', marginBottom: '1rem', letterSpacing: '-0.02em' }}>
-            {error ? "Neural Link Failed" : isColdStart ? "Neural Synthesis in Progress" : "Neural Sync Required"}
+          <h2 style={{ fontSize: '1.75rem', fontFamily: 'var(--font-display)', fontStyle: 'italic', color: 'var(--text-primary)', marginBottom: '1rem', letterSpacing: '-0.02em' }}>
+            {error ? "We couldn't load your matches" : isColdStart ? "Building your scent profile" : "Let's find your scent"}
           </h2>
 
-          <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '2.5rem', lineHeight: '1.7', fontSize: '0.95rem' }}>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '2.5rem', lineHeight: '1.7', fontSize: '0.95rem' }}>
             {error
-              ? "Failed to load recommendations. Please try again."
+              ? "Something went wrong on our end. Please try again."
               : isColdStart
-                ? "Your profile is being mapped across our 24,000 scents. This usually takes a moment on your first visit."
-                : "We couldn't detect your olfactory signature. Please complete the Discovery Protocol to begin."}
+                ? "Your profile is being matched across our 24,000 scents. This usually takes a moment on your first visit."
+                : "We couldn't tell what you like yet. Take the quiz and we'll build recommendations around your nose."}
           </p>
 
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
@@ -120,7 +120,7 @@ export default function RecommendationsPage() {
                 onClick={() => window.location.reload()}
                 style={{ borderRadius: '100px', padding: '0.75rem 2rem', fontSize: '0.8rem', letterSpacing: '0.1em' }}
               >
-                Verify Sync
+                Try again
               </button>
             )}
             <button
@@ -128,7 +128,7 @@ export default function RecommendationsPage() {
               onClick={() => router.push('/quiz')}
               style={{ borderRadius: '100px', padding: '0.75rem 2.5rem', fontSize: '0.8rem', letterSpacing: '0.1em' }}
             >
-              {isColdStart ? "Recalibrate" : "Enter Protocol"} <ArrowRight size={18} />
+              {isColdStart ? "Start over" : "Take the quiz"} <ArrowRight size={18} />
             </button>
           </div>
         </motion.div>
@@ -149,14 +149,14 @@ export default function RecommendationsPage() {
       subtitle: 'Browse top scents chosen by our community. Rate a few to get personalized recommendations.',
     },
     1: {
-      badge: 'Protocol Results Complete',
+      badge: 'Quiz Complete',
       title: 'Your Aromatic Constellation',
-      subtitle: 'Finely tuned matches based on your neural preferences and taste geography.',
+      subtitle: 'Finely tuned matches based on the notes and families you chose.',
     },
     2: {
       badge: 'Warm — Personalization Active',
       title: 'Your Evolving Selection',
-      subtitle: 'Feature-based matches refined from your rated scents.',
+      subtitle: 'Matches that keep learning from the scents you rate.',
     },
   };
 
@@ -190,17 +190,20 @@ export default function RecommendationsPage() {
         >
           <div className="flex items-center gap-4">
             <div className="banner-icon-pillar">
-              <Sparkles size={16} className="text-primary" />
+              <Sparkles size={16} className="rec-accent" aria-hidden="true" />
             </div>
             <div className="flex-1">
-              <h4 className="text-[0.7rem] uppercase tracking-widest font-bold text-white mb-0.5">Discovery Session</h4>
-              <p className="text-[0.6rem] text-white/50 leading-tight">{ratingCount === 0 ? "No sign-up needed. Take the quiz to build your scent profile." : "No sign-up needed. Rate a few more scents to refine your matches."}</p>
+              {/* Banner label, not a section heading: an <h4> here sat above the
+                  page <h1> and broke the outline. The page outline is now
+                  h1 (page title) → h2 (results) → h3 (each card). */}
+              <p className="text-sm font-bold rec-text mb-0.5">Discovery session</p>
+              <p className="rec-fs-xs rec-text-muted leading-snug">{ratingCount === 0 ? "No sign-up needed. Take the quiz to build your scent profile." : "No sign-up needed. Rate a few more scents to refine your matches."}</p>
             </div>
-            <div className="flex gap-2">
-              <button className="btn btn-primary px-8" onClick={() => router.push('/quiz')}>Take the Quiz</button>
+            <div className="flex items-center gap-4">
+              <button className="btn btn-primary px-8" onClick={() => router.push('/quiz')}>Take the quiz</button>
               {ratingCount > 0 && (
                 <button
-                  className="text-[0.6rem] uppercase tracking-widest font-bold text-white/30 hover:text-white/60 transition-colors px-2"
+                  className="btn-ghost"
                   onClick={() => {
                     if (window.confirm('Clear your scent profile and start over?')) {
                       resetDeviceProfile();
@@ -221,14 +224,14 @@ export default function RecommendationsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="recommendations-header"
         >
-          <div style={{ color: 'var(--color-primary)', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '1rem' }}>{header.badge}</div>
+          <div className="rec-accent rec-fs-xs font-bold uppercase tracking-[0.2em] mb-4">{header.badge}</div>
           <h1 className="font-display italic text-white mb-4">{header.title}</h1>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', maxWidth: '30rem', margin: '0 auto' }}>
+          <p className="rec-text-muted text-sm sm:text-base leading-relaxed max-w-xl mx-auto">
             {header.subtitle}
           </p>
         </motion.header>
 
-        <StateIndicator state={state} stateLabel={stateLabel} ratingCount={ratingCount} />
+        <StateIndicator state={state} ratingCount={ratingCount} />
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -237,8 +240,8 @@ export default function RecommendationsPage() {
           className="recommendations-stats-elite"
         >
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '2rem', fontFamily: 'var(--font-display)', color: '#fff' }}>{topMatches.length}</div>
-            <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700 }}>{ratingCount === 0 ? "Scents" : "Matches"}</div>
+            <div style={{ fontSize: '2rem', fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>{topMatches.length}</div>
+            <div className="rec-fs-xs rec-text-dim uppercase tracking-[0.15em] font-bold">{ratingCount === 0 ? "Scents" : "Matches"}</div>
           </div>
         </motion.div>
 
@@ -251,12 +254,16 @@ export default function RecommendationsPage() {
             className="flex items-center justify-center gap-3 mb-6 py-3 rounded-xl"
             style={{ background: 'rgba(244, 187, 146, 0.06)', border: '1px solid rgba(244, 187, 146, 0.12)' }}
           >
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            <span className="text-xs font-bold uppercase tracking-widest text-amber-400/70">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" aria-hidden="true" />
+            <span className="rec-fs-xs font-bold rec-accent">
               Refining your matches…
             </span>
           </motion.div>
         )}
+
+        {/* Card titles are <h3>, so give the results list a real <h2> to keep
+            the outline H1 → H2 → H3 instead of jumping H1 → H3. */}
+        <h2 id="recs-heading" className="sr-only">Recommended fragrances</h2>
 
         <AnimatePresence mode="wait">
           <motion.div
@@ -306,12 +313,16 @@ export default function RecommendationsPage() {
           >
             <button
               onClick={() => setShowExplain(!showExplain)}
-              className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/40 hover:text-white/60 transition-colors"
+              className="btn-ghost"
+              aria-expanded={showExplain}
+              aria-controls="recs-explainer"
             >
-              {showExplain ? '−' : '+'} How recommendations work
+              <span aria-hidden="true">{showExplain ? '−' : '+'}</span>
+              How recommendations work
             </button>
             {showExplain && (
               <motion.div
+                id="recs-explainer"
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 className="mt-4 p-5 rounded-2xl"
@@ -319,20 +330,20 @@ export default function RecommendationsPage() {
               >
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-sm">
                   <div>
-                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-amber-400/60 mb-2">1. Rate Scents</p>
-                    <p className="text-white/60 leading-relaxed text-xs">
+                    <p className="rec-accent rec-fs-xs font-bold mb-2">1. Rate scents</p>
+                    <p className="rec-text-muted leading-relaxed rec-fs-xs">
                       Every fragrance you rate — in the quiz or on the browse page — builds your taste profile. High ratings signal notes and accords you love.
                     </p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-amber-400/60 mb-2">2. We Find Matches</p>
-                    <p className="text-white/60 leading-relaxed text-xs">
+                    <p className="rec-accent rec-fs-xs font-bold mb-2">2. We find matches</p>
+                    <p className="rec-text-muted leading-relaxed rec-fs-xs">
                       Your profile is compared against our library using neural similarity and note matching. The more you rate, the sharper the match.
                     </p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-amber-400/60 mb-2">3. Refine Over Time</p>
-                    <p className="text-white/60 leading-relaxed text-xs">
+                    <p className="rec-accent rec-fs-xs font-bold mb-2">3. Refine over time</p>
+                    <p className="rec-text-muted leading-relaxed rec-fs-xs">
                       Each new rating refines your profile. The recommendation engine adapts — showing you less of what you dislike, more of what you love.
                     </p>
                   </div>
@@ -351,9 +362,9 @@ export default function RecommendationsPage() {
                   className="mt-6 p-5 rounded-2xl"
                   style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
                 >
-                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/30 mb-3">Your Taste Profile</p>
+                  <p className="rec-fs-xs rec-text-dim font-bold mb-3">Your taste profile</p>
                   {learning.highlights.map((h, i) => (
-                    <p key={i} className="text-xs text-white/60 leading-relaxed mb-1">• {h}</p>
+                    <p key={i} className="rec-fs-xs rec-text-muted leading-relaxed mb-1">• {h}</p>
                   ))}
                 </motion.div>
               ) : null;
