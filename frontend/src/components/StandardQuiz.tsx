@@ -433,7 +433,43 @@ export default function StandardQuiz() {
     );
   }
 
-  if (!currentFragrance) return <div className="quiz-empty-state">Neural link lost. Refreshing...</div>;
+  if (!currentFragrance) {
+    return (
+      <div className="quiz-empty-state">
+        {/* role=status so this is announced when the queue drains mid-session.
+            On first load the <h1> is what carries it. */}
+        <div className="quiz-empty-state__inner" role="status" aria-live="polite">
+          {/* Nothing here re-fetches on its own, so the old "Refreshing..."
+              copy was a false promise. The ring stays as a status cue and
+              Refresh becomes the thing that actually refreshes. */}
+          <div className="neural-spinner" aria-hidden="true">
+            <div className="spinner-ring" />
+            <div className="spinner-ring spinner-ring-inner" />
+          </div>
+          <h1 className="quiz-empty-state__title">Neural link lost</h1>
+          <p className="quiz-empty-state__body">
+            We couldn&rsquo;t reach the scent library. Refresh to try again, or head back to the homepage.
+          </p>
+          <div className="quiz-empty-state__actions">
+            <button
+              type="button"
+              className="btn-quiz-primary"
+              onClick={() => window.location.reload()}
+            >
+              Refresh
+            </button>
+            <button
+              type="button"
+              className="btn-quiz-meta"
+              onClick={() => router.push('/')}
+            >
+              Return to Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ── Rating Phase ───────────────────────────────────────────
   const palette = getFragrancePalette(currentFragrance);

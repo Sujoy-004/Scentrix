@@ -569,3 +569,90 @@
 .extension-accept {
   flex: 2;
 }
+
+/* ── Empty state — quiz catalogue unreachable ────────────────────────
+   This had no rule anywhere, so it rendered as an unstyled <div>: body
+   type at normal weight, sitting in normal flow at the top-left. That is
+   what made a full-page failure read as a stray line of small text on an
+   otherwise empty black viewport.
+
+   Outer geometry mirrors .navbar-container (max-width 1400 / padding 0 2rem),
+   so the block's left edge lands on the logo's gutter — x=52px at 1440 —
+   instead of hard against x=0. ── */
+.quiz-empty-state {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  /* <main> carries padding-top:64px to clear the fixed navbar, so a full
+     100dvh here overflows by exactly that and drops the message 64px below
+     centre. Subtract it to centre within the space that's actually left. */
+  min-height: calc(100dvh - var(--quiz-shell-offset, 64px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quiz-empty-state__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.25rem;
+  max-width: 34rem;
+  padding: 3rem 0;
+}
+
+.quiz-empty-state__title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--fs-3xl);
+  color: #fff;
+  margin-top: 0.5rem;
+}
+
+.quiz-empty-state__body {
+  color: var(--text-secondary);
+  font-size: var(--fs-md);
+  line-height: 1.7;
+  max-width: 26rem;
+}
+
+.quiz-empty-state__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+/* One primary + one escape hatch, so the state is never a dead end.
+   .btn-quiz-* sit at 0.7rem (11.2px) page-wide — untouched here, but the
+   buttons this state adds should not be born under the 12px floor. */
+.quiz-empty-state__actions .btn-quiz-primary,
+.quiz-empty-state__actions .btn-quiz-meta {
+  font-size: var(--fs-xs);
+}
+
+.quiz-empty-state__actions .btn-quiz-primary {
+  background: linear-gradient(135deg, #f4bb92, #d4956a);
+  color: #000;
+  box-shadow: 0 10px 40px rgba(244, 187, 146, 0.25);
+}
+
+.quiz-empty-state__actions .btn-quiz-meta {
+  padding: 1.15rem 2rem;
+  border-radius: 1.5rem;
+}
+
+/* This state can persist far longer than a normal load. A permanently
+   rotating ring is the classic vestibular trigger, and globals.css only
+   guards .scroll-reveal. Keep the ring drawn so it still reads as a
+   status indicator — just stop it moving. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner-ring,
+  .spinner-ring-inner {
+    animation: none;
+  }
+}
