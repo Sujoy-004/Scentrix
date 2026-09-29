@@ -160,6 +160,94 @@
   gap: 1.5rem;
 }
 
+/* =====================================================
+   SHARED TYPE + CONTROL TOKENS
+   Reuses the ramp already defined in globals.css, so this page
+   stays inside 4 text colours and a 12px type floor instead of
+   drifting into ad-hoc white/NN opacities and 9–11px text.
+   ===================================================== */
+
+.rec-text       { color: var(--text-primary); }
+.rec-text-muted { color: var(--text-secondary); }
+.rec-text-dim   { color: var(--text-muted); }
+.rec-accent     { color: var(--color-primary); }
+/* 12px floor. max() pins it: globals.css scales :root to 15px/14px on small
+   viewports, which would otherwise drag the token back under the floor. */
+.rec-fs-xs      { font-size: max(var(--fs-xs), 12px); }
+
+/* Tertiary action — the single borderless button style
+   (Clear profile, How recommendations work). */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  transition: color var(--transition-fast);
+}
+.btn-ghost:hover { color: var(--text-secondary); }
+
+/* Segmented rating control — one style for Dislike / Neutral / Love. */
+.rating-option {
+  flex: 1;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color var(--transition-fast),
+    border-color var(--transition-fast), color var(--transition-fast);
+}
+.rating-option:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+.rating-option[aria-pressed='true'] {
+  background: rgba(244, 187, 146, 0.18);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* Small chip button used on cards (Rated / remove rating). */
+.btn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 32px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+.btn-chip:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+}
+
+.btn-ghost:focus-visible,
+.rating-option:focus-visible,
+.btn-chip:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 /* Guest Banner styling */
 .guest-auth-banner-elite {
   background: rgba(255, 255, 255, 0.03);
@@ -168,6 +256,11 @@
   border-radius: 1.5rem;
   padding: 1.25rem 2rem;
   margin-bottom: 3rem;
+  /* Keep the explanation and its action in one readable group
+     instead of pushing them to opposite edges of a full-width bar. */
+  max-width: 58rem;
+  margin-left: auto;
+  margin-right: auto;
   position: relative;
   overflow: hidden;
 }
@@ -214,41 +307,33 @@
   gap: 0.5rem;
   padding: 0.25rem 0.75rem;
   border-radius: 100px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  font-size: 0.65rem;
+  border: 1px solid var(--color-outline);
+  font-size: var(--fs-xs);
   font-weight: 700;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--color-primary, #f4bb92);
-}
-
-.state-indicator-code {
-  font-size: 0.6rem;
-  color: rgba(255, 255, 255, 0.3);
-  font-family: monospace;
-  letter-spacing: 0.05em;
+  color: var(--color-primary);
 }
 
 .state-indicator-desc {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
   margin-bottom: 0.5rem;
   line-height: 1.5;
 }
 
 .state-indicator-strategy {
-  font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.35);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
   margin-bottom: 0.75rem;
-  font-family: monospace;
-  letter-spacing: 0.02em;
+  line-height: 1.5;
 }
 
 .state-indicator-action {
-  font-size: 0.7rem;
-  color: var(--color-primary, #f4bb92);
-  letter-spacing: 0.02em;
-  opacity: 0.8;
+  font-size: var(--fs-xs);
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+  line-height: 1.5;
 }
 
 .state-progress {
@@ -260,8 +345,8 @@
 .state-progress-label {
   display: flex;
   justify-content: space-between;
-  font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.5);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
   margin-bottom: 0.5rem;
 }
 
