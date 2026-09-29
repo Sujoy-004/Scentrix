@@ -30,15 +30,15 @@
 }
 
 .final-cta-subtitle {
-  font-size: 1.1rem;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
   margin-bottom: 3rem;
   line-height: 1.6;
 }
 
 .final-cta-button {
   padding: 1.25rem 2.5rem;
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   background: #f4bb92;
   color: #000;
@@ -71,10 +71,10 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.65rem;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
   letter-spacing: 0.15em;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
   font-weight: 700;
 }
 

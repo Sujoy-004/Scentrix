@@ -59,10 +59,10 @@
 
 .logo-text {
   font-family: var(--font-display);
-  font-size: 1.75rem;
+  font-size: var(--fs-2xl);
   font-style: italic;
   font-weight: 400;
-  color: #f6ede6;
+  color: var(--color-on-surface-var);
   letter-spacing: -0.02em;
 }
 
@@ -83,7 +83,7 @@
   position: relative;
   background: transparent;
   border: none;
-  color: color-mix(in srgb, #f6ede6 70%, transparent);
+  color: color-mix(in srgb, var(--color-on-surface-var) 70%, transparent);
   font-family: var(--font-body);
   font-size: 0.875rem;
   font-weight: 500;
@@ -96,7 +96,7 @@
 
 .nav-link-magnetic:hover,
 .nav-link-magnetic.active {
-  color: #f6ede6;
+  color: var(--color-on-surface-var);
 }
 
 .nav-link-underline {
@@ -162,7 +162,7 @@
   background: transparent;
   border: none;
   outline: none;
-  color: #f6ede6;
+  color: var(--color-on-surface-var);
   font-family: var(--font-body);
   font-size: 0.85rem;
   width: 140px;
@@ -174,7 +174,7 @@
 }
 
 .nav-search-input::placeholder {
-  color: rgba(246, 237, 230, 0.4);
+  color: var(--text-muted);
 }
 
 /* ── Profile Dropdown ── */
@@ -188,7 +188,7 @@
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
-  color: #f6ede6;
+  color: var(--color-on-surface-var);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -217,7 +217,7 @@
   border-radius: var(--radius-md);
   border: none;
   background: transparent;
-  color: color-mix(in srgb, #f6ede6 80%, transparent);
+  color: color-mix(in srgb, var(--color-on-surface-var) 80%, transparent);
   font-family: var(--font-body);
   font-size: 0.875rem;
   display: flex;
@@ -247,7 +247,7 @@
   display: none;
   background: transparent;
   border: none;
-  color: #f6ede6;
+  color: var(--color-on-surface-var);
   cursor: pointer;
   z-index: 1002;
 }
@@ -281,7 +281,7 @@
 .mobile-nav-link {
   background: transparent;
   border: none;
-  color: #f6ede6;
+  color: var(--color-on-surface-var);
   font-family: var(--font-display);
   font-size: 2.5rem;
   font-style: italic;
