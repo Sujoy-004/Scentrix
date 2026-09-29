@@ -58,7 +58,7 @@ export function HeroSection() {
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
               className="w-2 h-2 rounded-full bg-primary glow-amber"
             />
-            <span className="tracking-[0.4em] uppercase font-bold text-[0.65rem] text-primary/80 glow-amber">
+            <span className="tracking-[0.2em] uppercase font-bold text-primary/80 glow-amber">
               Neural Sommelier Protocol v2.0-REWIRED
             </span>
           </motion.div>
@@ -83,35 +83,42 @@ export function HeroSection() {
             </p>
           </motion.div>
 
-          {/* CTA Buttons */}
+          {/* CTA Buttons — one primary, one secondary, one tertiary link.
+              Three equal-weight buttons is Hick's Law bait. */}
           <motion.div 
             variants={itemVariants}
-            className="hero-buttons flex flex-wrap items-center justify-center gap-6"
+            className="hero-buttons flex flex-col items-center gap-6"
           >
+            <div className="flex flex-wrap items-center justify-center gap-6">
+              <motion.button
+                whileHover={{ scale: 1.05, y: -4 }}
+                whileTap={{ scale: 0.95 }}
+                className="btn btn-primary px-10 py-5 text-sm"
+                onClick={() => router.push('/quiz')}
+              >
+                Start Discovery <ArrowRight className="ml-2" size={18} />
+              </motion.button>
+              
+              <motion.button
+                whileHover={{ scale: 1.05, y: -4 }}
+                whileTap={{ scale: 0.95 }}
+                className="btn btn-outline px-10 py-5 text-sm"
+                onClick={() => router.push('/families')}
+              >
+                Browse Library <Search className="ml-2" size={18} />
+              </motion.button>
+            </div>
+
+            {/* Tertiary — a returning-visitor shortcut, so a link, not a peer button */}
             <motion.button
-              whileHover={{ scale: 1.05, y: -4 }}
-              whileTap={{ scale: 0.95 }}
-              className="btn btn-primary px-10 py-5 text-sm"
-              onClick={() => router.push('/quiz')}
-            >
-              Start Discovery <ArrowRight className="ml-2" size={18} />
-            </motion.button>
-            
-            <motion.button
-              whileHover={{ scale: 1.05, y: -4 }}
-              whileTap={{ scale: 0.95 }}
-              className="btn btn-outline px-10 py-5 text-sm"
-              onClick={() => router.push('/families')}
-            >
-              Browse Library <Search className="ml-2" size={18} />
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05, y: -4 }}
-              whileTap={{ scale: 0.95 }}
-              className="btn btn-outline px-10 py-5 text-sm"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="inline-flex items-center gap-2 text-sm tracking-[0.15em] uppercase
+                         text-[var(--text-secondary)] hover:text-primary
+                         underline underline-offset-4 transition-colors"
               onClick={() => router.push('/recommendations')}
             >
-              Browse Popular Picks <Sparkles className="ml-2" size={18} />
+              Browse Popular Picks <Sparkles size={14} />
             </motion.button>
           </motion.div>
 
@@ -134,7 +141,7 @@ export function HeroSection() {
         transition={{ delay: 2, duration: 1 }}
         className="scroll-hint absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
       >
-        <span className="text-[0.6rem] uppercase tracking-[0.3em] font-bold text-white/30">Scroll to descend</span>
+        <span className="text-[var(--fs-xs)] uppercase tracking-[0.3em] font-bold text-[var(--text-muted)]">Scroll to descend</span>
         <motion.div 
           animate={{ height: [40, 60, 40] }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
