@@ -150,6 +150,29 @@ npx wrangler dev --port 8790 --local   # then curl the routes
 3. Attach a custom domain under **Workers → Settings → Domains & Routes**.
 4. Add the custom domain to `ALLOWED_ORIGINS` too.
 
+### Removing Vercel
+
+Verified end state for this deployment:
+
+| Check | Result |
+|---|---|
+| Vercel project `scentrix` | `get_project` → **404 not found** — already deleted |
+| Projects in the account | one, and it is not Scentrix (`joblens-capstone-kiit0001`) |
+| Vercel GitHub App | **uninstalled** from the account |
+| Deployments ever recorded for this repo | one, from 2026-06-08, long superseded |
+
+`https://scentrix.vercel.app` still answers with an old build. That is a
+**stale CDN artefact of the deleted project**, not a live deployment: the
+project is gone, so Vercel has nothing to build or deploy, and the GitHub App
+that could have triggered a build is uninstalled. It ages out on its own; if
+you want it gone today, ask Vercel support to release the `vercel.app`
+subdomain.
+
+The GitHub App was uninstalled rather than scoped down to a repo list,
+because the other Vercel project is connected through a *different*
+installation — the account-level one never covered that repository, so
+removing it broke nothing.
+
 ---
 
 ## Environment variable reference
