@@ -32,12 +32,15 @@ RUN useradd -m -u 1000 appuser \
     && chown -R appuser:appuser /app
 USER appuser
 
-EXPOSE 8000
+# No EXPOSE here on purpose. The app binds $PORT, and the host decides what
+# that is (Render sets it to 10000, the local default is 8000). Declaring a
+# fixed port would only risk disagreeing with the port the app actually
+# listens on.
 
 # The API reports itself healthy even when the database is unreachable - the
 # catalog and the recommender are file-backed and keep working.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
 
-# Koyeb and most PaaS providers inject the port; 8000 is the local default.
+# Render and most PaaS providers inject the port; 8000 is the local default.
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

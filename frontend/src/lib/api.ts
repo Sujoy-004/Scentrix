@@ -1,15 +1,20 @@
 import axios, { type AxiosRequestConfig } from 'axios';
 
+import { useToastStore } from '@/stores/toast-store';
+
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-// A free-tier API scales to zero when idle, so the first request after a
-// quiet period pays for the wake-up. 20s leaves room for that without the
-// user staring at a spinner, and the retry below covers the gap.
-const REQUEST_TIMEOUT = 20_000;
+// The API runs on a free-tier host that scales to zero when idle. A warm
+// instance answers in ~50 ms; a cold one needs up to a minute to boot, and
+// the proxy holds the request open while that happens. So: try fast, and on
+// a timeout or a gateway error assume the instance is waking and try once
+// more with a generous timeout.
+const WARM_TIMEOUT = 10_000;
+const COLD_START_TIMEOUT = 80_000;
 
 const apiInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: REQUEST_TIMEOUT,
+  timeout: WARM_TIMEOUT,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -18,21 +23,38 @@ const apiInstance = axios.create({
 type RetriableConfig = AxiosRequestConfig & { __retried?: boolean };
 
 const RETRYABLE_STATUS = new Set([502, 503, 504]);
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 apiInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
     const status = error?.response?.status;
+    const code = error?.code;
+    const isTimeout = code === 'ECONNABORTED' || code === 'ETIMEDOUT';
     const isNetworkError = !error?.response;
-    const config = error?.config as RetriableConfig | undefined;
-    const shouldRetry =
-      (isNetworkError || (status && RETRYABLE_STATUS.has(status))) && !config?.__retried;
 
-    if (!shouldRetry || !config) {
+    const config = error?.config as RetriableConfig | undefined;
+    if (!config || config.__retried) {
+      throw error;
+    }
+
+    const mightBeWaking =
+      isTimeout || isNetworkError || (status && RETRYABLE_STATUS.has(status));
+    if (!mightBeWaking) {
       throw error;
     }
 
     config.__retried = true;
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    config.timeout = COLD_START_TIMEOUT;
+
+    useToastStore.getState().addToast({
+      message: 'Waking up the server - this can take up to a minute.',
+      type: 'info',
+      duration: 30_000,
+    });
+
+    await sleep(1500);
     return apiInstance.request(config);
   },
 );

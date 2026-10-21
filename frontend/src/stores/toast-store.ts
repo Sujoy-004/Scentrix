@@ -5,6 +5,8 @@ export interface Toast {
   message: string;
   type: 'success' | 'info' | 'error';
   action?: { label: string; onClick: () => void };
+  /** How long the toast stays up, in ms. Defaults to 4000. */
+  duration?: number;
 }
 
 interface ToastState {
@@ -20,11 +22,14 @@ export const useToastStore = create<ToastState>((set) => ({
     set((state) => ({
       toasts: [...state.toasts, { ...toast, id }],
     }));
-    setTimeout(() => {
-      set((state) => ({
-        toasts: state.toasts.filter((t) => t.id !== id),
-      }));
-    }, 4000);
+    setTimeout(
+      () => {
+        set((state) => ({
+          toasts: state.toasts.filter((t) => t.id !== id),
+        }));
+      },
+      toast.duration ?? 4000,
+    );
   },
   removeToast: (id) =>
     set((state) => ({

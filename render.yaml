@@ -1,0 +1,31 @@
+# Render Blueprint for the Scentrix API.
+#
+# Apply it from the Render dashboard:  New -> Blueprint -> pick this repo.
+# Render will prompt for DATABASE_URL when it creates the service.
+#
+# Why Render and not Koyeb: Koyeb's free tier was closed to new signups
+# after the Mistral AI acquisition (2026-02-17) - the free instance now
+# requires a paid plan and a card. Render's free tier needs no card and
+# allows commercial use.
+services:
+  - type: web
+    runtime: docker
+    name: scentrix-api
+    # The build context is the repository root, so the Dockerfile can copy
+    # backend/app and backend/requirements.txt.
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./
+    plan: free          # 0.1 CPU / 512 MB
+    region: frankfurt
+    branch: feature/free-tier-deploy
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      # Neon pooled connection string - the hostname must contain "-pooler".
+      # Render prompts for the value so it never enters the repository.
+      - key: DATABASE_URL
+        sync: false
+      # Comma-separated browser origins allowed to call the API. Must list
+      # the deployed frontend origin or every browser request is blocked.
+      - key: ALLOWED_ORIGINS
+        value: http://localhost:3000

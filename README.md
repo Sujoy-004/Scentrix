@@ -53,7 +53,7 @@ Minimal by design — a FastAPI backend that owns all the logic, a Next.js front
 - **Backend** — FastAPI, sync SQLAlchemy, SQLite or Postgres. Tables are created on startup; the quiz session store lives in the database, so a session survives a restart and is visible to every API instance.
 - **Frontend** — Next.js 16 (App Router), anonymous-first: the product never asks for an account. It talks to the API via `NEXT_PUBLIC_API_URL`, which is inlined at build time.
 - **ML artifacts** — a cleaned catalog JSON (4,559 fragrances) plus `[4559×64]` L2-normalized GraphSAGE embeddings, an ID index, and a `metadata.json` validation record shipped in `backend/app/data/`. No model is needed at serving time — only NumPy.
-- **No external infra at runtime** — no Neo4j, Redis, Supabase, Pinecone, or message queues. The only stateful dependency is the database, which the product flow barely uses; see [DEPLOYMENT.md](DEPLOYMENT.md) for a $0 three-tier deployment (Cloudflare Workers + Koyeb + Neon).
+- **No external infra at runtime** — no Neo4j, Redis, Supabase, Pinecone, or message queues. The only stateful dependency is the database, which the product flow barely uses; see [DEPLOYMENT.md](DEPLOYMENT.md) for a $0 three-tier deployment (Cloudflare Workers + Render + Neon).
 
 > **Auth is retired.** Login was removed from the product, so the `/auth/*` router no longer exists and the app starts without any JWT configuration. The app you see at `localhost:3000` is fully anonymous — catalog, quiz, and recommendations never require a token, so the frontend sends none. (Legacy Bearer-protected helpers on `/users/*` and the rating endpoints remain mounted but are never called.)
 
@@ -107,7 +107,7 @@ Open http://localhost:3000. The product is anonymous-only — no account, login,
 
 - **Backend** runs with no env file. `DATABASE_URL` defaults to a local SQLite file (`sqlite:///./scentrix.db`); point it at `postgresql://…` for a managed database. Authentication is retired from the product (no login), so no `JWT_SECRET_KEY` is required to start. `ALLOWED_ORIGINS` (comma-separated) sets the CORS allowlist — it defaults to localhost only, so it **must** be set in a deployed environment.
 - **Frontend** reads `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). Copy `frontend/.env.example` to `frontend/.env.local` only if you need to override it. It is inlined into the bundle at build time, so changing it means rebuilding.
-- **Deployment** — see [DEPLOYMENT.md](DEPLOYMENT.md) for the $0 Cloudflare Workers + Koyeb + Neon setup and the Vercel teardown.
+- **Deployment** — see [DEPLOYMENT.md](DEPLOYMENT.md) for the $0 Cloudflare Workers + Render + Neon setup and the Vercel teardown.
 
 ---
 
@@ -203,7 +203,7 @@ CLI args: `--epochs` (default 100), `--text-model` (default `all-MiniLM-L6-v2`),
 
 ```
 start.ps1                     # one-command dev launcher (backend + frontend)
-DEPLOYMENT.md                 # $0 deployment: Cloudflare Workers + Koyeb + Neon
+DEPLOYMENT.md                 # $0 deployment: Cloudflare Workers + Render + Neon
 backend/
 ├── app/
 │   ├── main.py               # FastAPI entry — mounts routers, /health, lifespan init
