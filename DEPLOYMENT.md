@@ -8,7 +8,7 @@ Target: **$0/month, no credit card required**, three free tiers.
 |---|---|
 | Frontend (Cloudflare Workers) | https://scentrix.iamsujoy004.workers.dev |
 | API (Render) | https://scentrix-api.onrender.com |
-| Database (Neon) | `ep-small-brook-b8hrtxs4-pooler.c-14.us-east-1.aws.neon.tech/neondb` |
+| Database (Neon) | `ep-…-pooler.c-14.us-east-1.aws.neon.tech/neondb` (the credentials live in Render's env var) |
 
 ```
 Browser ──► Cloudflare Workers  ──► FastAPI on Render   ──► Neon Postgres
