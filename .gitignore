@@ -56,6 +56,12 @@ DESIGN.md
 # interview study guide (private, not committed)
 study_guide/
 
+# HyperFrames / brag video build artifacts (regeneratable, large binaries)
+brag-output/
+brag-output-*/
+.brag/
+.archify/
+
 # regeneratable cold-start evaluation runs (default runner output)
 backend/ml/eval/runs/sessions/
 

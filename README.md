@@ -6,6 +6,38 @@ AI-driven fragrance discovery built for the cold-start problem: a 3-state "warmt
 
 ---
 
+## ✨ Try it live
+
+**[→ Open Scentrix](https://scentrix.iamsujoy004.workers.dev)**
+
+> Take the quiz, browse 4,559 fragrances by family, and get recommendations
+> that explain *why* each one was picked. It runs entirely on free tiers — no
+> signup, no account, no paywall.
+
+| | |
+|---|---|
+| **App** | https://scentrix.iamsujoy004.workers.dev |
+| **API** | https://scentrix-api.onrender.com (`/docs` for the OpenAPI explorer) |
+| **Health** | https://scentrix-api.onrender.com/health |
+
+<details>
+<summary>What you're looking at</summary>
+
+| | |
+|---|---|
+| **Frontend** | Next.js 16 on Cloudflare Workers (OpenNext adapter) — 5 static routes, 2 server-rendered |
+| **Backend** | FastAPI on Render Free (0.1 CPU / 512 MB, Frankfurt) |
+| **Database** | Neon Free Postgres (1 GB, scales to zero after 5 min idle) |
+| **Catalogue** | 4,559 fragrances with 64-dim GraphSAGE embeddings |
+
+The recommendation engine has three states — anonymous, cold and warm — and
+every one of them falls back to popularity if it fails, so the API never
+returns an empty list. The whole stack costs **$0/month** and needs no credit
+card. See [DEPLOYMENT.md](DEPLOYMENT.md) to run your own.
+</details>
+
+---
+
 ## What it does
 
 The system figures out how much it knows about a user and picks a matching recommendation strategy. That's the "warmth" state:
