@@ -18,7 +18,17 @@ _CATALOG_PATH = Path(__file__).resolve().parents[1] / "data" / "scentrix_master_
 
 _catalog_cache: list[dict[str, Any]] | None = None
 _catalog_map_cache: dict[str, dict[str, Any]] | None = None
+_catalog_version = 0
 _load_lock = threading.Lock()
+
+
+def get_catalog_version() -> int:
+    """Counter that changes whenever the catalog is (re)loaded.
+
+    Callers that cache derived results (filtered/sorted views) include this
+    in their cache key so a reload invalidates them automatically.
+    """
+    return _catalog_version
 
 
 def _normalize_id(raw_id: str) -> str:
@@ -55,7 +65,7 @@ def _hydrate(row: dict[str, Any]) -> dict[str, Any]:
 
 def get_catalog(force_reload: bool = False) -> list[dict[str, Any]]:
     """Return the hydrated catalog, loading from JSON once and caching."""
-    global _catalog_cache, _catalog_map_cache
+    global _catalog_cache, _catalog_map_cache, _catalog_version
     if _catalog_cache is not None and not force_reload:
         return _catalog_cache
 
@@ -67,6 +77,7 @@ def get_catalog(force_reload: bool = False) -> list[dict[str, Any]]:
             logger.error("Catalog SSOT not found: %s", _CATALOG_PATH)
             _catalog_cache = []
             _catalog_map_cache = {}
+            _catalog_version += 1
             return _catalog_cache
 
         try:
@@ -79,6 +90,7 @@ def get_catalog(force_reload: bool = False) -> list[dict[str, Any]]:
 
         _catalog_cache = catalog
         _catalog_map_cache = {str(item["id"]): item for item in catalog}
+        _catalog_version += 1
         logger.info("Loaded %d fragrances from %s", len(catalog), _CATALOG_PATH)
         return _catalog_cache
 

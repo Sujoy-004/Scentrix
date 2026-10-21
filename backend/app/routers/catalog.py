@@ -10,12 +10,18 @@ No Neo4j, no semantic /search, no interaction ingestion.
 from __future__ import annotations
 
 import logging
+from functools import lru_cache
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas.schemas import StandardResponse
-from app.services.catalog import _normalize_id, get_catalog as get_catalog_rows
+from app.services.catalog import (
+    _normalize_id,
+    get_catalog as get_catalog_rows,
+    get_catalog_map,
+    get_catalog_version,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/fragrances", tags=["fragrances"])
@@ -233,6 +239,39 @@ def _apply_sort(items: list[tuple[dict[str, Any], float]], sort: str | None) -> 
         items.sort(key=lambda item: item[0].get("rating_count") or 0, reverse=True)
 
 
+@lru_cache(maxsize=32)
+def _query_catalog(
+    q: str | None,
+    brand: str | None,
+    family: str | None,
+    accord: str | None,
+    sort: str | None,
+    version: int,
+) -> tuple[tuple[dict[str, Any], float], ...]:
+    """Filter and sort the catalog, memoised.
+
+    Filtering and sorting walks all 4,559 rows on every request. A free-tier
+    instance has a fraction of a vCPU, so that per-request scan is the single
+    largest cost in the API. The result depends only on the filter tuple, so
+    it is cached. ``version`` is part of the key and changes when the catalog
+    is reloaded, which invalidates the cache automatically.
+    """
+    del version  # only present to invalidate the cache on a catalog reload
+    rows = get_catalog_rows()
+    matched = _filter_rows(rows, q=q, brand=brand, family=family, accord=accord)
+
+    if q:
+        # q ranking is the primary order; only re-sort when a non-match sort is requested
+        if sort and sort != "match":
+            _apply_sort(matched, sort)
+        else:
+            _apply_sort(matched, "match")
+    else:
+        _apply_sort(matched, sort or "popular")
+
+    return tuple(matched)
+
+
 @router.get("/catalog", response_model=StandardResponse)
 def get_catalog(
     q: str | None = Query(None, min_length=1, max_length=100),
@@ -250,16 +289,16 @@ def get_catalog(
     if not rows:
         return {"status": "success", "data": {"items": [], "total": 0, "limit": limit, "offset": offset}}
 
-    matched = _filter_rows(rows, q=q, brand=brand, family=family, accord=accord)
-
-    if q:
-        # q ranking is the primary order; only re-sort when a non-match sort is requested
-        if sort and sort != "match":
-            _apply_sort(matched, sort)
-        else:
-            _apply_sort(matched, "match")
-    else:
-        _apply_sort(matched, sort or "popular")
+    matched = list(
+        _query_catalog(
+            q,
+            brand,
+            family,
+            accord,
+            sort,
+            get_catalog_version(),
+        )
+    )
 
     total = len(matched)
 
@@ -287,7 +326,7 @@ def get_catalog(
 def get_fragrance_detail(fragrance_id: str) -> StandardResponse:
     """Return a single fragrance by its canonical ``frag_`` id."""
     normalized = _normalize_id(fragrance_id)
-    catalog_map = {str(item["id"]): item for item in get_catalog_rows()}
+    catalog_map = get_catalog_map()
     row = catalog_map.get(normalized) or catalog_map.get(fragrance_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Fragrance not found")
