@@ -25,6 +25,7 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "python-multipart>=0.0.6",
     "numpy>=1.26.4,<2",
+    "psycopg2-binary>=2.9.9",
 ]
 
 [project.optional-dependencies]

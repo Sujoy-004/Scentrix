@@ -12,3 +12,7 @@ pydantic[email]>=2.0
 python-dotenv>=1.0.1
 python-multipart>=0.0.6
 numpy>=1.26.4,<2
+# Postgres driver for the managed free-tier database (Neon, Supabase, Koyeb).
+# The app uses a *sync* SQLAlchemy engine, so the URL must be
+# postgresql:// (psycopg2), not postgresql+asyncpg://.
+psycopg2-binary>=2.9.9

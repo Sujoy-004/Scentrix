@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.database import init_db
+from app.database import engine, ensure_schema
 from app.routers import catalog, quiz, recommendations, users
 from app.services.embeddings import gs_service
 
@@ -23,17 +23,23 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Create SQLite tables and initialise the GraphSAGE embedding cache."""
+    """Create the database schema and initialise the GraphSAGE embedding cache."""
     logger.info("Initializing Scentrix API...")
 
-    init_db()
-    logger.info("Database initialized: %s", settings.database_url)
+    if ensure_schema():
+        logger.info("Database initialized: %s", settings.database_url)
+    else:
+        # The catalog and the recommender are file-backed and still work.
+        logger.warning(
+            "Database unavailable at startup - catalog and recommendations "
+            "still work, but quiz sessions need the database."
+        )
 
     if gs_service.initialize():
         logger.info("GraphSAGE: embedding cache ready.")
     else:
         logger.warning(
-            "GraphSAGE: embedding cache unavailable — popularity fallback active."
+            "GraphSAGE: embedding cache unavailable - popularity fallback active."
         )
 
     logger.info("Scentrix API started successfully")
@@ -63,7 +69,11 @@ app.include_router(users.router)
 @app.get("/health", tags=["system"])
 async def health_check():
     """Health check endpoint."""
-    data = {"status": "ok", "database": "sqlite"}
+    data = {
+        "status": "ok",
+        "database": engine.dialect.name,
+        "database_ready": ensure_schema(),
+    }
     data["gs_embeddings"] = {"initialized": gs_service.initialized}
     return {"status": "success", "data": data}
 
