@@ -18,9 +18,11 @@ from fastapi import APIRouter, HTTPException, Query
 from app.schemas.schemas import StandardResponse
 from app.services.catalog import (
     _normalize_id,
-    get_catalog as get_catalog_rows,
     get_catalog_map,
     get_catalog_version,
+)
+from app.services.catalog import (
+    get_catalog as get_catalog_rows,
 )
 
 logger = logging.getLogger(__name__)

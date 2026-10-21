@@ -2,7 +2,7 @@
 
 AI-driven fragrance discovery built for the cold-start problem: a 3-state "warmth" machine that turns a handful of ratings into good recommendations using precomputed GraphSAGE embeddings and feature-based scoring.
 
-**One command to run. No Docker, no Postgres, no Redis, no Neo4j.**
+**One command to run. No Docker, no Redis, no Neo4j.**
 
 ---
 
@@ -44,15 +44,16 @@ Minimal by design — a FastAPI backend that owns all the logic, a Next.js front
 │  recommendations ·          │        │  recommendations · users     │
 │  families · fragrance detail│        │  (auth/* kept as legacy)     │
 └─────────────────────────────┘        │  dispatcher (3-state)        │
-                                       │  SQLite (users + ratings)    │
+                                       │  SQLite or Postgres          │
+                                       │  (users + ratings + quizzes) │
                                        │  precomputed embeddings (.npy)│
                                        └──────────────────────────────┘
 ```
 
-- **Backend** — FastAPI, sync SQLAlchemy, SQLite. Tables are created on startup; the quiz session store is a process-local dict (no Redis).
-- **Frontend** — Next.js (App Router), anonymous-first: the product never asks for an account. It talks to the API via `NEXT_PUBLIC_API_URL`.
+- **Backend** — FastAPI, sync SQLAlchemy, SQLite or Postgres. Tables are created on startup; the quiz session store lives in the database, so a session survives a restart and is visible to every API instance.
+- **Frontend** — Next.js 16 (App Router), anonymous-first: the product never asks for an account. It talks to the API via `NEXT_PUBLIC_API_URL`, which is inlined at build time.
 - **ML artifacts** — a cleaned catalog JSON (4,559 fragrances) plus `[4559×64]` L2-normalized GraphSAGE embeddings, an ID index, and a `metadata.json` validation record shipped in `backend/app/data/`. No model is needed at serving time — only NumPy.
-- **No external infra** — no Docker, Postgres, Neo4j, Redis, Supabase, Pinecone, or message queues.
+- **No external infra at runtime** — no Neo4j, Redis, Supabase, Pinecone, or message queues. The only stateful dependency is the database, which the product flow barely uses; see [DEPLOYMENT.md](DEPLOYMENT.md) for a $0 three-tier deployment (Cloudflare Workers + Koyeb + Neon).
 
 > **Auth is retired.** Login was removed from the product, so the `/auth/*` router no longer exists and the app starts without any JWT configuration. The app you see at `localhost:3000` is fully anonymous — catalog, quiz, and recommendations never require a token, so the frontend sends none. (Legacy Bearer-protected helpers on `/users/*` and the rating endpoints remain mounted but are never called.)
 
@@ -104,8 +105,9 @@ Open http://localhost:3000. The product is anonymous-only — no account, login,
 
 ### Environment
 
-- **Backend** runs with no env file. `DATABASE_URL` defaults to a local SQLite file (`sqlite:///./scentrix.db`). Authentication is retired from the product (no login), so no `JWT_SECRET_KEY` is required to start.
-- **Frontend** reads `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). Copy `frontend/.env.example` to `frontend/.env.local` only if you need to override it.
+- **Backend** runs with no env file. `DATABASE_URL` defaults to a local SQLite file (`sqlite:///./scentrix.db`); point it at `postgresql://…` for a managed database. Authentication is retired from the product (no login), so no `JWT_SECRET_KEY` is required to start. `ALLOWED_ORIGINS` (comma-separated) sets the CORS allowlist — it defaults to localhost only, so it **must** be set in a deployed environment.
+- **Frontend** reads `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). Copy `frontend/.env.example` to `frontend/.env.local` only if you need to override it. It is inlined into the bundle at build time, so changing it means rebuilding.
+- **Deployment** — see [DEPLOYMENT.md](DEPLOYMENT.md) for the $0 Cloudflare Workers + Koyeb + Neon setup and the Vercel teardown.
 
 ---
 
@@ -118,11 +120,11 @@ All responses use a `{status, data}` envelope; recommendation responses also inc
 | GET | `/fragrances/catalog` | Paginated catalog with search, brand/family/accord filters, sort | — |
 | GET | `/fragrances/{id}` | Single fragrance detail | — |
 | POST | `/fragrances/quiz/session/start` | Start a quiz session (seeds spanning olfactory families) | optional |
-| POST | `/fragrances/quiz/session/{id}/answer` | Record one answer (in-memory) | optional |
+| POST | `/fragrances/quiz/session/{id}/answer` | Record one answer (stored in the DB) | optional |
 | POST | `/fragrances/quiz/session/{id}/evaluate` | Compute confidence, decide if more questions are needed | optional |
 | GET | `/fragrances/quiz/session/{id}/next-questions` | Next extension questions (uncertainty/diversity ranked) | optional |
 | POST | `/fragrances/quiz/session/{id}/finalize` | Persist quiz ratings, mark quiz complete | legacy |
-| POST | `/fragrances/quiz/session/{id}/guest-finalize` | Finalize a guest quiz (no DB write) | optional |
+| POST | `/fragrances/quiz/session/{id}/guest-finalize` | Finalize a guest quiz (no rating write) | optional |
 | POST | `/recommendations/guest` | Guest recommendations through the 3-state dispatcher | — |
 | POST | `/recommendations/rate` | Save a single rating (1–10) | legacy |
 | POST | `/recommendations/batch-rate` | Save many ratings at once | legacy |
@@ -201,18 +203,19 @@ CLI args: `--epochs` (default 100), `--text-model` (default `all-MiniLM-L6-v2`),
 
 ```
 start.ps1                     # one-command dev launcher (backend + frontend)
+DEPLOYMENT.md                 # $0 deployment: Cloudflare Workers + Koyeb + Neon
 backend/
 ├── app/
 │   ├── main.py               # FastAPI entry — mounts routers, /health, lifespan init
-│   ├── config.py             # settings: DATABASE_URL, JWT_SECRET_KEY, CORS
-│   ├── database.py           # sync SQLAlchemy engine + session (SQLite)
-│   ├── models/models.py      # 2 tables: users, fragrance_ratings
+│   ├── config.py             # settings: DATABASE_URL, ALLOWED_ORIGINS (CORS)
+│   ├── database.py           # sync SQLAlchemy engine + session (SQLite or Postgres)
+│   ├── models/models.py      # 3 tables: users, fragrance_ratings, quiz_sessions
 │   ├── auth/
 │   │   ├── auth.py           # legacy bcrypt + JWT (retired; read lazily, never required)
 │   │   └── dependencies.py   # Bearer-token dependency (optional variant for quiz)
 │   ├── routers/
 │   │   ├── catalog.py        # /fragrances/catalog, /fragrances/{id}
-│   │   ├── quiz.py           # /fragrances/quiz/session/* (in-memory store)
+│   │   ├── quiz.py           # /fragrances/quiz/session/* (database-backed store)
 │   │   ├── recommendations.py# /recommendations/* routed via dispatcher
 │   │   └── users.py          # /users/profile, /users/preferences
 │   ├── schemas/schemas.py    # Pydantic request/response models
@@ -221,7 +224,8 @@ backend/
 │       ├── catalog.py        # loads + hydrates the JSON SSOT
 │       ├── embeddings.py     # numpy user-vector + KNN (no torch)
 │       ├── feature_based.py  # Jaccard note/accord scoring (warm state)
-│       └── popularity.py     # rating_count ranking (anonymous state)
+│       ├── popularity.py     # rating_count ranking (anonymous state)
+│       └── quiz_sessions.py  # persistent quiz session store
 │
 ├── app/data/                 # serving artifacts
 │   ├── scentrix_master_cleaned.json  # 4,559 fragrances (SSOT)
@@ -251,7 +255,7 @@ cd backend
 python -m pytest tests -q
 ```
 
-The backend suite (`python -m pytest tests -q` — 35 tests) covers the dispatcher state transitions, user-vector + KNN behavior, feature-based scoring, catalog loading, the quiz flow, and the public `/health` check.
+The backend suite (`python -m pytest tests -q` - 57 tests) covers the dispatcher state transitions, user-vector + KNN behavior, feature-based scoring, catalog loading and its query cache, the quiz flow and its persistent session store, database failure tolerance, CORS/env parsing, and the public `/health` check.
 
 ML/training tests (`python -m pytest ml/tests -q` — 185 tests, needs `pip install -e ".[ml]"`) cover the training pipeline, embedding-validation gates, and the cold-start evaluator and its oracle. The evaluator is also isolated as pure functions so it runs without the app or a database.
 
