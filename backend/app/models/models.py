@@ -101,3 +101,36 @@ class FragranceRating(Base):
             f"<FragranceRating(user_id={self.user_id}, "
             f"fragrance={self.fragrance_neo4j_id}, quiz_rating={self.quiz_rating})>"
         )
+
+
+class QuizSession(Base):
+    """An adaptive-quiz session, stored so it survives process restarts.
+
+    The quiz is a multi-request flow (start -> answer -> evaluate ->
+    next-questions -> finalize). Keeping it in a process-local dict meant a
+    session was invisible to any other instance, so the flow broke as soon as
+    the API ran on more than one worker. Persisting it makes the API
+    horizontally scalable.
+
+    ``payload`` holds the whole session state as JSON so the schema stays
+    stable while the quiz logic evolves. ``expires_at`` is authoritative for
+    the TTL; expired rows are removed on read.
+    """
+
+    __tablename__ = "quiz_sessions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=utc_now,
+        onupdate=utc_now,
+        nullable=False,
+    )
+
+    def __repr__(self) -> str:
+        return f"<QuizSession(id={self.id}, expires_at={self.expires_at})>"

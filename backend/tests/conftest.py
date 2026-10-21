@@ -17,7 +17,7 @@ if str(BACKEND_DIR) not in sys.path:
 
 from app.database import SessionLocal, init_db  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models.models import FragranceRating, User  # noqa: E402
+from app.models.models import FragranceRating, QuizSession, User  # noqa: E402
 from app.services.embeddings import gs_service  # noqa: E402
 
 TEST_EMAIL_PATTERN = "test-%@example.com"
@@ -40,7 +40,7 @@ def client():
 
 @pytest.fixture(autouse=True)
 def _cleanup_test_data():
-    """Remove test users and their ratings after every test."""
+    """Remove test users, their ratings and any quiz sessions after every test."""
     yield
     db = SessionLocal()
     try:
@@ -52,6 +52,7 @@ def _cleanup_test_data():
             ).delete(synchronize_session=False)
             for u in rows:
                 db.delete(u)
-            db.commit()
+        db.query(QuizSession).delete(synchronize_session=False)
+        db.commit()
     finally:
         db.close()

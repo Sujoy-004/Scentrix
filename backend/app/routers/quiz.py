@@ -1,8 +1,9 @@
-"""Adaptive quiz session endpoints (stateless in-memory session store).
+"""Adaptive quiz session endpoints (database-backed session store).
 
-Quiz sessions live in a process-local dict — no Redis, no DB writes except
-``finalize``/``guest-finalize`` (which upsert FragranceRating rows for
-authenticated users). Sessions are ephemeral across restarts.
+Quiz sessions are persisted so they survive a process restart and are visible
+to every API instance - the quiz is a multi-request flow, so a process-local
+store breaks the moment the backend runs on more than one worker. The store
+is the database; no Redis, no in-process state.
 """
 
 from __future__ import annotations
@@ -10,7 +11,7 @@ from __future__ import annotations
 import logging
 import random
 from collections import defaultdict
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from statistics import pstdev
 from uuid import uuid4
 
@@ -35,13 +36,19 @@ from app.schemas.schemas import (
     StandardResponse,
 )
 from app.services.catalog import _normalize_id, get_catalog
+from app.services.quiz_sessions import (
+    QUIZ_TTL,
+    create_session,
+    delete_session,
+    get_session,
+    save_session,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/fragrances/quiz/session", tags=["quiz"])
 
-# ── In-memory session store ────────────────────────────────────────────────────
-QUIZ_TTL = timedelta(minutes=30)
-_sessions: dict[str, dict] = {}
+# ── Session store ──────────────────────────────────────────────────────────────
+# Session persistence lives in app/services/quiz_sessions.py.
 
 
 def _now_iso() -> str:
@@ -50,32 +57,6 @@ def _now_iso() -> str:
 
 def quiz_expiry_utc() -> datetime:
     return datetime.now(UTC) + QUIZ_TTL
-
-
-def _create_session(session_id: str, payload: dict) -> None:
-    _sessions[session_id] = payload
-
-
-def _get_session(session_id: str) -> dict | None:
-    payload = _sessions.get(session_id)
-    if payload is None:
-        return None
-    try:
-        created = datetime.fromisoformat(payload.get("created_at", ""))
-        if datetime.now(UTC) - created > QUIZ_TTL:
-            _sessions.pop(session_id, None)
-            return None
-    except (ValueError, TypeError):
-        pass
-    return payload
-
-
-def _save_session(session_id: str, payload: dict) -> None:
-    _sessions[session_id] = payload
-
-
-def _delete_session(session_id: str) -> None:
-    _sessions.pop(session_id, None)
 
 
 # ── Constants ──────────────────────────────────────────────────────────────────
@@ -346,7 +327,7 @@ def start_quiz_session(
         "low_gain_streak": 0,
         "stop_reason": None,
     }
-    _create_session(session_id, payload)
+    create_session(db, session_id, payload)
 
     data = QuizSessionStartResponse(
         session_id=session_id,
@@ -362,11 +343,12 @@ def submit_quiz_answer(
     session_id: str,
     quiz_data: QuizSessionSubmitResponseRequest,
     user_id: int | None = Depends(get_optional_user_id),
+    db: Session = Depends(get_db),
 ) -> StandardResponse:
-    """Record one quiz answer in the in-memory session (no DB write)."""
+    """Record one quiz answer in the stored session."""
     effective_user_id = user_id if user_id is not None else 0
     session_payload = _require_owned_session(
-        _get_session(session_id), session_id, effective_user_id
+        get_session(db, session_id), session_id, effective_user_id
     )
 
     served_ids = [str(v) for v in (session_payload.get("served_ids") or [])]
@@ -399,7 +381,7 @@ def submit_quiz_answer(
     session_payload["served_ids"] = served_ids
     session_payload["responses"] = responses
     session_payload["updated_at"] = _now_iso()
-    _save_session(session_id, session_payload)
+    save_session(db, session_id, session_payload)
 
     data = QuizSessionSubmitResponseResponse(
         accepted=True,
@@ -414,11 +396,12 @@ def evaluate_quiz_session(
     session_id: str,
     request: QuizSessionEvaluateRequest,
     user_id: int | None = Depends(get_optional_user_id),
+    db: Session = Depends(get_db),
 ) -> StandardResponse:
     """Compute confidence and decide whether more questions are needed."""
     effective_user_id = user_id if user_id is not None else 0
     session_payload = _require_owned_session(
-        _get_session(session_id), session_id, effective_user_id
+        get_session(db, session_id), session_id, effective_user_id
     )
 
     catalog = get_catalog()
@@ -482,7 +465,7 @@ def evaluate_quiz_session(
     session_payload["low_gain_streak"] = low_gain_streak
     session_payload["stop_reason"] = stop_reason
     session_payload["updated_at"] = _now_iso()
-    _save_session(session_id, session_payload)
+    save_session(db, session_id, session_payload)
 
     data = QuizSessionEvaluateResponse(
         confidence_score=confidence_score,
@@ -501,11 +484,12 @@ def get_next_quiz_questions(
     session_id: str,
     count: int = Query(3, ge=1, le=5),
     user_id: int | None = Depends(get_optional_user_id),
+    db: Session = Depends(get_db),
 ) -> StandardResponse:
     """Return the next extension questions ranked by uncertainty/diversity."""
     effective_user_id = user_id if user_id is not None else 0
     session_payload = _require_owned_session(
-        _get_session(session_id), session_id, effective_user_id
+        get_session(db, session_id), session_id, effective_user_id
     )
 
     catalog = get_catalog()
@@ -593,7 +577,7 @@ def get_next_quiz_questions(
         merged_served = list(served_ids.union({question.fragrance_id for question in questions}))
         session_payload["served_ids"] = merged_served
         session_payload["updated_at"] = _now_iso()
-        _save_session(session_id, session_payload)
+        save_session(db, session_id, session_payload)
 
     data = QuizSessionNextQuestionsResponse(questions=questions, count=len(questions))
     return {"status": "success", "data": data}
@@ -606,7 +590,9 @@ def finalize_quiz_session(
     db: Session = Depends(get_db),
 ) -> StandardResponse:
     """Persist session responses as FragranceRating rows and mark quiz complete."""
-    session_payload = _require_owned_session(_get_session(session_id), session_id, user_id)
+    session_payload = _require_owned_session(
+        get_session(db, session_id), session_id, user_id
+    )
     responses = session_payload.get("responses") or []
 
     user = db.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
@@ -615,7 +601,7 @@ def finalize_quiz_session(
         if user and user.quiz_completed_at is None:
             user.quiz_completed_at = datetime.now(UTC).replace(tzinfo=None)
             db.commit()
-        _delete_session(session_id)
+        delete_session(db, session_id)
         return {"status": "success", "data": {"message": "No data to sync", "count": 0}}
 
     for res in responses:
@@ -652,7 +638,7 @@ def finalize_quiz_session(
         user.quiz_completed_at = datetime.now(UTC).replace(tzinfo=None)
 
     db.commit()
-    _delete_session(session_id)
+    delete_session(db, session_id)
     return {
         "status": "success",
         "data": {"count": len(responses), "message": "Quiz data synced to profile"},
@@ -665,10 +651,10 @@ def guest_finalize_quiz_session(
     user_id: int | None = Depends(get_optional_user_id),
     db: Session = Depends(get_db),
 ) -> StandardResponse:
-    """Finalize a quiz for guests (no DB write) or delegate to DB sync when authed."""
+    """Finalize a quiz for guests, or delegate to rating sync when authenticated."""
     effective_user_id = user_id if user_id is not None else 0
     session_payload = _require_owned_session(
-        _get_session(session_id), session_id, effective_user_id
+        get_session(db, session_id), session_id, effective_user_id
     )
 
     if user_id:
@@ -677,6 +663,6 @@ def guest_finalize_quiz_session(
     session_payload["finalized_at"] = _now_iso()
     session_payload["finalized"] = True
     session_payload["updated_at"] = _now_iso()
-    _save_session(session_id, session_payload)
+    save_session(db, session_id, session_payload)
 
     return {"status": "success", "data": {"message": "Guest quiz finalized"}}
