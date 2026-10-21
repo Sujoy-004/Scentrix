@@ -1,12 +1,41 @@
-import axios from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+// A free-tier API scales to zero when idle, so the first request after a
+// quiet period pays for the wake-up. 20s leaves room for that without the
+// user staring at a spinner, and the retry below covers the gap.
+const REQUEST_TIMEOUT = 20_000;
+
 const apiInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 60000,
+  timeout: REQUEST_TIMEOUT,
   headers: { 'Content-Type': 'application/json' },
 });
+
+// Retry once when the instance is waking up or the edge dropped the request.
+// 4xx is never retried - the request itself is wrong.
+type RetriableConfig = AxiosRequestConfig & { __retried?: boolean };
+
+const RETRYABLE_STATUS = new Set([502, 503, 504]);
+apiInstance.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const status = error?.response?.status;
+    const isNetworkError = !error?.response;
+    const config = error?.config as RetriableConfig | undefined;
+    const shouldRetry =
+      (isNetworkError || (status && RETRYABLE_STATUS.has(status))) && !config?.__retried;
+
+    if (!shouldRetry || !config) {
+      throw error;
+    }
+
+    config.__retried = true;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return apiInstance.request(config);
+  },
+);
 
 export const api = {
   get: apiInstance.get.bind(apiInstance),
