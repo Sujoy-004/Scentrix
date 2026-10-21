@@ -25,6 +25,9 @@ const eslintConfig = defineConfig([
     "playwright-report/**",
     "test-results/**",
     "tests/**",
+    // OpenNext/Cloudflare build output and local wrangler state.
+    ".open-next/**",
+    ".wrangler/**",
   ]),
 ]);
 

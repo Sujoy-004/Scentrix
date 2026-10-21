@@ -1,5 +1,12 @@
 import type { NextConfig } from "next";
 
+// Wires the dev server up to the Cloudflare Workers runtime so local `next
+// dev` and the deployed worker behave the same. Development only - a
+// production build must not depend on the wrangler platform proxy.
+if (process.env.NODE_ENV === "development") {
+  import("@opennextjs/cloudflare").then((m) => m.initOpenNextCloudflareForDev());
+}
+
 const nextConfig: NextConfig = {
   // Dev-only. Lets other devices on the LAN load HMR + the geist webfont
   // (otherwise both are blocked and the page renders with fallback fonts).
