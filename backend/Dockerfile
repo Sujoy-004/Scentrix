@@ -1,63 +1,43 @@
-# Stage 1: Builder
-FROM python:3.11-slim AS builder
-
-WORKDIR /app
-
-# Install system build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    build-essential \
-    python3-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Upgrade pip and install torch-cpu (saves ~2GB vs default torch)
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
-
-# Copy only dependency files
-COPY backend/pyproject.toml .
-COPY backend/README.md .
-
-# Install dependencies into /usr/local
-RUN pip install --no-cache-dir ".[runtime,ml]"
-
-# Stage 2: Final Image
+# Scentrix API - runtime image.
+#
+# Build context is the REPOSITORY ROOT (not backend/):
+#   docker build -f backend/Dockerfile -t scentrix-api .
+#
+# Runtime dependencies only. The training stack (torch, sentence-transformers)
+# lives in the "ml" extra of pyproject.toml and is NOT installed here - it
+# pulls in ~2.5 GB and is only needed to regenerate the embeddings.
 FROM python:3.11-slim
 
-WORKDIR /app
-
-# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
-    RUNNING_IN_DOCKER=true
+    PIP_NO_CACHE_DIR=1
 
-# Install runtime dependencies (curl for healthcheck)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
+WORKDIR /app
+
+# curl is used by the container health check.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy installed packages from builder (system-wide location)
-COPY --from=builder /usr/local /usr/local
+# Dependencies first so the layer is reused while app code changes.
+COPY backend/requirements.txt ./
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY backend/app app/
-COPY ml/data/scentrix_master.json ml/data/
-COPY ml/models ml/models
-COPY backend/alembic.ini .
+# Application code and the serving artifacts (catalog JSON + embeddings).
+COPY backend/app ./app
 
-# Ensure all files are world-readable/executable where needed
-RUN chmod -R 755 /usr/local/bin
-
-# Create non-root user
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
+RUN useradd -m -u 1000 appuser \
+    && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+# The API reports itself healthy even when the database is unreachable - the
+# catalog and the recommender are file-backed and keep working.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
+# Koyeb and most PaaS providers inject the port; 8000 is the local default.
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

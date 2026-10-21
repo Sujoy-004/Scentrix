@@ -1,0 +1,55 @@
+# Build context for the backend image.
+# The context is the repository root, so this keeps everything that is not
+# needed to run the API out of the image and out of the build cache.
+
+# Version control and CI
+.git
+.github
+.gitignore
+
+# Secrets and local config
+.env
+.env.*
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Python caches and tooling
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/htmlcov
+**/.coverage
+**/*.egg-info
+backend/venv
+**/venv
+**/.venv
+
+# The training and evaluation stack is not part of the runtime image.
+backend/ml
+backend/tests
+backend/scripts
+backend/train.py
+backend/alembic.ini
+backend/*.db
+backend/pytest.ini
+
+# Serving artifact that is only needed to retrain the embeddings.
+backend/app/data/text_embeddings.npy
+backend/app/data/text_embeddings.hash.json
+
+# The frontend is deployed separately (Cloudflare Workers).
+frontend
+
+# Not part of the application
+.archify
+.brag
+.opencode
+brag-output
+brag-output-*
+study_guide
+.playwright-report
+playwright-report
+test-results
