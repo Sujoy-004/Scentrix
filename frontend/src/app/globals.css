@@ -208,7 +208,13 @@
    BASE RESET & BODY
    ===================================================== */
 
-html, body, * {
+/* Tailwind's preflight already resets margin/padding/box-sizing on every
+   element — but it does so in @layer base, where utilities still win.
+   The `*` here was unlayered, so it outranked @layer utilities and silently
+   killed every margin/padding utility in the app (mx-auto, p-6, mb-2, ...).
+   Preflight covers the universal reset, so only html/body need it here. */
+html,
+body {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
