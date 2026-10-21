@@ -32,3 +32,29 @@ def test_database_url_reads_from_env(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite:////tmp/scentrix-test.db")
     settings = Settings(_env_file=None)
     assert settings.database_url == "sqlite:////tmp/scentrix-test.db"
+
+
+def test_bare_postgres_url_is_pinned_to_psycopg2(monkeypatch):
+    """SQLAlchemy 2.1 defaults a bare postgresql:// URL to psycopg3.
+
+    The app ships psycopg2, so a managed provider's URL must be rewritten or
+    the app dies at import time with "No module named 'psycopg'".
+    """
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql://user:pw@ep-abc-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require",
+    )
+    settings = Settings(_env_file=None)
+    assert settings.database_url.startswith("postgresql+psycopg2://")
+    assert "-pooler" in settings.database_url
+    assert "sslmode=require" in settings.database_url
+
+
+def test_explicit_driver_in_the_url_is_left_alone(monkeypatch):
+    for url in (
+        "postgresql+psycopg://user:pw@host/db",
+        "postgresql+asyncpg://user:pw@host/db",
+        "sqlite:///./local.db",
+    ):
+        monkeypatch.setenv("DATABASE_URL", url)
+        assert Settings(_env_file=None).database_url == url

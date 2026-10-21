@@ -18,6 +18,22 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./scentrix.db"
 
+    @field_validator("database_url")
+    @classmethod
+    def pin_postgres_driver(cls, value: str) -> str:
+        """Pin the Postgres driver instead of inheriting SQLAlchemy's default.
+
+        SQLAlchemy 2.1 changed the default driver for a bare ``postgresql://``
+        URL from psycopg2 to psycopg3. This app ships psycopg2, so on a fresh
+        install a bare URL - which is exactly what a managed Postgres provider
+        hands out - died at import time with "No module named 'psycopg'".
+        The URL is rewritten so the driver is explicit and the app behaves the
+        same on every SQLAlchemy version.
+        """
+        if value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+psycopg2://", 1)
+        return value
+
     # NoDecode stops pydantic-settings from json-decoding the env value before
     # the validator runs. Without it a comma-separated ALLOWED_ORIGINS raises
     # SettingsError ("error parsing value for field allowed_origins") because
