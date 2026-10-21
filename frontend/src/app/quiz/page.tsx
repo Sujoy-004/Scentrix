@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
+import { QuizSkeleton } from '@/components/skeleton/QuizSkeleton';
 import StandardQuiz from '@/components/StandardQuiz';
 import './quiz.css';
 
@@ -15,7 +15,7 @@ export default function QuizPage() {
   }, []);
 
   if (!isMounted) {
-    return <DiscoveryNeuralLoader title="Initializing Neural Core..." />;
+    return <QuizSkeleton />;
   }
 
   return <StandardQuiz />;

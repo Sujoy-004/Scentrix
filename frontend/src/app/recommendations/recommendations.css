@@ -5,15 +5,8 @@
   background: transparent;
 }
 
-.recommendations-loading {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: #000;
-  gap: 2rem;
-}
+/* .recommendations-loading was replaced by the skeleton system
+   (components/skeleton/RecommendationsSkeleton.tsx). */
 
 .recommendations-header {
   text-align: center;

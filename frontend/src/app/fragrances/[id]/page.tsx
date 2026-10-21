@@ -7,6 +7,7 @@ import { ArrowLeft, Sparkles } from 'lucide-react';
 import { api, type FragranceCatalogItem } from '@/lib/api';
 import { getFamilyAsset } from '@/lib/family-mapping';
 import { RatingControls } from '@/components/RatingControls';
+import { FragranceDetailSkeleton } from '@/components/skeleton/FragranceDetailSkeleton';
 
 const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 
@@ -62,18 +63,7 @@ export default function FragranceDetailPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center"
-        >
-          <div className="mx-auto w-10 h-10 mb-6 border border-amber-500/30 rounded-full animate-spin" style={{ borderTopColor: '#f4bb92' }} />
-          <p className="text-[10px] uppercase tracking-[0.3em] text-white/40">Loading fragrance...</p>
-        </motion.div>
-      </div>
-    );
+    return <FragranceDetailSkeleton />;
   }
 
   if (notFound || (!frag && !error)) {

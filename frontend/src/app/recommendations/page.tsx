@@ -14,8 +14,8 @@ import { useRecommendations } from '@/lib/hooks';
 import { useAppStore } from '@/stores/app-store';
 import { useToastStore } from '@/stores/toast-store';
 import { buildLearningSummary } from '@/lib/reason-engine';
-import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
 import { FragranceCard } from '@/components/FragranceCard';
+import { RecommendationsSkeleton } from '@/components/skeleton/RecommendationsSkeleton';
 import StateIndicator from '@/components/StateIndicator';
 import { getFragrancePalette } from '@/lib/quizTheme';
 import './recommendations.css';
@@ -77,11 +77,7 @@ export default function RecommendationsPage() {
 
   // ── Authenticated: loading state ──────────────────────────────────────────
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <DiscoveryNeuralLoader />
-      </div>
-    );
+    return <RecommendationsSkeleton />;
   }
 
   // ── Authenticated: error or no results (Cold Start Handling) ─────────────────

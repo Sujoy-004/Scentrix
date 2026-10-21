@@ -69,32 +69,8 @@
 
 /* ========== STATES ========== */
 
-.family-loader {
-  min-height: 60vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1.5rem;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.9rem;
-  letter-spacing: 0.05em;
-}
-
-.family-loader-spinner {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  border-top-color: var(--color-primary, #f4bb92);
-  animation: family-spin 0.9s linear infinite;
-}
-
-@keyframes family-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
+/* The family loader was replaced by the skeleton system
+   (components/skeleton/FamilyGridSkeleton.tsx). */
 
 .family-state {
   min-height: 60vh;

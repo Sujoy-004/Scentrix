@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { api, type FragranceCatalogItem } from '@/lib/api';
 import { getFamilyBySlug } from '@/lib/families';
 import { FragranceCard } from '@/components/FragranceCard';
+import { FamilyGridSkeleton } from '@/components/skeleton/FamilyGridSkeleton';
 import '../../recommendations/recommendations.css';
 import './family.css';
 
@@ -59,14 +60,7 @@ export default function FamilyPage() {
   }
 
   if (loading) {
-    return (
-      <div className="family-page">
-        <div className="family-loader">
-          <span className="family-loader-spinner" />
-          <p>Loading {family.name} fragrances…</p>
-        </div>
-      </div>
-    );
+    return <FamilyGridSkeleton />;
   }
 
   if (error) {

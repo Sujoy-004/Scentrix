@@ -376,36 +376,8 @@
 }
 
 /* ── Neural Spinner ────────────────────────────────────────────── */
-.neural-spinner {
-  position: relative;
-  width: 64px;
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.spinner-ring {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border: 1.5px solid transparent;
-  border-top-color: rgba(244, 187, 146, 0.6);
-  border-radius: 50%;
-  animation: spin 1.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-}
-
-.spinner-ring-inner {
-  width: 70%;
-  height: 70%;
-  border-top-color: rgba(244, 187, 146, 0.3);
-  animation-duration: 0.9s;
-  animation-direction: reverse;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+/* Replaced by the skeleton system (components/skeleton). The ring
+   spinner and its keyframes were removed with it. */
 
 /* ── Success Screen ────────────────────────────────────────────── */
 .success-phase {
@@ -646,13 +618,6 @@
   border-radius: 1.5rem;
 }
 
-/* This state can persist far longer than a normal load. A permanently
-   rotating ring is the classic vestibular trigger, and globals.css only
-   guards .scroll-reveal. Keep the ring drawn so it still reads as a
-   status indicator — just stop it moving. */
-@media (prefers-reduced-motion: reduce) {
-  .spinner-ring,
-  .spinner-ring-inner {
-    animation: none;
-  }
-}
+/* Loading motion is handled by the skeleton system, which disables its
+   own shimmer under prefers-reduced-motion (see app/skeleton.css). */
+

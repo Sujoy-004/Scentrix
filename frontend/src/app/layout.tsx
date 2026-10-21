@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
+import "./skeleton.css";
 import Navbar from "@/components/Navbar";
 import Providers from "@/components/Providers";
 import StringTuneManager from "@/components/StringTuneManager";

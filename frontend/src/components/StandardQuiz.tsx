@@ -8,7 +8,8 @@ import { useAppStore } from '@/stores/app-store';
 import { useAdaptiveQuizSession } from '@/lib/hooks';
 import { api } from '@/lib/api';
 import { getFragrancePalette } from '@/lib/quizTheme';
-import { DiscoveryNeuralLoader } from '@/components/DiscoveryNeuralLoader';
+import { Skeleton } from '@/components/skeleton/Skeleton';
+import { QuizSkeleton } from '@/components/skeleton/QuizSkeleton';
 import { buildLearningSummary } from '@/lib/reason-engine';
 import posthog from 'posthog-js';
 import '@/app/quiz/quiz.css';
@@ -256,9 +257,10 @@ export default function StandardQuiz() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <div className="neural-spinner">
-              <div className="spinner-ring" />
-              <div className="spinner-ring spinner-ring-inner" />
+            {/* A shimmering placeholder rather than a spinning ring — the
+                ring implied work in progress, which is what this is. */}
+            <div style={{ width: '3.5rem', height: '3.5rem' }}>
+              <Skeleton tone="accent-ghost" className="rounded-full w-full h-full" />
             </div>
             <h2 className="phase-title">Synthesizing Your Neural Profile</h2>
             <p className="phase-subtitle">
@@ -351,7 +353,7 @@ export default function StandardQuiz() {
   }
 
   // ── Bootstrap Phase ────────────────────────────────────────
-  if (isBootstrapping) return <DiscoveryNeuralLoader />;
+  if (isBootstrapping) return <QuizSkeleton />;
 
   const currentFragrance = fragrances[currentFragranceIndex];
 
@@ -440,12 +442,18 @@ export default function StandardQuiz() {
             On first load the <h1> is what carries it. */}
         <div className="quiz-empty-state__inner" role="status" aria-live="polite">
           {/* Nothing here re-fetches on its own, so the old "Refreshing..."
-              copy was a false promise. The ring stays as a status cue and
-              Refresh becomes the thing that actually refreshes. */}
-          <div className="neural-spinner" aria-hidden="true">
-            <div className="spinner-ring" />
-            <div className="spinner-ring spinner-ring-inner" />
-          </div>
+              copy was a false promise. A spinning ring on an error screen
+              implies work is still happening — it is a static marker instead. */}
+          <div
+            aria-hidden="true"
+            style={{
+              width: '3rem',
+              height: '3rem',
+              borderRadius: '50%',
+              border: '1px solid rgba(244, 187, 146, 0.25)',
+              background: 'rgba(244, 187, 146, 0.06)',
+            }}
+          />
           <h1 className="quiz-empty-state__title">Neural link lost</h1>
           <p className="quiz-empty-state__body">
             We couldn&rsquo;t reach the scent library. Refresh to try again, or head back to the homepage.

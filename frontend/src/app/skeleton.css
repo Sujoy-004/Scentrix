@@ -1,0 +1,247 @@
+/* ============================================================
+   SKELETON LOADING SYSTEM
+   ------------------------------------------------------------
+   Visual language derived from the Stitch design system
+   "Scentrix — Obsidian & Essence"
+   (assets/0701d1b8d2f44b678ef4973390a8c6b1).
+
+   Every block is a low-fidelity placeholder: no text, no images,
+   no icons. Dim gradients, hairline borders, a faint amber tint on
+   the accent blocks, and a slow diagonal sheen that sweeps across.
+   The screens mirror their real counterparts 1:1 so swapping the
+   skeleton for real content causes zero layout shift.
+   ============================================================ */
+
+/* ---------- Block primitives ---------- */
+
+.sk-block {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.035) 0%,
+    rgba(255, 255, 255, 0.07) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.sk-block--accent {
+  background: linear-gradient(
+    180deg,
+    rgba(244, 187, 146, 0.09) 0%,
+    rgba(244, 187, 146, 0.14) 100%
+  );
+  border-color: rgba(244, 187, 146, 0.22);
+}
+
+.sk-block--accent-ghost {
+  background: linear-gradient(
+    180deg,
+    rgba(244, 187, 146, 0.04) 0%,
+    rgba(244, 187, 146, 0.08) 100%
+  );
+  border-color: rgba(244, 187, 146, 0.15);
+}
+
+/* ---------- 3.2s ethereal diagonal shimmer sweep ---------- */
+
+.sk-block::after {
+  content: "";
+  position: absolute;
+  top: -150%;
+  left: -150%;
+  width: 400%;
+  height: 400%;
+  background: linear-gradient(
+    125deg,
+    transparent 25%,
+    rgba(244, 187, 146, 0.07) 48%,
+    rgba(255, 255, 255, 0.11) 50%,
+    rgba(244, 187, 146, 0.07) 52%,
+    transparent 75%
+  );
+  transform: translate3d(-45%, -45%, 0);
+  animation: sk-sweep 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+/* Dense clusters of tiny blocks opt out — a sweep on every 8px bar
+   is visual noise and costs a composited layer per element. */
+.sk-block--flat::after {
+  content: none;
+}
+
+@keyframes sk-sweep {
+  from {
+    transform: translate3d(-45%, -45%, 0);
+  }
+  to {
+    transform: translate3d(45%, 45%, 0);
+  }
+}
+
+/* ---------- Card shell (mirrors .fragrance-card-elite) ---------- */
+
+.sk-frame {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* ---------- Image well + bottle silhouette ---------- */
+/* The catalogue images are all perfume bottles, so the placeholder draws a
+   bottle. A flat empty rectangle reads as "broken", a bottle reads as
+   "a photo is coming". */
+
+.sk-media {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      ellipse 70% 55% at 50% 58%,
+      rgba(255, 255, 255, 0.075) 0%,
+      rgba(255, 255, 255, 0.015) 55%,
+      transparent 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.085) 100%
+    );
+}
+
+.sk-media::after {
+  content: "";
+  position: absolute;
+  top: -150%;
+  left: -150%;
+  width: 400%;
+  height: 400%;
+  background: linear-gradient(
+    125deg,
+    transparent 25%,
+    rgba(244, 187, 146, 0.06) 48%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(244, 187, 146, 0.06) 52%,
+    transparent 75%
+  );
+  transform: translate3d(-45%, -45%, 0);
+  animation: sk-sweep 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+.sk-bottle {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 0.5rem;
+  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.55));
+}
+
+.sk-bottle-cap {
+  width: 2rem;
+  height: 1rem;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.sk-bottle-neck {
+  width: 1rem;
+  height: 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sk-bottle-body {
+  width: 3.5rem;
+  height: 4.5rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* ---------- Ambient page-level sheen ---------- */
+
+.sk-sheen {
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    transparent 42%,
+    rgba(255, 255, 255, 0.018) 47%,
+    rgba(244, 187, 146, 0.045) 50%,
+    rgba(255, 255, 255, 0.02) 53%,
+    transparent 58%,
+    transparent 100%
+  );
+  transform: translate3d(-30%, -30%, 0) rotate(5deg);
+  animation: sk-sheen-sweep 7.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes sk-sheen-sweep {
+  from {
+    transform: translate3d(-30%, -30%, 0) rotate(5deg);
+  }
+  to {
+    transform: translate3d(30%, 30%, 0) rotate(5deg);
+  }
+}
+
+/* ---------- Breathing pulse ---------- */
+
+@keyframes sk-pulse {
+  0%,
+  100% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}
+
+.sk-pulse {
+  animation: sk-pulse 4s ease-in-out infinite;
+}
+
+.sk-delay-1 {
+  animation-delay: 0.4s;
+}
+
+.sk-delay-2 {
+  animation-delay: 0.9s;
+}
+
+.sk-delay-3 {
+  animation-delay: 1.4s;
+}
+
+/* ---------- Reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .sk-block::after,
+  .sk-media::after,
+  .sk-sheen,
+  .sk-pulse {
+    animation: none;
+  }
+
+  .sk-sheen {
+    display: none;
+  }
+}
