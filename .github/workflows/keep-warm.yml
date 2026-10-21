@@ -1,0 +1,49 @@
+name: Keep the API warm
+
+# Render's free plan spins an instance down after 15 minutes of inactivity and
+# takes roughly a minute to boot again. The frontend already handles that
+# gracefully (it retries and tells the user the server is waking), but a
+# visitor landing on a sleeping instance waits ~60s for the first response.
+#
+# Pinging /health every 16 minutes keeps the instance up. The interval is
+# deliberately longer than the 15-minute sleep, so a missed or delayed run
+# still leaves the service asleep rather than costing a full restart - and
+# shorter intervals do not help, because the service only sleeps when it is
+# idle for longer than the sleep window.
+#
+# The ping itself is billed against Render's 750 free instance-hours per
+# month, so the schedule is tuned to stay well inside that budget.
+
+on:
+  schedule:
+    # Every 16 minutes.
+    - cron: "*/16 * * * *"
+  # Allow a manual run from the Actions tab.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keep-warm
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    name: Ping the API
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: GET /health
+        # The instance can take ~60s to boot, so allow a generous timeout.
+        run: |
+          set -euo pipefail
+          url="https://scentrix-api.onrender.com/health"
+          code=$(curl -sS -o /tmp/health.json -w '%{http_code}' --max-time 90 "$url" || true)
+          echo "HTTP $code from $url"
+          if [ "$code" != "200" ]; then
+            echo "::warning::The API did not answer 200 (got '$code'). It may be asleep or rebuilding."
+            exit 0
+          fi
+          cat /tmp/health.json
+          echo
