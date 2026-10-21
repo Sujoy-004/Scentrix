@@ -17,7 +17,7 @@ services:
     dockerContext: ./
     plan: free          # 0.1 CPU / 512 MB
     region: frankfurt
-    branch: feature/free-tier-deploy
+    branch: main
     healthCheckPath: /health
     autoDeployTrigger: commit
     envVars:
