@@ -2,6 +2,14 @@
 
 Target: **$0/month, no credit card required**, three free tiers.
 
+**This deployment is live:**
+
+| | URL |
+|---|---|
+| Frontend (Cloudflare Workers) | https://scentrix.iamsujoy004.workers.dev |
+| API (Render) | https://scentrix-api.onrender.com |
+| Database (Neon) | `ep-small-brook-b8hrtxs4-pooler.c-14.us-east-1.aws.neon.tech/neondb` |
+
 ```
 Browser ──► Cloudflare Workers  ──► FastAPI on Render   ──► Neon Postgres
            (Next.js 16, static      (0.1 CPU / 512 MB,     (1 GB, scales to
@@ -111,6 +119,29 @@ In the Cloudflare dashboard: **Workers & Pages → Create → Import from GitHub
 `NEXT_PUBLIC_API_URL` is a **build** variable, not a runtime one. Changing it
 requires a rebuild.
 
+#### The Next.js version is pinned on purpose
+
+`next` is pinned to **16.3.8** in `package.json`, and `@opennextjs/cloudflare`
+to **1.20.9**.
+
+- Next **16.4** introduced a `preview-props.json` server manifest. The
+  OpenNext adapter's `loadManifest` does not know that path, so the worker
+  throws `Unexpected loadManifest(/.next/server/preview-props.json) call!`
+  and every request returns **Error 1101**. The adapter releases predate
+  Next 16.4, so the fix is to stay on 16.3.x until OpenNext supports it.
+- OpenNext 1.20.10+ pulls in a vulnerable `@node-minify/core`, so 1.20.9 is
+  the newest safe version. It supports `next >= 16.3.8`, which is why the
+  Next version is pinned to exactly that.
+
+Test the worker locally before deploying — it is a 30-second loop and it
+catches exactly this class of failure:
+
+```bash
+cd frontend
+npx opennextjs-cloudflare build
+npx wrangler dev --port 8790 --local   # then curl the routes
+```
+
 ### After the first deploy
 
 1. Note the worker URL, e.g. `https://scentrix.<subdomain>.workers.dev`.
@@ -127,9 +158,14 @@ requires a rebuild.
 
 | Variable | Required | Default | Notes |
 |---|---|---|---|
-| `DATABASE_URL` | **yes in production** | `sqlite:///./scentrix.db` | `postgresql://…` for Neon, `sqlite:////tmp/scentrix.db` for a throwaway container |
+| `DATABASE_URL` | **yes in production** | `sqlite:///./scentrix.db` | `postgresql://…` for Neon, `sqlite:////tmp/scentrix.db` for a throwaway container. The driver is pinned to psycopg2 in `config.py`, so a bare `postgresql://` URL from any provider works as-is. |
 | `ALLOWED_ORIGINS` | **yes in production** | localhost only | comma-separated browser origins |
 | `JWT_SECRET_KEY` | no | — | only the retired `/users/*` and rating endpoints use it |
+
+> **The database is on the critical path for the quiz.** If Neon is down, the
+> catalog and the recommendations still work, but the quiz fails. This is
+> deliberate: the product flow stores nothing, so a database outage degrades
+> one feature instead of the whole site.
 
 ### Frontend (Cloudflare build)
 

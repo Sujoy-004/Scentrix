@@ -28,4 +28,4 @@ services:
       # Comma-separated browser origins allowed to call the API. Must list
       # the deployed frontend origin or every browser request is blocked.
       - key: ALLOWED_ORIGINS
-        value: http://localhost:3000
+        value: http://localhost:3000,https://scentrix.iamsujoy004.workers.dev
